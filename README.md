@@ -49,6 +49,24 @@ npm run dev                   # http://localhost:3000
 Filtros por URL: `marca`, `precio_min`, `precio_max`, `disponible=1`, `a_<atributo>` (atributos marcados como filtrables), `orden`, `pagina`.
 El nombre de la tienda se cambia en `src/lib/site.ts`.
 
+## Panel de administración
+
+Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver `src/modules/auth/rbac.ts`).
+
+| Ruta | Qué permite | Permiso |
+|---|---|---|
+| `/admin` | Indicadores, variantes a reponer y actividad reciente | staff |
+| `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros | `catalog:read` |
+| `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes, SEO | `catalog:write` |
+| `/admin/categorias`, `/admin/marcas`, `/admin/atributos` | Árbol de categorías, marcas y definiciones de atributos | `catalog:write` |
+| `/admin/usuarios` | Usuarios del staff, roles, contraseñas | `users:manage` (Super Admin) |
+| `/admin/auditoria` | Quién cambió qué y cuándo | `audit:read` |
+
+- El stock se ve pero no se edita en el panel: el stock inicial de una variante nueva queda como movimiento `INITIAL_STOCK`; los ajustes llegan en la FASE 4.
+- Descripciones con formato básico: `**negrita**`, `*cursiva*`, listas `- ` / `1. ` y títulos `## `.
+- Imágenes: JPG, PNG, WebP o AVIF, máx. 5 MB c/u, guardadas en `UPLOAD_DIR` (por defecto `./uploads`, fuera del repositorio). **En producción, montar esa carpeta en un volumen persistente.**
+- Lo que tiene historial (stock, ventas, productos asociados) no se elimina: se desactiva.
+
 ## Documentación
 
 - [Arquitectura y decisiones](docs/ARQUITECTURA.md)
@@ -58,7 +76,7 @@ El nombre de la tienda se cambia en `src/lib/site.ts`.
 
 - [x] FASE 1 — Arquitectura y base de datos
 - [x] FASE 2 — Catálogo, productos, categorías y marcas
-- [ ] FASE 3 — Panel administrativo
+- [x] FASE 3 — Panel administrativo
 - [ ] FASE 4 — Inventario y movimientos
 - [ ] FASE 5 — Carrito y pedidos
 - [ ] FASE 6 — Checkout

@@ -7,6 +7,8 @@ const schema = z.object({
   APP_URL: z.string().url().default("http://localhost:3000"),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   RESERVATION_TTL_MINUTES: z.coerce.number().int().positive().default(30),
+  /** Carpeta de imágenes subidas desde el panel (almacenamiento local). */
+  UPLOAD_DIR: z.string().min(1).default("./uploads"),
 });
 
 export const env = schema.parse(process.env);

@@ -1,6 +1,6 @@
 # Plataforma e-commerce (Chile) — Análisis técnico y arquitectura propuesta
 
-Estado: **aprobada** (2026-10-05). FASE 1 y FASE 2 implementadas.
+Estado: **aprobada** (2026-10-05). FASE 1, 2 y 3 implementadas.
 
 ## 1. Entorno existente
 
@@ -148,7 +148,7 @@ Adaptadores:
 - Imágenes: interfaz de almacenamiento con adaptador local (dev) y S3-compatible (prod).
 
 ## 11. Seguridad (resumen)
-Zod en front y back; Prisma parametrizado; React escapa por defecto (sin `dangerouslySetInnerHTML` con datos de usuario; descripciones en Markdown sanitizado); server actions con verificación de origen (CSRF) y cookies `SameSite`; Argon2id; rate limit en login; secretos solo en variables de entorno validadas al arrancar; claves de pago nunca en el frontend; cabeceras de seguridad (CSP, HSTS).
+Zod en el servidor y restricciones HTML en el navegador; consultas parametrizadas (Drizzle); React escapa por defecto (sin `dangerouslySetInnerHTML` con datos de usuario; descripciones en Markdown básico convertido a elementos React); server actions con verificación de origen (CSRF) y cookies `SameSite`; Argon2id; rate limit en login; secretos solo en variables de entorno validadas al arrancar; claves de pago nunca en el frontend; cabeceras de seguridad (CSP, HSTS).
 
 ## 12. Riesgos técnicos y de negocio
 
@@ -187,5 +187,14 @@ Zod en front y back; Prisma parametrizado; React escapa por defecto (sin `danger
 - **FASE 2 — Páginas del catálogo dinámicas, sin caché.** Stock y precios siempre al día; las consultas son baratas con los índices. Se agrega `"use cache"` + revalidación al editar cuando el tráfico lo justifique (marcado con `ponytail:` en `src/app/(store)/layout.tsx`).
 - **FASE 2 — Filtros y variantes por URL, sin JavaScript obligatorio.** Los filtros son un formulario GET (`?marca=…&a_aroma=…&precio_min=…&disponible=1&orden=…&pagina=…`) y la variante elegida va en `?variante=SKU`. Toda vista es enlazable, indexable y funciona sin JS; un componente cliente mínimo solo autoenvía el formulario en escritorio.
 - **FASE 2 — Precio por unidad de medida** (por L, kg, m o c/u) calculado desde `net_content × units_per_pack`, mostrado en el fleje de precio. Sin columnas nuevas.
-- **FASE 2 — Descripción como texto plano** (React escapa). El Markdown sanitizado llega con el editor del panel (FASE 3).
+- **FASE 2 — Descripción como texto plano** (React escapa). Reemplazado en FASE 3 por Markdown básico (ver abajo).
 - **FASE 2 — Tailwind v4 y tipografía Archivo vía `@fontsource`** (npm), no Google Fonts: el build no depende de descargar fuentes de un servidor externo.
+- **FASE 3 — Panel en `/admin` con server actions, sin API REST.** Cada página llama `requireStaffPage(permiso)` y cada acción `requirePermission(permiso)`: el layout del panel solo arma el menú (Next no re-ejecuta layouts al navegar, así que no sirve como control de acceso). Las acciones validan con Zod, llaman al servicio del módulo y devuelven `FormState` (errores por campo + valores enviados, nunca contraseñas) para no perder lo escrito.
+- **FASE 3 — Auditoría en la misma transacción.** Todos los servicios de escritura (`src/modules/*/admin.ts`, `auth/users.ts`, `catalog/attributes.ts`) registran `audit_logs` con valores antes/después dentro de su `db.transaction`. El hash de contraseña nunca se audita.
+- **FASE 3 — `applyMovement()` adelantado de la FASE 4.** El stock inicial de una variante nueva se registra como movimiento `INITIAL_STOCK` a través de la única puerta de stock (`src/modules/inventory`). En el panel el stock es solo lectura; los ajustes manuales, compras y el historial llegan en la FASE 4.
+- **FASE 3 — Borrar solo lo que no tiene historial.** Las FK `RESTRICT` de movimientos y pedidos impiden eliminar productos/variantes con stock o ventas, categorías con productos o subcategorías y marcas con productos; el panel lo traduce a un mensaje y ofrece desactivar. La variante por defecto no se borra.
+- **FASE 3 — Markdown básico propio (`src/lib/markdown.tsx`) en vez de una librería.** Párrafos, títulos, listas, negrita y cursiva convertidos a elementos React: sin HTML crudo ni enlaces, así que no hay nada que sanitizar. ~60 líneas y un test; se cambia por `react-markdown` si se necesitan enlaces o tablas.
+- **FASE 3 — Imágenes en disco local** (`UPLOAD_DIR`, servidas por `/media/[name]`; `/public` solo sirve lo que existía al compilar). Tipo validado por los bytes (JPG/PNG/WebP/AVIF, sin SVG), 5 MB por imagen, nombres UUID (sin rutas del usuario), `next/image` restringido a `/media/**`. En producción requiere un volumen persistente; el adaptador S3 va en la misma interfaz (`saveImage`/`readImage`/`deleteImageFile`) cuando exista el bucket.
+- **FASE 3 — Límite de intentos de login en memoria** (5 fallos por IP+email y 30 por IP, ventana de 15 min). Suficiente con una instancia; pasa a BD/Redis si se escala. La IP sale de `x-forwarded-for`: definir el proxy confiable al desplegar (FASE 8).
+- **FASE 3 — Gestión de usuarios solo del staff** y solo para `SUPER_ADMIN`. Nadie cambia su propio rol ni se desactiva (siempre queda al menos un super administrador). Cambiar rol, desactivar o cambiar contraseña cierra las sesiones del usuario.
+- **FASE 3 — Cambiar un slug rompe los enlaces antiguos.** El panel lo advierte; redirecciones 301 desde slugs anteriores se agregan si el SEO lo requiere (FASE 8).

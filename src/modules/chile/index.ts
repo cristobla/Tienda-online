@@ -50,3 +50,10 @@ export function netFromGross(gross: number): { net: number; iva: number } {
   const net = Math.round(gross / (1 + IVA_RATE));
   return { net, iva: gross - net };
 }
+
+const dateTime = new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeStyle: "short", timeZone: "America/Santiago" });
+
+/** Fecha y hora de Chile continental: "05-10-2026, 03:25". */
+export function formatDateTime(d: Date): string {
+  return dateTime.format(d);
+}

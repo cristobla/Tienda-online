@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs, type SP } from "@/components/store/catalog-view";
 import { Fleje, ProductGrid } from "@/components/store/product-card";
 import { env } from "@/lib/env";
+import { Markdown } from "@/lib/markdown";
 import { contentLabel } from "@/modules/catalog/pricing";
 import { describeAttributes, getProductBySlug, relatedProducts } from "@/modules/catalog/queries";
 
@@ -163,8 +164,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
         {product.description && (
           <section>
             <h2 className="mb-3 text-xl font-bold">Descripción</h2>
-            {/* Texto plano (React escapa). Markdown sanitizado llegará con el editor del panel. */}
-            <p className="max-w-prose whitespace-pre-line leading-relaxed">{product.description}</p>
+            {/* Markdown básico convertido a elementos React: sin HTML crudo (ver src/lib/markdown.tsx). */}
+            <div className="max-w-prose space-y-3 leading-relaxed [&_h3]:text-lg [&_h3]:font-bold [&_h4]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
+              <Markdown text={product.description} />
+            </div>
           </section>
         )}
         {specs.length > 0 && (
