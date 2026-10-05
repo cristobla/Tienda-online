@@ -35,6 +35,20 @@ npm run dev                   # http://localhost:3000
 |---|---|---|
 | Super Admin | `SEED_ADMIN_EMAIL` (por defecto `admin@demo.local`) | `SEED_ADMIN_PASSWORD` de tu `.env` |
 
+## Tienda (catálogo público)
+
+| Ruta | Qué muestra |
+|---|---|
+| `/` | Buscador, categorías, destacados y marcas |
+| `/productos` | Todo el catálogo; con `?q=` es la búsqueda (no indexada) |
+| `/categoria/[slug]` | Categoría con sus subcategorías |
+| `/marca/[slug]` | Productos de una marca |
+| `/producto/[slug]` | Ficha con selector de formato (`?variante=SKU`), características y JSON-LD |
+| `/sitemap.xml`, `/robots.txt` | Generados desde la base |
+
+Filtros por URL: `marca`, `precio_min`, `precio_max`, `disponible=1`, `a_<atributo>` (atributos marcados como filtrables), `orden`, `pagina`.
+El nombre de la tienda se cambia en `src/lib/site.ts`.
+
 ## Documentación
 
 - [Arquitectura y decisiones](docs/ARQUITECTURA.md)
@@ -43,7 +57,7 @@ npm run dev                   # http://localhost:3000
 ## Estado
 
 - [x] FASE 1 — Arquitectura y base de datos
-- [ ] FASE 2 — Catálogo, productos, categorías y marcas
+- [x] FASE 2 — Catálogo, productos, categorías y marcas
 - [ ] FASE 3 — Panel administrativo
 - [ ] FASE 4 — Inventario y movimientos
 - [ ] FASE 5 — Carrito y pedidos

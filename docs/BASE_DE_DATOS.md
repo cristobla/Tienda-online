@@ -36,6 +36,13 @@ Aunque la aplicación tenga un error, PostgreSQL rechaza:
 - Pedidos donde `total ≠ subtotal − descuento + envío`; líneas donde `line_total ≠ unit_price × quantity`.
 - Emails de usuario con mayúsculas (se normalizan a minúsculas).
 
+## Búsqueda del catálogo
+
+Migración `0001_busqueda.sql`: extensiones `unaccent` y `pg_trgm`, función `f_unaccent()` e índices GIN
+`products_search_idx` (texto completo en español sin tildes sobre nombre + descripción corta) y
+`products_name_trgm_idx` (trigramas sobre el nombre). Una búsqueda encuentra coincidencias por:
+texto completo, parecido (errores de tipeo), parte del nombre o de la marca, y SKU o código de barras exactos.
+
 ## Presentación vs. stock
 
 | Ejemplo | `name` | `net_content` | `content_unit` | `units_per_pack` | stock 40 significa |

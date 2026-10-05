@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* Paleta: eucalipto sobre blanco; el amarillo es solo para el fleje de precio. */
+@theme {
+  --color-ink: #14302b;
+  --color-leaf: #0e7c66;
+  --color-leaf-dark: #0a5e4d;
+  --color-mist: #eef3f1;
+  --color-line: #d7e0dd;
+  --color-muted: #556964;
+  --color-fleje: #ffe14d;
+  --color-oferta: #c8102e;
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    color: var(--color-ink);
+    background: #fff;
+    -webkit-text-size-adjust: 100%;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-leaf);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
