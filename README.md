@@ -28,6 +28,7 @@ npm run dev                   # http://localhost:3000
 | `npm run db:migrate` | Aplica migraciones pendientes |
 | `npm run db:reference` | Carga regiones y comunas (producción) |
 | `npm run db:seed` | Reemplaza la BD de desarrollo con datos de prueba |
+| `npm run db:studio` | Explorador visual de las tablas en el navegador |
 
 ## Usuario de prueba
 
