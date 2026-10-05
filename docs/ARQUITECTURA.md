@@ -1,0 +1,177 @@
+# Plataforma e-commerce (Chile) — Análisis técnico y arquitectura propuesta
+
+Estado: **propuesta para aprobación** (antes de FASE 1). Fecha: 2026-10-05.
+
+## 1. Entorno existente
+
+Proyecto vacío: no hay código, repositorio ni stack previo. Disponible: Node 22, PostgreSQL 16, Docker. Por lo tanto se propone un stack nuevo.
+
+## 2. Stack propuesto
+
+| Capa | Elección | Por qué |
+|---|---|---|
+| Lenguaje | TypeScript (estricto) | Un solo lenguaje en front y back; tipos compartidos. |
+| Framework | Next.js (App Router) | SSR/SSG para SEO, rutas API para webhooks, server actions para el panel. Un solo despliegue. |
+| Base de datos | PostgreSQL 16 | Transacciones, `CHECK`, bloqueo de filas, JSONB, búsqueda full-text. |
+| ORM / migraciones | Prisma | Migraciones versionadas, consultas parametrizadas (anti SQL injection), SQL crudo cuando haga falta. |
+| Validación | Zod | Mismos esquemas en formulario y servidor. |
+| UI | Tailwind CSS | Responsive sin librería de componentes pesada. |
+| Auth | Sesiones propias en BD + cookie `httpOnly`/`Secure`/`SameSite=Lax`, hash Argon2id | Sin dependencia de terceros; control total de roles. |
+| Tests | Vitest contra PostgreSQL real | La prueba de compras simultáneas exige BD real, no mocks. |
+| Despliegue | Docker Compose (app + Postgres) | Corre en cualquier VPS o PaaS con Node. |
+
+Descartado por ahora (YAGNI): microservicios, Redis, colas, motor de búsqueda externo, GraphQL. Se agregan cuando haya carga que lo justifique; la arquitectura no los impide.
+
+## 3. Arquitectura
+
+**Monolito modular.** Cada dominio en `src/modules/<dominio>/` con su servicio (lógica de negocio), esquemas Zod y tests. Las páginas y endpoints son delgados: validan entrada, verifican permisos y llaman al servicio. Nada de lógica de negocio en componentes visuales.
+
+```
+src/
+  app/
+    (store)/            catálogo público, carrito, checkout, cuenta
+    admin/              panel administrativo (protegido por rol)
+    api/
+      payments/[provider]/webhook/   confirmaciones de proveedores
+    sitemap.ts  robots.ts
+  modules/
+    catalog/            productos, variantes, atributos, imágenes, búsqueda
+    categories/
+    brands/
+    inventory/          stock, reservas, movimientos
+    cart/
+    orders/             pedidos, máquina de estados
+    payments/           PaymentProvider + adaptadores
+    customers/          perfil, direcciones, RUT
+    auth/               sesiones, contraseñas, RBAC
+    audit/
+    chile/              regiones, comunas, RUT, teléfono, CLP
+  lib/                  db, env (validado con Zod), storage, utilidades
+prisma/
+  schema.prisma  migrations/  seed.ts
+tests/
+docs/
+```
+
+## 4. Decisiones principales de modelo
+
+### 4.1 Producto vs. variante (sí a variantes, desde el día 1)
+- **Product**: la ficha conceptual (nombre, slug, descripción, marca, categoría, SEO, destacado, activo).
+- **ProductVariant**: la unidad vendible. Lleva SKU, código de barras, precio, precio anterior, costo, stock, stock mínimo.
+- Todo producto tiene **al menos una variante**. Un producto "simple" tiene una sola variante por defecto (invisible en la tienda). Así no hay que rediseñar nada cuando un producto pase a tener 250 ml / 500 ml / 1 L.
+- Consecuencia: los campos `sku`, `barcode`, `price`, `compare_at_price`, `cost_price`, `stock_quantity` y `minimum_stock` pedidos para producto viven en la variante.
+
+### 4.2 Presentación y contenido (no confundir cantidades)
+Columnas explícitas en la variante, porque aplican a casi todo producto físico:
+- `net_content` (decimal) + `content_unit` (`ML`, `L`, `G`, `KG`, `UNIT`, `M`…) → contenido de **una** unidad.
+- `units_per_pack` (entero, default 1) → unidades dentro del pack.
+- Stock = número de **unidades vendibles** de esa variante (packs, si es pack).
+
+Ejemplo: "Pack 6 jabones 90 g" → `net_content=90, content_unit=G, units_per_pack=6`, stock 40 = 40 packs. "1 jabón 90 g" es otra variante con `units_per_pack=1`.
+
+### 4.3 Atributos flexibles
+- Tabla `AttributeDefinition` (código, etiqueta, tipo: texto/número/booleano/lista, unidad, filtrable) administrable desde el panel.
+- Valores en columna **JSONB** `attributes` en producto y variante (índice GIN), validados en el servidor contra las definiciones.
+- Sirve para aroma, formato, tipo de piel, registro ISP, etc. sin agregar columnas por categoría.
+
+### 4.4 Categorías
+Árbol auto-referenciado (`parent_id`, `sort_order`, `slug`) de profundidad libre; consultas por rama con CTE recursiva. Producto con una categoría principal (relación muchos-a-muchos se agrega si se necesita). No se elimina una categoría con productos o hijas.
+
+### 4.5 Dinero
+CLP en **enteros** (sin decimales, sin `float`). Precios almacenados **con IVA incluido** (convención retail en Chile); el neto e IVA se calculan al emitir documento tributario.
+
+## 5. Inventario y consistencia (componente crítico)
+
+En la variante: `stock_on_hand` (físico) y `stock_reserved`. Disponible = físico − reservado.
+Restricciones en BD: `stock_on_hand >= 0`, `stock_reserved >= 0`, `stock_reserved <= stock_on_hand`. **El stock no puede quedar negativo ni aunque el código falle.**
+
+**Reserva atómica** (resuelve "stock=1, dos clientes a la vez"):
+```sql
+UPDATE product_variants
+SET stock_reserved = stock_reserved + $qty
+WHERE id = $id AND stock_on_hand - stock_reserved >= $qty;
+-- 0 filas afectadas => sin stock; se aborta la transacción completa
+```
+Postgres bloquea la fila durante el `UPDATE`; el segundo cliente ve el valor ya actualizado y falla. Sin locks manuales ni condiciones de carrera.
+
+**Ciclo de vida de una reserva** (tabla `StockReservation`):
+| Momento | Acción |
+|---|---|
+| Cliente confirma checkout | Se crea pedido `PENDING_PAYMENT` + reservas (expiran en 30 min, configurable). Carrito **no** reserva. |
+| Proveedor confirma pago | Reserva → venta: `on_hand -= q`, `reserved -= q`, movimiento `SALE`. |
+| Pago rechazado / anulado / expirado | Se libera la reserva; pedido `CANCELLED`, pago `FAILED`/`EXPIRED`. |
+| Pago confirmado **después** de expirar | Se intenta reservar de nuevo; si no hay stock, el pedido queda marcado para reembolso y aparece en el panel. |
+| Cancelación de pedido pagado | Movimiento `SALE_CANCELLED` (devuelve stock). |
+| Devolución | `RETURN` (vuelve a stock) o `DAMAGED` (no vuelve). |
+
+Liberación de expiradas: tarea periódica + verificación perezosa al leer.
+
+**Movimientos (`InventoryMovement`)**: cada cambio de `stock_on_hand` escribe un movimiento con `previous_stock`, `resulting_stock`, tipo, referencia (pedido, compra, ajuste), motivo y usuario, **en la misma transacción**. Un único servicio `inventory.applyMovement()` es la única puerta para cambiar stock. Tipos: `INITIAL_STOCK, PURCHASE, SALE, SALE_CANCELLED, RETURN, DAMAGED, MANUAL_ADJUSTMENT`.
+
+## 6. Pedidos
+
+- `Order`: número legible (`ORD-000123`, secuencia de BD), cliente, dirección de despacho (copiada, no referenciada), subtotal, descuento, envío, total, `order_status`, `payment_status`, método de pago.
+- `OrderItem`: **snapshot** de nombre, SKU, presentación y precio unitario al momento de la compra.
+- `OrderStatusHistory`: quién cambió qué y cuándo.
+- Estados del pedido: `PENDING_PAYMENT, PAID, PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED`, con transiciones permitidas definidas en un mapa en código (agregar un estado = enum + una línea).
+- `payment_status` independiente: `PENDING, AUTHORIZED, PAID, FAILED, EXPIRED, REFUNDED, PARTIALLY_REFUNDED`.
+- Totales siempre recalculados en el servidor; el precio enviado por el navegador se ignora.
+
+## 7. Pagos
+
+Interfaz `PaymentProvider`: `createPayment`, `getPaymentStatus`, `handleWebhook`, `cancelPayment`, `refundPayment`. Tablas `Payment` (intentos por pedido) y `PaymentEvent` (eventos recibidos, con clave única para **idempotencia**).
+
+Regla: un pedido pasa a pagado **solo** tras confirmación verificada con el proveedor desde el servidor (webhook con firma validada o consulta de estado server-to-server). Llegar a la página de "gracias" no cambia nada.
+
+Adaptadores:
+- **Transferencia bancaria** (real, sin credenciales): el admin confirma manualmente; queda auditado.
+- **Fake** (solo desarrollo/tests, bloqueado en producción).
+- **Webpay Plus / Mercado Pago**: estructura y variables de entorno preparadas; implementación en FASE 7 siguiendo la documentación oficial vigente. Requieren código de comercio / access token que hoy no existen. Nota: en Webpay la confirmación ocurre cuando el servidor ejecuta el *commit* al volver el usuario, no por webhook; la interfaz contempla ambos flujos.
+
+## 8. Usuarios, permisos y clientes
+
+- `User` (credenciales) con `role`: `CUSTOMER, ADMIN, SUPER_ADMIN`; preparados `SALES`, `WAREHOUSE`.
+- Permisos (`products:write`, `inventory:adjust`, `orders:manage`…) mapeados a roles en código; cada acción del panel verifica permiso en el servidor. Si luego se quieren roles editables desde el panel, se migran a tablas sin cambiar las llamadas.
+- `Customer` separado de `User` (`user_id` opcional) → permite **compra como invitado** y cuenta después. RUT opcional validado (módulo 11), teléfono `+56`.
+- `Address` con región y comuna (tablas de referencia con las 16 regiones y 346 comunas, cargadas desde el listado oficial).
+
+## 9. Auditoría
+`AuditLog`: usuario, acción, entidad, id, valores anteriores y nuevos (JSONB), fecha. Se escribe desde los servicios en la misma transacción que el cambio.
+
+## 10. SEO y rendimiento
+- URLs `/categoria/[slug]`, `/producto/[slug]`, canónicas, meta title/description por producto y categoría, Open Graph, JSON-LD `Product`/`Offer`, `sitemap.xml` y `robots.txt` generados.
+- Búsqueda: Postgres full-text en español + `unaccent` + `pg_trgm` (tolera tildes y errores leves). Se reemplaza por Meilisearch/Typesense si el catálogo crece mucho.
+- Paginación en servidor, índices en slug, sku, barcode, categoría, marca, precio, `active`, fechas; `next/image` con lazy loading; caché de páginas de catálogo con revalidación al editar.
+- Imágenes: interfaz de almacenamiento con adaptador local (dev) y S3-compatible (prod).
+
+## 11. Seguridad (resumen)
+Zod en front y back; Prisma parametrizado; React escapa por defecto (sin `dangerouslySetInnerHTML` con datos de usuario; descripciones en Markdown sanitizado); server actions con verificación de origen (CSRF) y cookies `SameSite`; Argon2id; rate limit en login; secretos solo en variables de entorno validadas al arrancar; claves de pago nunca en el frontend; cabeceras de seguridad (CSP, HSTS).
+
+## 12. Riesgos técnicos y de negocio
+
+| Riesgo | Mitigación |
+|---|---|
+| Sobreventa por concurrencia | `UPDATE` condicional + `CHECK` en BD + test concurrente real. |
+| Pago tardío tras expirar reserva | Re-reserva o marca de reembolso visible en el panel. |
+| Webhooks falsos o duplicados | Verificación con el proveedor + idempotencia por evento. |
+| Manipulación de precios desde el navegador | Totales recalculados en servidor. |
+| **Boleta electrónica obligatoria (SII)** por cada venta | Interfaz `TaxDocumentProvider` preparada; se necesita contratar un proveedor de DTE antes de vender en producción. |
+| Normativa de datos personales (Ley 19.628 y la nueva Ley 21.719, que entra en vigencia en dic-2026) | Mínimos datos, consentimiento, política de privacidad; revisar con asesoría legal. |
+| Productos con registro sanitario (ISP) — cosméticos, desinfectantes | Campo de atributo "registro ISP" sin cambiar el esquema. |
+| Despacho | Tarifas por región/comuna configurables en el MVP; integración con couriers después (interfaz `ShippingProvider`). |
+
+## 13. Plan de fases
+1. Arquitectura y BD: proyecto, esquema Prisma, migraciones, seed, módulos `chile` y `auth`.
+2. Catálogo público: productos, variantes, categorías, marcas, búsqueda, filtros, orden.
+3. Panel administrativo.
+4. Inventario y movimientos.
+5. Carrito y pedidos.
+6. Checkout.
+7. Pagos (transferencia + fake; Webpay/Mercado Pago cuando haya credenciales).
+8. Seguridad, testing, SEO, optimización y documentación final.
+
+## 14. Configuración externa pendiente (no inventada)
+- Credenciales Webpay (código de comercio + API key) y/o Mercado Pago (access token, secreto de webhook).
+- Proveedor de boleta/factura electrónica.
+- Almacenamiento de imágenes en producción (bucket S3-compatible).
+- Dominio, hosting y servicio de correo transaccional (confirmaciones de pedido).
