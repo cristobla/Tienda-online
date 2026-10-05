@@ -171,17 +171,27 @@ export function StoreFooter({ roots }: { roots: CategoryNode[] }) {
             {SITE.name}
           </p>
           <p className="mt-3 max-w-xs text-sm text-white/80">{SITE.description}</p>
-          {/* Datos de contacto por definir: no se publican datos inventados. */}
-          <dl className="mt-5 space-y-1 text-sm text-white/80">
-            <div className="flex gap-2">
-              <dt className="font-semibold text-white">Correo:</dt>
-              <dd>por definir</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="font-semibold text-white">Horario:</dt>
-              <dd>por definir</dd>
-            </div>
-          </dl>
+          {/* Solo se muestra el contacto que ya está definido en SITE (no se publican datos inventados). */}
+          {(SITE.email || SITE.hours) && (
+            <dl className="mt-5 space-y-1 text-sm text-white/80">
+              {SITE.email && (
+                <div className="flex gap-2">
+                  <dt className="font-semibold text-white">Correo:</dt>
+                  <dd>
+                    <a href={`mailto:${SITE.email}`} className="hover:text-white hover:underline">
+                      {SITE.email}
+                    </a>
+                  </dd>
+                </div>
+              )}
+              {SITE.hours && (
+                <div className="flex gap-2">
+                  <dt className="font-semibold text-white">Horario:</dt>
+                  <dd>{SITE.hours}</dd>
+                </div>
+              )}
+            </dl>
+          )}
         </div>
         <nav aria-label="Categorías del pie">
           <h2 className={head}>Categorías</h2>

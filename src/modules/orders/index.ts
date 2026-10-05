@@ -217,7 +217,8 @@ export async function listOrders(f: { q?: string; status?: OrderStatus; page?: n
       status: s.orders.status,
       paymentStatus: s.orders.paymentStatus,
       createdAt: s.orders.createdAt,
-      items: sql<number>`(SELECT coalesce(sum(i.quantity), 0)::int FROM order_items i WHERE i.order_id = ${s.orders.id})`,
+      // "orders"."id" explícito: sin joins Drizzle escribe la columna sin tabla y dentro de la subconsulta sería i.id.
+      items: sql<number>`(SELECT coalesce(sum(i.quantity), 0)::int FROM order_items i WHERE i.order_id = "orders"."id")`,
       matches: sql<number>`count(*) OVER ()::int`,
     })
     .from(s.orders)
@@ -226,6 +227,17 @@ export async function listOrders(f: { q?: string; status?: OrderStatus; page?: n
     .limit(ORDERS_PAGE_SIZE)
     .offset((page - 1) * ORDERS_PAGE_SIZE);
   return { items: rows, total: rows[0]?.matches ?? 0 };
+}
+
+/** Para el inicio del panel: pedidos esperando pago y pagados que hay que preparar. */
+export async function orderStats() {
+  const [r] = await db
+    .select({
+      pending: sql<number>`count(*) FILTER (WHERE ${s.orders.status} = 'PENDING_PAYMENT')::int`,
+      paid: sql<number>`count(*) FILTER (WHERE ${s.orders.status} = 'PAID')::int`,
+    })
+    .from(s.orders);
+  return r!;
 }
 
 export async function getOrder(id: string) {

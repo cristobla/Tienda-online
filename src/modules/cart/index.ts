@@ -38,7 +38,7 @@ export async function cartLines(tx: Tx, cartId: string) {
       productName: p.name,
       slug: p.slug,
       brandName: s.brands.name,
-      imageUrl: sql<string | null>`(SELECT i.url FROM product_images i WHERE i.product_id = ${p.id} ORDER BY i.sort_order LIMIT 1)`,
+      imageUrl: sql<string | null>`(SELECT i.url FROM product_images i WHERE i.product_id = "products"."id" ORDER BY i.sort_order LIMIT 1)`,
       available,
       sellable: await sellable(),
     })

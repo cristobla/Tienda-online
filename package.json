@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node --env-file-if-exists=.env scripts/db-up.mjs",
     "dev": "next dev",
     "build": "next build",
+    "prestart": "node --env-file-if-exists=.env scripts/db-up.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

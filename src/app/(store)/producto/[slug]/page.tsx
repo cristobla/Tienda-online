@@ -85,7 +85,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
       <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
         <div className="lg:sticky lg:top-4 lg:self-start">
-          <div className="relative aspect-square overflow-hidden rounded-md border border-line bg-mist">
+          {/* En una columna (tablet) el cuadrado a todo el ancho dejaría el precio fuera de la pantalla: se limita el alto. */}
+          <div className="relative mx-auto aspect-square overflow-hidden rounded-md border border-line bg-mist max-lg:max-h-[55vh]">
             <ProductImage url={image?.url} alt={image?.alt || product.name} brand={brand?.name} label={selected.name} sizes="(min-width: 1024px) 50vw, 100vw" priority large />
             {off && inStock && <span className="absolute left-3 top-3 rounded-sm bg-oferta px-2.5 py-1 text-sm font-bold text-white">Oferta −{off}%</span>}
           </div>

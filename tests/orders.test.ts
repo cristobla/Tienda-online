@@ -6,7 +6,7 @@ import { UserError } from "@/lib/form";
 import { can } from "@/modules/auth/rbac";
 import { addItemSchema, addToCart, getCart, setItemQuantity, setItemSchema } from "@/modules/cart";
 import { adjustStock, InsufficientStockError, reserveStock, stockOperationSchema } from "@/modules/inventory";
-import { changeOrderStatus, createOrderFromCart, expireOrders, getOrder, manualTransitions, type OrderStatus } from "@/modules/orders";
+import { changeOrderStatus, createOrderFromCart, expireOrders, getOrder, listOrders, manualTransitions, type OrderStatus, orderStats } from "@/modules/orders";
 import { makeVariant, resetDb } from "./helpers";
 
 let staffId: string;
@@ -251,6 +251,30 @@ describe("crear pedido", () => {
     const g1 = await order(await cartWith([v.id, 1]));
     const g2 = await order(await cartWith([v.id, 1]));
     expect(new Set([o1.customerId, g1.customerId, g2.customerId]).size).toBe(3);
+  });
+
+  it("listado del panel: cuenta las unidades de cada pedido y filtra por texto y estado", async () => {
+    const a = await makeVariant(10);
+    const b = await makeVariant(10);
+    const o = await order(await cartWith([a.id, 2], [b.id, 3]));
+    await order(await cartWith([a.id, 1]));
+    const list = await listOrders({});
+    expect(list.total).toBe(2);
+    expect(list.items.find((i) => i.id === o.id)).toMatchObject({ orderNumber: o.orderNumber, items: 5, total: 5000 });
+    expect((await listOrders({ q: o.orderNumber.toLowerCase() })).items.map((i) => i.id)).toEqual([o.id]);
+    expect((await listOrders({ q: "cliente@test" })).total).toBe(2);
+    expect((await listOrders({ status: "CANCELLED" })).total).toBe(0);
+    expect(await orderStats()).toEqual({ pending: 2, paid: 0 });
+    await setStatus(o.id, "PAID");
+    expect(await orderStats()).toEqual({ pending: 1, paid: 1 });
+  });
+
+  it("la imagen de la línea del carrito es la del propio producto", async () => {
+    const a = await makeVariant(10);
+    const b = await makeVariant(10);
+    await db.insert(s.productImages).values({ productId: b.productId, url: "/media/b.webp" });
+    const lines = (await getCart(await cartWith([a.id, 1], [b.id, 1]))).lines;
+    expect(Object.fromEntries(lines.map((l) => [l.variantId, l.imageUrl]))).toEqual({ [a.id]: null, [b.id]: "/media/b.webp" });
   });
 
   it("la base rechaza totales inconsistentes aunque el código falle", async () => {

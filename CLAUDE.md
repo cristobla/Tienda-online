@@ -48,6 +48,13 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Seed: 2 pedidos de prueba creados por el carrito y el servicio real (uno pendiente que vence solo, uno cancelado).
 - Pruebas en `tests/orders.test.ts` (29): carrito, creación, snapshot, precio/stock cambiados, rollback dentro de la transacción (determinista con `pg_stat_activity`), estados, vencimiento, concurrencia (última unidad, doble envío, cancelar vs. vencer) y permisos.
 
+## Robustez para presentar (post Fase 5)
+- `npm run dev`/`npm run start` corren antes `scripts/db-up.mjs` (`predev`/`prestart`): si PostgreSQL no responde, `docker desktop start` + `docker compose up -d --wait`; si sigue sin base, mensaje de una línea y exit 1. `docker-compose.yml`: `restart: unless-stopped` + healthcheck `pg_isready`. Docker Desktop del usuario tiene "iniciar al ingresar" desactivado (no se cambia desde aquí).
+- `src/db/index.ts`: `pool.on("error")` — sin listener, una conexión inactiva cortada (base reiniciada) emite un error no manejado. `src/instrumentation.ts`: una línea por minuto si la base no responde.
+- `src/app/error.tsx` (falla del layout, p. ej. sin base) · `src/app/not-found.tsx` (URL inexistente, con marca, 404 real) · `src/app/(store)/not-found.tsx` (404 dentro de la tienda, con menú). Los `notFound()` de páginas de la tienda responden 200 + `noindex` por el streaming de `(store)/loading.tsx` (pendiente Fase 8).
+- `src/app/icon.svg` (favicon), `viewport.themeColor`. Contacto del footer en `SITE.email`/`SITE.hours` (null = no se muestra; no inventar datos).
+- Raw SQL en Drizzle: en un select de una sola tabla, `${tabla.col}` se escribe SIN calificar; dentro de una subconsulta se ata a la tabla interna. Escribir `"tabla"."col"` explícito (bug real en `listOrders`, cubierto por test).
+
 ## Para comenzar la Fase 6 (checkout)
 - Formulario de checkout que llame `createOrderFromCart` con `expectedTotal = getCart(...).subtotal` mostrado al cliente. Extender `orderInputSchema` con teléfono/RUT (`normalizeChileanPhone`, `normalizeRut`), dirección (`shippingAddress` snapshot + `shippingCommuneId`) y costo de despacho (`shippingTotal`; el CHECK exige `total = subtotal − descuento + envío`).
 - Capturar `UserError`/`InsufficientStockError` y devolver al carrito, que ya muestra cada problema por línea.
