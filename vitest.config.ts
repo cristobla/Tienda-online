@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
@@ -10,7 +12,7 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   test: {
     globalSetup: "./tests/global-setup.ts",
-    env: { NODE_ENV: "test", DATABASE_URL: process.env.DATABASE_URL_TEST ?? "" },
+    env: { NODE_ENV: "test", DATABASE_URL: process.env.DATABASE_URL_TEST ?? "", UPLOAD_DIR: join(tmpdir(), "tienda-test-uploads") },
     fileParallelism: false,
   },
 });
