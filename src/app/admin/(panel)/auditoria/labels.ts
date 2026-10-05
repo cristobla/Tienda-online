@@ -21,12 +21,13 @@ const LABELS: Record<string, string> = {
   "user.create": "creó un usuario",
   "user.update": "cambió rol o estado de un usuario",
   "user.password_reset": "cambió la contraseña de un usuario",
+  "order.status": "cambió el estado de un pedido",
 };
 
 export const actionLabel = (action: string) => LABELS[action] ?? action;
 
 /** Enlace a la entidad en el panel (si todavía tiene página). */
 export function entityHref(type: string, id: string): string | null {
-  const base = { product: "productos", category: "categorias", brand: "marcas", attribute: "atributos", user: "usuarios" }[type];
+  const base = { product: "productos", category: "categorias", brand: "marcas", attribute: "atributos", user: "usuarios", order: "pedidos" }[type];
   return base ? `/admin/${base}/${id}` : null;
 }

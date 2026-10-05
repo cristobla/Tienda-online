@@ -1,6 +1,6 @@
 # Plataforma e-commerce (Chile) — Análisis técnico y arquitectura propuesta
 
-Estado: **aprobada** (2026-10-05). FASE 1, 2 y 3 implementadas.
+Estado: **aprobada** (2026-10-05). FASE 1 a 5 implementadas.
 
 ## 1. Entorno existente
 
@@ -203,3 +203,9 @@ Zod en el servidor y restricciones HTML en el navegador; consultas parametrizada
 - **FASE 4 — El historial de movimientos es la auditoría del stock** (quién, cuándo, cuánto, antes/después, motivo); no se duplica en `audit_logs`. Un trigger impide editarlo o borrarlo. `created_at` usa `clock_timestamp()` (hora real del cambio, con la fila ya bloqueada) para que el orden por fecha coincida con el orden de aplicación aun con operaciones simultáneas.
 - **FASE 4 — Primitivas de reserva listas para la FASE 5**, sin interfaz: `reserveStock(tx, orderId, líneas)` (UPDATE condicional, todo o nada, `InsufficientStockError`), `releaseOrderReservations(tx, orderId)` y `releaseExpiredReservations()` (idempotentes: solo toman reservas `ACTIVE`). Las variantes se bloquean siempre en orden de id para evitar deadlocks. El vencimiento usa el reloj de la base (`RESERVATION_TTL_MINUTES`). Reservar no crea movimientos: no cambia el stock físico. Consumir la reserva al pagar (venta: físico y reservado bajan en el mismo UPDATE) queda para cuando exista el flujo de pago.
 - **FASE 4 — Inventario con rutas propias** (`/admin/inventario`): bodega (`WAREHOUSE`) no tiene `catalog:write`, así que no puede entrar a la ficha de producto. Ventas (`SALES`) consulta pero no ajusta.
+- **FASE 5 — Sin migraciones.** El esquema de la FASE 1 ya modelaba carrito, pedidos, snapshot de ítems, historial y reservas; `drizzle-kit generate` no detectó cambios.
+- **FASE 5 — Carrito por cookie, sin sesión.** `carts` + cookie `cart` (`httpOnly`, UUID aleatorio). Solo guarda variante + cantidad; precio, nombre, stock y "vendible" (variante y producto activos, categoría visible) se leen en cada visita. Valida el disponible al agregar o subir cantidad, pero no reserva (§5). Cada escritura bloquea la fila del carrito. Asociar el carrito a una cuenta queda para cuando existan cuentas de cliente.
+- **FASE 5 — Pedido en una transacción, con total confirmado.** `createOrderFromCart` recibe `expectedTotal` (lo que vio el cliente): si los precios cambiaron no crea nada y pide revisar. Los montos siempre se recalculan en el servidor. Bloquear el carrito y borrarlo en la misma transacción evita pedidos duplicados por doble envío. Si `reserveStock` falla, se revierten pedido, ítems, cliente e historial.
+- **FASE 5 — Lo que mueve dinero no se hace desde el panel.** El mapa de transiciones incluye `PAID`/`REFUNDED` y cancelar pedidos pagados, pero el panel solo ofrece cancelar antes del pago (libera reservas, pide motivo) y avanzar preparación → despacho → entrega. El resto lo hará el módulo de pagos (FASE 7) con confirmación del proveedor.
+- **FASE 5 — Vencimiento como tarea en el proceso.** `expireOrders()` cancela pedidos impagos con reserva vencida (`payment_status = EXPIRED`), un pedido por transacción (sin deadlocks con pedidos nuevos). Corre cada minuto desde `src/instrumentation.ts` y antes de crear cada pedido. Con varias instancias es idempotente; pasar a cron/cola si se despliega en serverless.
+- **FASE 5 — Invitados con ficha propia.** Un pedido sin cuenta crea su `customer`; con cuenta (`user_id`) se reutiliza la ficha. No se fusionan invitados por email (cualquiera podría escribir el email de otro).

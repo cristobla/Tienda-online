@@ -1,7 +1,7 @@
 ---
 id: 2
 title: "Verify the checked-out branch matches the described state before diagnosing missing features"
-status: open
+status: actioned
 type: open-source
 skill: []
 proposes_skill: []
@@ -11,8 +11,8 @@ area: "diagnosis at session start"
 date: 2026-10-05
 session_context: "FASE 3 UI iteration: user reported an unstyled 'en construcción' page"
 parked_until:
-resolved:
-resolution:
+resolved: 2026-10-05
+resolution: "The rule lives in CLAUDE.md, Reglas del proyecto (compare local branch with origin/main via git branch -a / git log --all --graph; node_modules vs lockfile). Applied in the FASE 5 session: local main was stale (FASE 2) while origin/main had FASE 4 merged; the phase branch was created from origin/main."
 reference:
 commands_verified: "git branch -a; git log --all --oneline --graph — run, showed local on fase-1-base while origin/main had FASE 2 and 3 merged"
 ---

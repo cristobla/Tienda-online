@@ -5,10 +5,12 @@
  *
  * Borra y vuelve a crear catálogo, pedidos y usuarios. Se niega a correr en producción.
  */
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { slugify } from "@/lib/slug";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/modules/auth/password";
+import { addToCart, getCart } from "@/modules/cart";
 import { applyMovement } from "@/modules/inventory";
+import { changeOrderStatus, createOrderFromCart } from "@/modules/orders";
 import { db, pool } from ".";
 import { loadReferenceData } from "./reference-data";
 import * as s from "./schema";
@@ -226,5 +228,20 @@ await db.transaction(async (tx) => {
   }
   console.log(`Seed listo: ${PRODUCTS.length} productos, ${n} variantes. Admin: ${ADMIN_EMAIL}`);
 });
+
+// Pedidos de prueba: pasan por el carrito y el servicio de pedidos, así reservan stock igual que uno real.
+// El pendiente se cancela solo cuando vence su reserva (RESERVATION_TTL_MINUTES).
+const variantId = async (sku: string) => (await db.select({ id: s.productVariants.id }).from(s.productVariants).where(eq(s.productVariants.sku, sku)))[0]!.id;
+const demoOrder = async (n: number, lines: [string, number][]) => {
+  let cart: string | null = null;
+  for (const [sku, quantity] of lines) cart = await addToCart(cart, { variantId: await variantId(sku), quantity });
+  const { subtotal } = await getCart(cart);
+  return createOrderFromCart(cart!, { email: `cliente${n}@demo.local`, firstName: "Cliente", lastName: `Demo ${n}`, expectedTotal: subtotal });
+};
+const [admin] = await db.select({ id: s.users.id }).from(s.users).where(eq(s.users.email, ADMIN_EMAIL));
+await demoOrder(1, [["DEMO-001-2", 2], ["DEMO-003-1", 3]]);
+const cancelled = await demoOrder(2, [["DEMO-011-1", 1]]);
+await changeOrderStatus(admin!.id, cancelled.id, { to: "CANCELLED", note: "El cliente desistió (dato de prueba)." });
+console.log("Pedidos de prueba: 1 pendiente de pago, 1 cancelado.");
 
 await pool.end();
