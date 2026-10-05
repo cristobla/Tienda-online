@@ -1,6 +1,6 @@
 # Plataforma e-commerce (Chile) — Análisis técnico y arquitectura propuesta
 
-Estado: **aprobada** (2026-10-05). FASE 1 implementada.
+Estado: **aprobada** (2026-10-05). FASE 1 y FASE 2 implementadas.
 
 ## 1. Entorno existente
 
@@ -183,3 +183,9 @@ Zod en front y back; Prisma parametrizado; React escapa por defecto (sin `danger
 
 - **2026-10-05 — Drizzle en vez de Prisma.** Prisma requiere descargar un binario (schema engine) desde un servidor externo, lo que falla en entornos con red restringida y agrega una pieza más al despliegue. Drizzle es TypeScript puro, genera SQL legible y permite declarar los `CHECK` de inventario en el mismo esquema. Sin impacto en el resto de la arquitectura.
 - **Esquema agrupado en 3 archivos** (`catalog`, `users`, `sales`) en `src/db/schema/` en lugar de uno por módulo: las tablas tienen muchas FK cruzadas y así se evita importar entre módulos. La lógica de negocio sí vive por dominio en `src/modules/`.
+- **FASE 2 — Búsqueda en una migración SQL propia** (`drizzle/0001_busqueda.sql`): extensiones `unaccent` y `pg_trgm`, función `f_unaccent()` (envoltorio IMMUTABLE, requisito para indexar) e índices de expresión GIN. Drizzle no declara índices de expresión; drizzle-kit los ignora al generar migraciones futuras. La consulta en `src/modules/catalog/queries.ts` usa exactamente las mismas expresiones.
+- **FASE 2 — Páginas del catálogo dinámicas, sin caché.** Stock y precios siempre al día; las consultas son baratas con los índices. Se agrega `"use cache"` + revalidación al editar cuando el tráfico lo justifique (marcado con `ponytail:` en `src/app/(store)/layout.tsx`).
+- **FASE 2 — Filtros y variantes por URL, sin JavaScript obligatorio.** Los filtros son un formulario GET (`?marca=…&a_aroma=…&precio_min=…&disponible=1&orden=…&pagina=…`) y la variante elegida va en `?variante=SKU`. Toda vista es enlazable, indexable y funciona sin JS; un componente cliente mínimo solo autoenvía el formulario en escritorio.
+- **FASE 2 — Precio por unidad de medida** (por L, kg, m o c/u) calculado desde `net_content × units_per_pack`, mostrado en el fleje de precio. Sin columnas nuevas.
+- **FASE 2 — Descripción como texto plano** (React escapa). El Markdown sanitizado llega con el editor del panel (FASE 3).
+- **FASE 2 — Tailwind v4 y tipografía Archivo vía `@fontsource`** (npm), no Google Fonts: el build no depende de descargar fuentes de un servidor externo.
