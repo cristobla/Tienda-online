@@ -9,7 +9,9 @@ import * as s from "@/db/schema";
 import { field, UserError } from "@/lib/form";
 import { audit } from "@/modules/audit";
 import { cartLines } from "@/modules/cart";
+import { normalizeChileanPhone, normalizeRut } from "@/modules/chile";
 import { releaseOrderReservations, reserveStock } from "@/modules/inventory";
+import { quoteShipping } from "@/modules/shipping";
 
 export type OrderStatus = (typeof s.orderStatus.enumValues)[number];
 export type PaymentStatus = (typeof s.paymentStatus.enumValues)[number];
@@ -61,22 +63,38 @@ export const manualTransitions = (o: Pick<Order, "status" | "paymentStatus">) =>
 
 // ───────────── Creación ─────────────
 
+/** Texto opcional normalizado (RUT, teléfono): vacío = null; inválido = error en el campo. */
+const normalized = (normalize: (v: string) => string | null, message: string) =>
+  field.optText(30).transform((v, ctx) => {
+    if (v === null) return null;
+    const n = normalize(v);
+    if (!n) ctx.addIssue({ code: "custom", message });
+    return n;
+  });
+
 /**
- * Datos mínimos para crear un pedido. `expectedTotal` es el total que el cliente vio al confirmar:
- * no se usa para cobrar (los montos se recalculan aquí), solo para no crear un pedido con precios que no aceptó.
- * El checkout (FASE 6) agrega dirección, despacho, teléfono y RUT.
+ * Datos del checkout. `expectedTotal` es el total (productos + despacho) que el cliente vio al confirmar:
+ * no se usa para cobrar (los montos se recalculan aquí), solo para no crear un pedido con montos que no aceptó.
  */
 export const orderInputSchema = z.object({
-  email: z.email("Email inválido").trim().toLowerCase().max(200, "Máximo 200 caracteres"),
+  // Recortar antes de validar (z.email().trim() rechaza "ana@x.cl " del autocompletado del celular).
+  email: z.string().trim().toLowerCase().max(200, "Máximo 200 caracteres").pipe(z.email("Email inválido")),
   firstName: field.text(100),
   lastName: field.text(100),
+  phone: normalized(normalizeChileanPhone, "Teléfono chileno inválido (ej. 9 1234 5678)").refine((v) => v !== null, "Obligatorio"),
+  rut: normalized(normalizeRut, "RUT inválido"),
+  communeId: field.int(1, 1_000_000),
+  street: field.text(120),
+  number: field.text(20),
+  apartment: field.optText(40),
+  notes: field.optText(300),
   expectedTotal: field.int(0),
 });
 export type OrderInput = z.infer<typeof orderInputSchema>;
 
 /** Cliente con cuenta: su ficha (se crea la primera vez). Invitado: una ficha nueva por pedido. */
 async function customerFor(tx: Transaction, input: OrderInput, userId: string | null) {
-  const values = { userId, email: input.email, firstName: input.firstName, lastName: input.lastName };
+  const values = { userId, email: input.email, firstName: input.firstName, lastName: input.lastName, phone: input.phone, rut: input.rut };
   const [c] = userId
     ? await tx.insert(s.customers).values(values).onConflictDoUpdate({ target: s.customers.userId, set: { updatedAt: new Date() } }).returning({ id: s.customers.id })
     : await tx.insert(s.customers).values(values).returning({ id: s.customers.id });
@@ -98,7 +116,10 @@ export async function createOrderFromCart(cartId: string, input: OrderInput, use
     const bad = lines.find((l) => l.problem);
     if (bad) throw new UserError(`${bad.productName} (${bad.variantName}): ${bad.problem}. Revisa tu carrito.`);
     const subtotal = lines.reduce((t, l) => t + l.lineTotal, 0);
-    if (subtotal !== input.expectedTotal) throw new UserError("Los precios de tu carrito cambiaron. Revisa el total antes de confirmar.");
+    const ship = await quoteShipping(input.communeId, tx);
+    if (!ship) throw new UserError("Por ahora no despachamos a esa comuna.", "communeId");
+    const total = subtotal + ship.cost;
+    if (total !== input.expectedTotal) throw new UserError("El total cambió (precios o despacho). Revisa el resumen antes de confirmar.");
 
     const [order] = await tx
       .insert(s.orders)
@@ -106,8 +127,23 @@ export async function createOrderFromCart(cartId: string, input: OrderInput, use
         customerId: await customerFor(tx, input, userId),
         email: input.email,
         customerName: `${input.firstName} ${input.lastName}`,
+        phone: input.phone,
+        rut: input.rut,
+        shippingCommuneId: ship.communeId,
+        // Copia de la dirección: el pedido no cambia si después se edita la comuna o la libreta del cliente.
+        shippingAddress: {
+          recipientName: `${input.firstName} ${input.lastName}`,
+          phone: input.phone,
+          street: input.street,
+          number: input.number,
+          apartment: input.apartment,
+          commune: ship.commune,
+          region: ship.region,
+          notes: input.notes,
+        },
         subtotal,
-        total: subtotal,
+        shippingTotal: ship.cost,
+        total,
       })
       .returning();
     await tx.insert(s.orderItems).values(

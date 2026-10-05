@@ -24,16 +24,23 @@ const run = (cmd) => {
   } catch {}
 };
 
+// En producción no se levanta nada: docker-compose.yml es la base de DESARROLLO (credenciales de prueba).
+const dev = process.env.NODE_ENV !== "production";
+
 if (!(await ping())) {
-  console.log("La base de datos no responde: iniciando Docker Desktop y el contenedor de PostgreSQL (puede tardar un minuto)…");
-  run("docker desktop start --timeout 150");
-  run("docker compose up -d --wait");
+  if (dev) {
+    console.log("La base de datos no responde: iniciando Docker Desktop y el contenedor de PostgreSQL (puede tardar un minuto)…");
+    run("docker desktop start --timeout 150");
+    run("docker compose up -d --wait");
+  }
   if (!(await ping())) {
     console.error(
-      "\nNo se pudo conectar a PostgreSQL (DATABASE_URL en .env).\n" +
-        '  1. Abre Docker Desktop y espera a que indique "Engine running".\n' +
-        "  2. Ejecuta: docker compose up -d\n" +
-        "  3. Vuelve a ejecutar el comando.\n",
+      dev
+        ? "\nNo se pudo conectar a PostgreSQL (DATABASE_URL en .env).\n" +
+            '  1. Abre Docker Desktop y espera a que indique "Engine running".\n' +
+            "  2. Ejecuta: docker compose up -d\n" +
+            "  3. Vuelve a ejecutar el comando.\n"
+        : "\nNo se pudo conectar a PostgreSQL: revisa DATABASE_URL y que el servidor de base de datos esté accesible.\n",
     );
     process.exit(1);
   }

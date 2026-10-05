@@ -5,7 +5,7 @@ import { applyMovement } from "@/modules/inventory";
 
 export async function resetDb() {
   await db.execute(sql`TRUNCATE
-    audit_logs, payment_events, payments, stock_reservations, order_status_history, order_items, orders,
+    audit_logs, payment_events, payments, stock_reservations, shipping_rates, order_status_history, order_items, orders,
     cart_items, carts, inventory_movements, product_images, product_variants, products,
     attribute_definitions, categories, brands, addresses, customers, sessions, users CASCADE`);
 }
@@ -20,4 +20,17 @@ export async function makeVariant(stock = 10, sku = `T-${crypto.randomUUID().sli
     .returning();
   if (stock > 0) await db.transaction((tx) => applyMovement(tx, { variantId: variant!.id, type: "INITIAL_STOCK", quantity: stock }));
   return { ...variant!, stockOnHand: stock };
+}
+
+/** Región + comuna de prueba (las tablas de referencia no se vacían entre tests), con tarifa de despacho (null = sin despacho). */
+export async function makeCommune(code: string, cost: number | null = 0) {
+  const name = `Región ${code}`;
+  const [r] = await db.insert(s.regions).values({ code, name, sortOrder: 99 }).onConflictDoUpdate({ target: s.regions.code, set: { name } }).returning();
+  const [c] = await db
+    .insert(s.communes)
+    .values({ regionId: r!.id, name: `Comuna ${code}` })
+    .onConflictDoUpdate({ target: [s.communes.regionId, s.communes.name], set: { name: `Comuna ${code}` } })
+    .returning();
+  if (cost !== null) await db.insert(s.shippingRates).values({ regionId: r!.id, cost, eta: "2 a 4 días hábiles" });
+  return { regionId: r!.id, communeId: c!.id };
 }

@@ -9,6 +9,7 @@ export const PERMISSIONS = [
   "inventory:adjust",
   "orders:read",
   "orders:manage",
+  "shipping:manage",
   "customers:read",
   "customers:write",
   "reports:read",

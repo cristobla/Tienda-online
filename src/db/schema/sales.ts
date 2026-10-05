@@ -15,7 +15,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { productVariants, timestamps } from "./catalog";
-import { communes, customers, users } from "./users";
+import { communes, customers, regions, users } from "./users";
 
 // ───────────── Inventario ─────────────
 
@@ -201,6 +201,23 @@ export const stockReservations = pgTable(
     index("reservations_order_idx").on(t.orderId),
     check("reservations_qty_pos", sql`${t.quantity} > 0`),
   ],
+);
+
+// ───────────── Despacho ─────────────
+
+/** Tarifa de despacho por región (CLP, IVA incluido), editable en el panel. Región sin fila = no se despacha ahí. */
+export const shippingRates = pgTable(
+  "shipping_rates",
+  {
+    regionId: integer("region_id")
+      .primaryKey()
+      .references(() => regions.id, { onDelete: "cascade" }),
+    cost: integer().notNull(),
+    /** Plazo que se muestra al cliente, p. ej. "2 a 4 días hábiles". */
+    eta: text(),
+    ...timestamps,
+  },
+  (t) => [check("shipping_rates_cost_nonneg", sql`${t.cost} >= 0`)],
 );
 
 // ───────────── Carrito ─────────────

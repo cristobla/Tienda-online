@@ -21,6 +21,7 @@ const NAV: { href: string; label: string; icon: IconName; perm?: Permission }[] 
   { href: "/admin/inventario", label: "Inventario", icon: "truck", perm: "inventory:read" },
   { href: "/admin/categorias", label: "Categorías", icon: "layers", perm: "catalog:write" },
   { href: "/admin/marcas", label: "Marcas", icon: "tag", perm: "catalog:write" },
+  { href: "/admin/despacho", label: "Despacho", icon: "home", perm: "shipping:manage" },
   { href: "/admin/atributos", label: "Atributos", icon: "sliders", perm: "catalog:write" },
   { href: "/admin/usuarios", label: "Usuarios", icon: "users", perm: "users:manage" },
   { href: "/admin/auditoria", label: "Auditoría", icon: "list", perm: "audit:read" },

@@ -56,7 +56,9 @@ npm run start                 # http://localhost:3000
 | `/categoria/[slug]` | Categoría con sus subcategorías |
 | `/marca/[slug]` | Productos de una marca |
 | `/producto/[slug]` | Ficha con selector de formato (`?variante=SKU`), cantidad, agregar al carrito, características y JSON-LD |
-| `/carrito` | Carrito: cambiar cantidades y quitar, con precio y stock actuales (no reserva stock). El checkout llega en la FASE 6 |
+| `/carrito` | Carrito: cambiar cantidades y quitar, con precio y stock actuales (no reserva stock) |
+| `/checkout` | Comuna de despacho (costo y plazo) → datos y dirección → confirmar pedido (reserva el stock) |
+| `/pedido/[id]` | Comprobante del pedido para el cliente (enlace secreto, no indexado) |
 | `/cuenta`, `/info/[tema]` | Páginas provisorias (cuenta de cliente, ayuda y legales por redactar) |
 | `/sitemap.xml`, `/robots.txt` | Generados desde la base |
 
@@ -74,6 +76,7 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 | `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros | `catalog:read` |
 | `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes, SEO | `catalog:write` |
 | `/admin/inventario`, `/admin/inventario/[variante]` | Stock por variante (bodega, reservado, disponible), historial; ingresos, mermas y conteo físico | `inventory:read` / ajustar: `inventory:adjust` |
+| `/admin/despacho` | Costo y plazo de despacho por región (sin costo = no se despacha) | `shipping:manage` |
 | `/admin/categorias`, `/admin/marcas`, `/admin/atributos` | Árbol de categorías, marcas y definiciones de atributos | `catalog:write` |
 | `/admin/usuarios` | Usuarios del staff, roles, contraseñas | `users:manage` (Super Admin) |
 | `/admin/auditoria` | Quién cambió qué y cuándo | `audit:read` |
@@ -88,6 +91,7 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 
 - [Arquitectura y decisiones](docs/ARQUITECTURA.md)
 - [Base de datos](docs/BASE_DE_DATOS.md)
+- [Despliegue y puesta en producción](docs/DESPLIEGUE.md)
 
 ## Estado
 
@@ -96,6 +100,6 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 - [x] FASE 3 — Panel administrativo
 - [x] FASE 4 — Inventario y movimientos
 - [x] FASE 5 — Carrito y pedidos
-- [ ] FASE 6 — Checkout
+- [x] FASE 6 — Checkout
 - [ ] FASE 7 — Integración de pagos
 - [ ] FASE 8 — Seguridad, testing, SEO y optimización

@@ -5,12 +5,13 @@
  *
  * Borra y vuelve a crear catálogo, pedidos y usuarios. Se niega a correr en producción.
  */
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { slugify } from "@/lib/slug";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/modules/auth/password";
 import { addToCart, getCart } from "@/modules/cart";
 import { applyMovement } from "@/modules/inventory";
 import { changeOrderStatus, createOrderFromCart } from "@/modules/orders";
+import { quoteShipping } from "@/modules/shipping";
 import { db, pool } from ".";
 import { loadReferenceData } from "./reference-data";
 import * as s from "./schema";
@@ -152,7 +153,7 @@ function testBarcode(n: number): string {
 
 await db.transaction(async (tx) => {
   await tx.execute(sql`TRUNCATE
-    audit_logs, payment_events, payments, stock_reservations, order_status_history, order_items, orders,
+    audit_logs, payment_events, payments, stock_reservations, shipping_rates, order_status_history, order_items, orders,
     cart_items, carts, inventory_movements, product_images, product_variants, products,
     attribute_definitions, categories, brands, addresses, customers, sessions, users
     RESTART IDENTITY CASCADE`);
@@ -226,17 +227,42 @@ await db.transaction(async (tx) => {
         await applyMovement(tx, { variantId: variant!.id, type: "INITIAL_STOCK", quantity: v.stock, reason: "Stock inicial (datos de prueba)", userId: admin!.id });
     }
   }
-  console.log(`Seed listo: ${PRODUCTS.length} productos, ${n} variantes. Admin: ${ADMIN_EMAIL}`);
+  // Tarifas de despacho DE PRUEBA (reemplazar por las reales en /admin/despacho): RM, zona central, resto y zonas extremas.
+  const RATES: [string[], number, string][] = [
+    [["13"], 2990, "1 a 2 días hábiles"],
+    [["05", "06"], 3990, "2 a 3 días hábiles"],
+    [["04", "07", "16", "08", "09", "14", "10"], 5990, "3 a 5 días hábiles"],
+    [["15", "01", "02", "03", "11", "12"], 7990, "5 a 8 días hábiles"],
+  ];
+  for (const [codes, cost, eta] of RATES)
+    for (const r of await tx.select({ id: s.regions.id }).from(s.regions).where(inArray(s.regions.code, codes)))
+      await tx.insert(s.shippingRates).values({ regionId: r.id, cost, eta });
+
+  console.log(`Seed listo: ${PRODUCTS.length} productos, ${n} variantes, tarifas de despacho de prueba. Admin: ${ADMIN_EMAIL}`);
 });
 
 // Pedidos de prueba: pasan por el carrito y el servicio de pedidos, así reservan stock igual que uno real.
 // El pendiente se cancela solo cuando vence su reserva (RESERVATION_TTL_MINUTES).
 const variantId = async (sku: string) => (await db.select({ id: s.productVariants.id }).from(s.productVariants).where(eq(s.productVariants.sku, sku)))[0]!.id;
+const [providencia] = await db.select({ id: s.communes.id }).from(s.communes).where(eq(s.communes.name, "Providencia"));
 const demoOrder = async (n: number, lines: [string, number][]) => {
   let cart: string | null = null;
   for (const [sku, quantity] of lines) cart = await addToCart(cart, { variantId: await variantId(sku), quantity });
   const { subtotal } = await getCart(cart);
-  return createOrderFromCart(cart!, { email: `cliente${n}@demo.local`, firstName: "Cliente", lastName: `Demo ${n}`, expectedTotal: subtotal });
+  const ship = (await quoteShipping(providencia!.id))!;
+  return createOrderFromCart(cart!, {
+    email: `cliente${n}@demo.local`,
+    firstName: "Cliente",
+    lastName: `Demo ${n}`,
+    phone: "+56900000000",
+    rut: null,
+    communeId: providencia!.id,
+    street: "Calle de Prueba",
+    number: String(100 + n),
+    apartment: null,
+    notes: "[DATO DE PRUEBA]",
+    expectedTotal: subtotal + ship.cost,
+  });
 };
 const [admin] = await db.select({ id: s.users.id }).from(s.users).where(eq(s.users.email, ADMIN_EMAIL));
 await demoOrder(1, [["DEMO-001-2", 2], ["DEMO-003-1", 3]]);

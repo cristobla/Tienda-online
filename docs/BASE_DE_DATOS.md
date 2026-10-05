@@ -18,6 +18,7 @@ PostgreSQL 16. Esquema en `src/db/schema/`, migraciones SQL en `drizzle/`.
 | | `orders` | Pedido con totales, `status` y `payment_status` independientes, dirección copiada. |
 | | `order_items` | Copia de nombre, SKU y precio al momento de la compra. |
 | | `order_status_history` | Quién cambió el estado y cuándo. |
+| Despacho | `shipping_rates` | Costo (CLP, IVA incl.) y plazo por región; sin fila = no se despacha a esa región. |
 | Pagos | `payments` | Intentos de pago por proveedor. |
 | | `payment_events` | Eventos/webhooks recibidos; único por (proveedor, event_id) → idempotencia. |
 | Usuarios | `users`, `sessions` | Credenciales (Argon2id) y sesiones (se guarda el hash del token). |
@@ -74,4 +75,5 @@ Lo que Drizzle no declara (índices de expresión, triggers) va en una migració
   22 productos / 32 variantes de marcas ficticias "Demo …", SKU `DEMO-…`, códigos de barra internos (200…),
   descripciones con "[DATO DE PRUEBA]"; incluye destacados, ofertas, agotados y bajo stock.
   Crea el usuario `SUPER_ADMIN` definido por `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`
+  tarifas de despacho de prueba para las 16 regiones (reemplazarlas por las reales en `/admin/despacho`)
   y 2 pedidos de prueba a través del carrito y del servicio de pedidos (uno pendiente que se cancela solo al vencer su reserva, uno cancelado).

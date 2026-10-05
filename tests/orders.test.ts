@@ -7,14 +7,16 @@ import { can } from "@/modules/auth/rbac";
 import { addItemSchema, addToCart, getCart, setItemQuantity, setItemSchema } from "@/modules/cart";
 import { adjustStock, InsufficientStockError, reserveStock, stockOperationSchema } from "@/modules/inventory";
 import { changeOrderStatus, createOrderFromCart, expireOrders, getOrder, listOrders, manualTransitions, type OrderStatus, orderStats } from "@/modules/orders";
-import { makeVariant, resetDb } from "./helpers";
+import { makeCommune, makeVariant, resetDb } from "./helpers";
 
 let staffId: string;
+let communeId: number;
 
 beforeEach(async () => {
   await resetDb();
   const [u] = await db.insert(s.users).values({ email: "ventas@test.cl", passwordHash: "x", role: "SALES" }).returning();
   staffId = u!.id;
+  communeId = (await makeCommune("T0", 0)).communeId; // despacho $0: los totales de estas pruebas son solo productos
 });
 
 const stock = async (id: string) => {
@@ -29,10 +31,22 @@ const cartWith = async (...lines: [string, number][]) => {
   for (const [v, q] of lines) id = await add(id, v, q);
   return id!;
 };
-const contact = { email: "Cliente@Test.cl", firstName: "Ana", lastName: "Pérez" };
-/** Crea el pedido confirmando el total que el cliente ve en el carrito en ese momento. */
+/** Datos del checkout ya validados (como los entrega orderInputSchema). */
+const contact = () => ({
+  email: "cliente@test.cl",
+  firstName: "Ana",
+  lastName: "Pérez",
+  phone: "+56912345678",
+  rut: null,
+  communeId,
+  street: "Av. Siempre Viva",
+  number: "742",
+  apartment: null,
+  notes: null,
+});
+/** Crea el pedido confirmando el total que el cliente ve en el carrito en ese momento (despacho $0). */
 const order = async (cartId: string, userId: string | null = null) =>
-  createOrderFromCart(cartId, { ...contact, email: contact.email.toLowerCase(), expectedTotal: (await getCart(cartId)).subtotal }, userId);
+  createOrderFromCart(cartId, { ...contact(), expectedTotal: (await getCart(cartId)).subtotal }, userId);
 const setPrice = (variantId: string, price: number) => db.update(s.productVariants).set({ price }).where(eq(s.productVariants.id, variantId));
 const damage = (variantId: string, quantity: number) =>
   adjustStock(staffId, variantId, stockOperationSchema.parse({ type: "DAMAGED", quantity: String(quantity), reason: "Prueba" }));
@@ -191,11 +205,11 @@ describe("crear pedido", () => {
     const cart = await cartWith([v.id, 2]);
     const seen = (await getCart(cart)).subtotal; // 2000
     await setPrice(v.id, 1200);
-    await expect(createOrderFromCart(cart, { ...contact, expectedTotal: seen })).rejects.toThrow("Los precios de tu carrito cambiaron");
+    await expect(createOrderFromCart(cart, { ...contact(), expectedTotal: seen })).rejects.toThrow("El total cambió");
     expect(await counts()).toEqual({ orders: 0, items: 0, customers: 0, reservations: 0 });
     expect(await qtyOf(cart)).toEqual({ [v.id]: 2 });
     // Al confirmar el total nuevo se crea con el precio actual, nunca con el que envía el navegador.
-    expect((await createOrderFromCart(cart, { ...contact, expectedTotal: 2400 })).total).toBe(2400);
+    expect((await createOrderFromCart(cart, { ...contact(), expectedTotal: 2400 })).total).toBe(2400);
   });
 
   it("stock modificado entre carrito y pedido: todo o nada", async () => {
@@ -237,7 +251,7 @@ describe("crear pedido", () => {
     await expect(order(cart)).rejects.toThrow("Ya no está disponible");
     await setItemQuantity(cart, { variantId: v.id, quantity: 0 });
     await expect(order(cart)).rejects.toThrow("Tu carrito está vacío");
-    await expect(createOrderFromCart(crypto.randomUUID(), { ...contact, expectedTotal: 0 })).rejects.toThrow("Tu carrito está vacío");
+    await expect(createOrderFromCart(crypto.randomUUID(), { ...contact(), expectedTotal: 0 })).rejects.toThrow("Tu carrito está vacío");
     expect((await counts()).orders).toBe(0);
   });
 

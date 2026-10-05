@@ -127,6 +127,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                   {address
                     ? `${address.street} ${address.number}${address.apartment ? `, ${address.apartment}` : ""}, ${address.commune}, ${address.region}`
                     : "Sin dirección registrada."}
+                  {address?.notes && <span className="mt-1 block text-muted">{address.notes}</span>}
                 </dd>
               </div>
               <p className="pt-1 text-xs text-muted">{hasAccount ? "Cliente con cuenta." : "Compra como invitado."}</p>
