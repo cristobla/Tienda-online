@@ -5,7 +5,8 @@ import { Breadcrumbs } from "@/components/store/catalog-view";
 
 export const metadata: Metadata = { title: "Mi cuenta", robots: { index: false, follow: false } };
 
-// Las cuentas de clientes llegan con los pedidos (FASE 5); el ingreso actual es solo del personal.
+// Cuentas de cliente (registro, ingreso, mis pedidos): pendientes; el checkout (FASE 6) define "invitado o cuenta".
+// Los pedidos ya se asocian a una ficha de cliente (con o sin usuario). El ingreso actual es solo del personal.
 export default function AccountPage() {
   return (
     <>

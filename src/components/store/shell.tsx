@@ -40,7 +40,7 @@ export function Logo({ className = "" }: { className?: string }) {
 
 const iconLink = "flex flex-col items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium hover:bg-mist hover:text-leaf sm:flex-row sm:gap-2 sm:text-sm";
 
-export function StoreHeader({ roots }: { roots: CategoryNode[] }) {
+export function StoreHeader({ roots, cartCount }: { roots: CategoryNode[]; cartCount: number }) {
   return (
     <header className="border-b border-line bg-white">
       <div className="bg-leaf-dark text-xs text-white sm:text-sm">
@@ -98,8 +98,17 @@ export function StoreHeader({ roots }: { roots: CategoryNode[] }) {
             <span>Mi cuenta</span>
           </Link>
           <Link href="/carrito" className={iconLink}>
-            <Icon name="cart" className="size-6" />
-            <span>Carrito</span>
+            <span className="relative">
+              <Icon name="cart" className="size-6" />
+              {cartCount > 0 && (
+                <span aria-hidden className="absolute -right-2.5 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-leaf px-1 text-[0.65rem] font-bold text-white">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
+            </span>
+            <span>
+              Carrito{cartCount > 0 && <span className="sr-only"> ({cartCount === 1 ? "1 producto" : `${cartCount} productos`})</span>}
+            </span>
           </Link>
         </div>
       </div>

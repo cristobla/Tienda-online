@@ -14,7 +14,7 @@ PostgreSQL 16. Esquema en `src/db/schema/`, migraciones SQL en `drizzle/`.
 | | `product_images` | Imágenes por producto, opcionalmente asociadas a una variante. |
 | Inventario | `inventory_movements` | Historial inmutable de cada cambio de stock físico. |
 | | `stock_reservations` | Reservas de stock por pedido pendiente de pago (ACTIVE → CONSUMED / RELEASED). |
-| Ventas | `carts`, `cart_items` | Carrito en servidor (no reserva stock). |
+| Ventas | `carts`, `cart_items` | Carrito en servidor identificado por cookie; solo variante + cantidad (precios y stock se leen al mostrar). No reserva stock. |
 | | `orders` | Pedido con totales, `status` y `payment_status` independientes, dirección copiada. |
 | | `order_items` | Copia de nombre, SKU y precio al momento de la compra. |
 | | `order_status_history` | Quién cambió el estado y cuándo. |
@@ -73,4 +73,5 @@ Lo que Drizzle no declara (índices de expresión, triggers) va en una migració
 - `npm run db:seed` — **borra** y carga datos de prueba (solo desarrollo; se niega con `NODE_ENV=production`).
   22 productos / 32 variantes de marcas ficticias "Demo …", SKU `DEMO-…`, códigos de barra internos (200…),
   descripciones con "[DATO DE PRUEBA]"; incluye destacados, ofertas, agotados y bajo stock.
-  Crea el usuario `SUPER_ADMIN` definido por `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
+  Crea el usuario `SUPER_ADMIN` definido por `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`
+  y 2 pedidos de prueba a través del carrito y del servicio de pedidos (uno pendiente que se cancela solo al vencer su reserva, uno cancelado).

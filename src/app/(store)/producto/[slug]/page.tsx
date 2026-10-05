@@ -4,9 +4,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Breadcrumbs, hrefWith, type SP } from "@/components/store/catalog-view";
-import { AddToCartButton, Fleje, ProductGrid, ProductImage, StockBadge } from "@/components/store/product-card";
+import { AddToCartForm } from "@/components/store/cart-forms";
+import { Fleje, ProductGrid, ProductImage, SoldOutButton, StockBadge } from "@/components/store/product-card";
 import { env } from "@/lib/env";
 import { Markdown } from "@/lib/markdown";
+import { MAX_ITEM_QTY } from "@/modules/cart";
 import { contentLabel, discountPercent } from "@/modules/catalog/pricing";
 import { describeAttributes, getProductBySlug, relatedProducts } from "@/modules/catalog/queries";
 import { formatCLP } from "@/modules/chile";
@@ -161,18 +163,14 @@ export default async function ProductPage({ params, searchParams }: Props) {
               {inStock && selected.available <= selected.minimumStock && <span className="ml-2 text-xs text-muted">Quedan {selected.available}</span>}
             </p>
 
-            {/* El carrito llega con los pedidos (FASE 5): la cantidad y el botón quedan listos pero deshabilitados. */}
-            <fieldset disabled className="mt-5 flex flex-wrap items-stretch gap-3">
-              <legend className="sr-only">Comprar</legend>
-              <label className="flex items-center rounded-md border border-line">
-                <span className="sr-only">Cantidad</span>
-                <span aria-hidden className="grid w-10 place-items-center text-xl text-muted">−</span>
-                <input type="number" min={1} defaultValue={1} inputMode="numeric" className="w-12 border-x border-line bg-transparent py-3 text-center font-semibold" />
-                <span aria-hidden className="grid w-10 place-items-center text-xl text-muted">+</span>
-              </label>
-              <AddToCartButton large className="flex-1" />
-            </fieldset>
-            <p className="mt-3 text-sm text-muted">La compra en línea estará disponible muy pronto.</p>
+            <div className="mt-5">
+              {inStock ? (
+                // key: al cambiar de formato el formulario se reinicia (cantidad 1, sin mensajes del anterior).
+                <AddToCartForm key={selected.id} variantId={selected.id} max={Math.min(selected.available, MAX_ITEM_QTY)} large />
+              ) : (
+                <SoldOutButton large />
+              )}
+            </div>
 
             <ul className="mt-5 space-y-2 border-t border-line pt-4 text-sm">
               <li className="flex items-center gap-2">

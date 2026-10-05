@@ -4,6 +4,7 @@ import { Icon } from "@/components/icons";
 import { discountPercent, type PricedVariant, unitPriceLabel } from "@/modules/catalog/pricing";
 import type { ProductCard as Card } from "@/modules/catalog/queries";
 import { formatCLP } from "@/modules/chile";
+import { AddToCartForm } from "./cart-forms";
 
 /**
  * Precio como fleje de góndola: amarillo, cifra condensada y precio por unidad de medida abajo.
@@ -92,22 +93,35 @@ export function StockBadge({ available, low = false }: { available: boolean; low
   );
 }
 
-/** El carrito se habilita con los pedidos (FASE 5); mientras tanto el botón se muestra deshabilitado. */
-export function AddToCartButton({ large = false, className = "" }: { large?: boolean; className?: string }) {
+/** Botón deshabilitado para lo agotado (lo disponible usa AddToCartForm). */
+export function SoldOutButton({ large = false, className = "" }: { large?: boolean; className?: string }) {
   return (
     <button
       type="button"
       disabled
-      title="La compra en línea se habilita próximamente"
-      className={`flex items-center justify-center gap-2 rounded-md bg-leaf font-bold text-white disabled:cursor-not-allowed disabled:bg-leaf/60 ${
-        large ? "px-6 py-3.5 text-lg" : "w-full px-3 py-2 text-sm"
+      className={`flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md bg-mist font-bold text-muted ${
+        large ? "px-6 py-3.5 text-lg" : "px-3 py-2 text-sm"
       } ${className}`}
     >
       <Icon name="cart" className={large ? "size-6" : "size-4"} />
-      {large ? "Agregar al carrito" : <span>Agregar<span className="sr-only"> al carrito</span></span>}
-      <span className="sr-only">(disponible próximamente)</span>
+      Agotado
     </button>
   );
+}
+
+/** Acción de compra de la tarjeta: agrega directo si hay un solo formato; si hay varios, lleva a elegirlo. */
+function CardBuy({ p }: { p: Card }) {
+  if (!p.inStock) return <SoldOutButton />;
+  if (p.variantCount > 1)
+    return (
+      <Link
+        href={`/producto/${p.slug}`}
+        className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-leaf px-3 py-1.5 text-sm font-bold text-leaf hover:bg-leaf-soft"
+      >
+        Elegir formato<span className="sr-only"> de {p.name}</span>
+      </Link>
+    );
+  return <AddToCartForm variantId={p.variantId} />;
 }
 
 export function ProductCard({ p }: { p: Card }) {
@@ -138,7 +152,10 @@ export function ProductCard({ p }: { p: Card }) {
         </div>
         <div className="mt-auto space-y-3">
           <Fleje v={p} from={p.maxPrice > p.price} muted={!p.inStock} />
-          <AddToCartButton className="relative z-10" />
+          {/* Sobre el enlace estirado de la tarjeta, para que el botón reciba el clic. */}
+          <div className="relative z-10">
+            <CardBuy p={p} />
+          </div>
         </div>
       </article>
     </li>

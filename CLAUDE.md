@@ -8,13 +8,13 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Carpetas clave: `src/app/(store)` tienda pública · `src/app/admin` panel · `src/app/media/[name]` imágenes subidas (disco local, `UPLOAD_DIR`) · `src/components/{store,admin}` + `src/components/icons.tsx` · `src/db/schema` (catalog, users, sales) · `drizzle/` migraciones · `docs/`.
 
 ## Estado de fases (plan en `docs/ARQUITECTURA.md` §13)
-1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ✅ · 5. Carrito y pedidos ⏳ · 6. Checkout · 7. Pagos · 8. Seguridad, SEO y cierre.
+1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ✅ · 5. Carrito y pedidos ✅ · 6. Checkout ⏳ · 7. Pagos · 8. Seguridad, SEO y cierre.
 - Cada fase depende de la anterior: los pedidos (5) usan reservas e inventario (4); el checkout (6) usa pedidos; los pagos (7) confirman pedidos.
 
 ## Fase 3 — lo implementado
 - Panel `/admin`: productos, variantes, imágenes, categorías, marcas, atributos, usuarios y auditoría. Cada página llama `requireStaffPage(permiso)` y cada acción `requirePermission(permiso)`; el layout solo arma el menú. Escrituras con auditoría en la misma transacción.
 - Iteración visual: header (franja de despacho, buscador, cuenta, carrito, submenú de categorías; menú móvil con `<details>`), hero con producto destacado real, beneficios, categorías desde la BD, destacados, "Recién llegados" (orden `nuevos`), marcas, footer; catálogo con filtros GET, chips de filtros activos y paginación numerada; ficha con galería (`?foto=`), formato (`?variante=`), precio, stock y cantidad; panel con sidebar oscuro, `StatCard`, tablas, `EmptyState` y `loading.tsx`.
-- Provisorio hasta fases siguientes: `/carrito` (solo interfaz; `?vista_previa=1` muestra el diseño), `/cuenta`, `/info/[tema]` (textos legales/contacto por redactar, no inventar datos). Botones de compra deshabilitados hasta la Fase 5. El seed no trae fotos: se muestran placeholders (`ProductImage`).
+- Provisorio hasta fases siguientes: `/cuenta`, `/info/[tema]` (textos legales/contacto por redactar, no inventar datos). El seed no trae fotos: se muestran placeholders (`ProductImage`).
 
 ## Decisiones visuales a conservar
 - Tokens en `src/app/globals.css` (`@theme`): eucalipto `leaf` para marca/acciones, `ink` texto, `mist`/`paper` fondos, `fleje` amarillo SOLO para el precio, `oferta` rojo SOLO para ofertas/alertas. Sin gradientes violeta, sombras mínimas, bordes `rounded-md`.
@@ -37,11 +37,23 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Panel `/admin/inventario` (listado con búsqueda y filtros agotado/bajo mínimo) y `/admin/inventario/[variantId]` (bodega/reservado/disponible/mínimo, 3 formularios, historial). `inventory:read` para ver, `inventory:adjust` para operar. Enlaces desde la ficha de variante y "Reponer pronto".
 - Pruebas en `tests/inventory.test.ts` (signos, rollback, inmutabilidad, merma vs. reservado, conteo desactualizado, sobreventa con stock 1, deadlock, concurrencia con historial encadenado). El helper `makeVariant` y el seed crean el stock vía `applyMovement`.
 
-## Para comenzar la Fase 5 (carrito y pedidos)
-- Crear el pedido `PENDING_PAYMENT` y llamar `reserveStock(tx, orderId, líneas)` en la MISMA transacción; capturar `InsufficientStockError` (trae `variantId` y `available`) para avisar al cliente.
-- Cancelación antes de pagar / pago fallido: `releaseOrderReservations`. Vencidas: `releaseExpiredReservations()` desde una tarea periódica o verificación perezosa (aún no hay programador de tareas).
-- Falta (cuando exista el pago): consumir la reserva → `SALE` con `stock_on_hand` y `stock_reserved` bajando en el mismo UPDATE (extender `applyMovement`; hacerlo en dos UPDATE rompe el CHECK `reserved <= on_hand`). También `SALE_CANCELLED` y `RETURN`.
-- El carrito NO reserva stock; los totales se recalculan en el servidor. `/carrito` hoy es solo interfaz.
+## Fase 5 — lo implementado
+- Sin migraciones: las tablas `carts`, `cart_items`, `orders`, `order_items`, `order_status_history`, `stock_reservations`, `customers` ya venían de la Fase 1 (`drizzle-kit generate` → sin cambios).
+- `src/modules/cart`: carrito en servidor identificado por cookie `cart` (UUID aleatorio, `httpOnly`; no requiere sesión). Guarda solo variante + cantidad; `cartLines(tx, cartId)` lee precio/stock/vendible actuales y marca `problem` por línea. `addToCart` (suma, máx. 99 por producto, valida disponible = físico − reservado), `setItemQuantity` (0 = quitar; bajar siempre se permite, subir exige stock). Toda escritura bloquea la fila de `carts` (y marca `updated_at`). El carrito NO reserva.
+- `src/modules/orders`: `createOrderFromCart(cartId, {email, firstName, lastName, expectedTotal}, userId?)` en UNA transacción: bloquea el carrito → valida líneas → compara `expectedTotal` (total que vio el cliente; si cambió, error y no se crea) → cliente (por `user_id` con upsert, o invitado nuevo) → pedido `PENDING_PAYMENT` + ítems snapshot + historial → `reserveStock` → borra el carrito (un doble envío no duplica). Antes llama `expireOrders()` (verificación perezosa).
+- Estados: mapa `TRANSITIONS` en el módulo. `changeOrderStatus` (panel, `orders:manage`, auditado como `order.status`) rechaza lo que mueve dinero (`movesMoney`: → `PAID`, → `REFUNDED`, cancelar un pedido pagado o con pago `AUTHORIZED`); cancelar exige motivo, libera reservas y deja `payment_status = CANCELLED`. `manualTransitions(o)` = lo que el panel ofrece.
+- Vencimiento: `expireOrders()` cancela pedidos impagos con reserva vencida (`payment_status = EXPIRED`, historial "Reserva vencida"), un pedido por transacción. Tarea cada 60 s en `src/instrumentation.ts` (temporizador en proceso, `ponytail:`) + llamada antes de crear cada pedido.
+- Tienda: `(store)/carrito/actions.ts` (agregar / fijar cantidad), `components/store/cart-forms.tsx` (`AddToCartForm`, `CartLineControls`; `useActionState`, funcionan sin JS), `/carrito` real, contador en el header, tarjetas: "Agregar" si hay un formato, "Elegir formato" si hay varios, "Agotado" deshabilitado. El formulario de filtros del catálogo ahora envuelve solo el panel lateral (no puede haber `<form>` anidados); "Ordenar por" usa `form="filtros"`.
+- Panel: `/admin/pedidos` (búsqueda por número/cliente/email, filtro por estado) y `/admin/pedidos/[id]` (snapshot, totales, cliente, stock reservado, historial, cambios de estado). `orders:read` ver, `orders:manage` operar. `error.tsx` en tienda y panel; `carrito/loading.tsx`.
+- Seed: 2 pedidos de prueba creados por el carrito y el servicio real (uno pendiente que vence solo, uno cancelado).
+- Pruebas en `tests/orders.test.ts` (29): carrito, creación, snapshot, precio/stock cambiados, rollback dentro de la transacción (determinista con `pg_stat_activity`), estados, vencimiento, concurrencia (última unidad, doble envío, cancelar vs. vencer) y permisos.
+
+## Para comenzar la Fase 6 (checkout)
+- Formulario de checkout que llame `createOrderFromCart` con `expectedTotal = getCart(...).subtotal` mostrado al cliente. Extender `orderInputSchema` con teléfono/RUT (`normalizeChileanPhone`, `normalizeRut`), dirección (`shippingAddress` snapshot + `shippingCommuneId`) y costo de despacho (`shippingTotal`; el CHECK exige `total = subtotal − descuento + envío`).
+- Capturar `UserError`/`InsufficientStockError` y devolver al carrito, que ya muestra cada problema por línea.
+- Pendiente de decidir: cuentas de cliente (registro/ingreso, "mis pedidos"; hoy el login es solo staff) y fusionar el carrito de la cookie al ingresar (`carts.user_id` existe, sin uso). Página de confirmación/detalle del pedido para el cliente.
+- Fase 7: consumir la reserva → `SALE` (físico y reservado bajan en el mismo UPDATE; extender `applyMovement`), `SALE_CANCELLED`, reembolsos; el pago tardío sobre un pedido vencido (`CANCELLED`/`EXPIRED`) intenta re-reservar. Esas transiciones son las que `movesMoney` hoy bloquea en el panel.
+- `releaseExpiredReservations()` (Fase 4) quedó sin uso en la app: `expireOrders()` también cancela el pedido.
 
 ## Plugins de la sesión
 - **Ponytail** (activo por hook): solución más simple que funcione, sin recortar validación, seguridad ni lo pedido explícitamente.

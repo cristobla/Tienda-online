@@ -106,106 +106,110 @@ export async function CatalogView({
   return (
     <>
       {header}
-      <AutoSubmitForm action={path} className="mt-6 grid grid-cols-1 items-start gap-x-8 lg:grid-cols-[16rem_1fr]">
-        {params.q && <input type="hidden" name="q" value={params.q} />}
+      <div className="mt-6 grid grid-cols-1 items-start gap-x-8 lg:grid-cols-[16rem_1fr]">
+        {/* El formulario envuelve solo los filtros: la grilla tiene sus propios formularios (agregar al carrito)
+            y un <form> no puede ir dentro de otro. "Ordenar por" se asocia con el atributo form="filtros". */}
+        <AutoSubmitForm id="filtros" action={path} className="lg:sticky lg:top-4">
+          {params.q && <input type="hidden" name="q" value={params.q} />}
 
-        {/* En móvil los filtros se despliegan con este interruptor (sin JavaScript). */}
-        <input id="ver-filtros" type="checkbox" className="peer sr-only" />
-        <label
-          htmlFor="ver-filtros"
-          className="mb-4 inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-4 py-2.5 font-semibold peer-focus-visible:outline-3 peer-focus-visible:outline-leaf lg:hidden"
-        >
-          <Icon name="sliders" />
-          Filtrar{chips.length > 0 && ` (${chips.length})`}
-        </label>
+          {/* En móvil los filtros se despliegan con este interruptor (sin JavaScript). */}
+          <input id="ver-filtros" type="checkbox" className="peer sr-only" />
+          <label
+            htmlFor="ver-filtros"
+            className="mb-4 inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-4 py-2.5 font-semibold peer-focus-visible:outline-3 peer-focus-visible:outline-leaf lg:hidden"
+          >
+            <Icon name="sliders" />
+            Filtrar{chips.length > 0 && ` (${chips.length})`}
+          </label>
 
-        <aside aria-label="Filtros" className="mb-6 hidden rounded-md border border-line bg-white text-sm peer-checked:block lg:sticky lg:top-4 lg:mb-0 lg:block">
-          <p className="flex items-center gap-2 border-b border-line px-4 py-3 font-bold">
-            <Icon name="sliders" className="size-4" />
-            Filtros
-          </p>
-          <div className={group}>
-            <label className="flex items-center gap-2 font-semibold">
-              <input type="checkbox" name="disponible" value="1" defaultChecked={params.inStock} className={box} />
-              Solo productos con stock
-            </label>
-          </div>
+          <aside aria-label="Filtros" className="mb-6 hidden rounded-md border border-line bg-white text-sm peer-checked:block lg:mb-0 lg:block">
+            <p className="flex items-center gap-2 border-b border-line px-4 py-3 font-bold">
+              <Icon name="sliders" className="size-4" />
+              Filtros
+            </p>
+            <div className={group}>
+              <label className="flex items-center gap-2 font-semibold">
+                <input type="checkbox" name="disponible" value="1" defaultChecked={params.inStock} className={box} />
+                Solo productos con stock
+              </label>
+            </div>
 
-          {!scope.brandId && facets.brands.length > 0 && (
-            <fieldset className={group}>
-              <legend className="float-left mb-2 w-full font-bold">Marca</legend>
-              <ul className="clear-both space-y-2">
-                {facets.brands.map((b) => (
-                  <li key={b.id}>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" name="marca" value={b.slug} defaultChecked={checked("marca", b.slug)} className={box} />
-                      <span className="flex-1">{b.name}</span>
-                      <span className="text-xs text-muted">{b.count}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </fieldset>
-          )}
-
-          {facets.price && facets.price.max > facets.price.min && (
-            <fieldset className={group}>
-              <legend className="float-left mb-2 w-full font-bold">Precio</legend>
-              <div className="clear-both flex items-center gap-2">
-                {(["precio_min", "precio_max"] as const).map((name, i) => (
-                  <label key={name} className="min-w-0 flex-1">
-                    <span className="mb-1 block text-xs text-muted">{i ? "Hasta" : "Desde"}</span>
-                    <input
-                      type="number"
-                      name={name}
-                      min={0}
-                      step={10}
-                      inputMode="numeric"
-                      defaultValue={i ? params.maxPrice : params.minPrice}
-                      placeholder={formatCLP(i ? facets.price!.max : facets.price!.min)}
-                      className="w-full rounded-md border border-line px-2 py-1.5"
-                    />
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-
-          {facets.attributes.map(({ def, values }) => (
-            <fieldset key={def.code} className={group}>
-              <legend className="float-left mb-2 w-full font-bold">{def.label}</legend>
-              <ul className="clear-both space-y-2">
-                {values.map((v) => (
-                  <li key={v.value}>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name={ATTR_PREFIX + def.code}
-                        value={v.value}
-                        defaultChecked={checked(ATTR_PREFIX + def.code, v.value)}
-                        className={box}
-                      />
-                      <span className="flex-1">
-                        {def.type === "BOOLEAN" ? (v.value === "true" ? "Sí" : "No") : v.value}
-                        {def.unit && ` ${def.unit}`}
-                      </span>
-                      <span className="text-xs text-muted">{v.count}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </fieldset>
-          ))}
-
-          <div className="flex items-center gap-4 px-4 py-4">
-            <button className="rounded-md bg-leaf px-4 py-2 font-semibold text-white hover:bg-leaf-dark">Aplicar</button>
-            {chips.length > 0 && (
-              <Link href={clearHref} className="font-medium text-leaf underline">
-                Quitar filtros
-              </Link>
+            {!scope.brandId && facets.brands.length > 0 && (
+              <fieldset className={group}>
+                <legend className="float-left mb-2 w-full font-bold">Marca</legend>
+                <ul className="clear-both space-y-2">
+                  {facets.brands.map((b) => (
+                    <li key={b.id}>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" name="marca" value={b.slug} defaultChecked={checked("marca", b.slug)} className={box} />
+                        <span className="flex-1">{b.name}</span>
+                        <span className="text-xs text-muted">{b.count}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
             )}
-          </div>
-        </aside>
+
+            {facets.price && facets.price.max > facets.price.min && (
+              <fieldset className={group}>
+                <legend className="float-left mb-2 w-full font-bold">Precio</legend>
+                <div className="clear-both flex items-center gap-2">
+                  {(["precio_min", "precio_max"] as const).map((name, i) => (
+                    <label key={name} className="min-w-0 flex-1">
+                      <span className="mb-1 block text-xs text-muted">{i ? "Hasta" : "Desde"}</span>
+                      <input
+                        type="number"
+                        name={name}
+                        min={0}
+                        step={10}
+                        inputMode="numeric"
+                        defaultValue={i ? params.maxPrice : params.minPrice}
+                        placeholder={formatCLP(i ? facets.price!.max : facets.price!.min)}
+                        className="w-full rounded-md border border-line px-2 py-1.5"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
+            {facets.attributes.map(({ def, values }) => (
+              <fieldset key={def.code} className={group}>
+                <legend className="float-left mb-2 w-full font-bold">{def.label}</legend>
+                <ul className="clear-both space-y-2">
+                  {values.map((v) => (
+                    <li key={v.value}>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name={ATTR_PREFIX + def.code}
+                          value={v.value}
+                          defaultChecked={checked(ATTR_PREFIX + def.code, v.value)}
+                          className={box}
+                        />
+                        <span className="flex-1">
+                          {def.type === "BOOLEAN" ? (v.value === "true" ? "Sí" : "No") : v.value}
+                          {def.unit && ` ${def.unit}`}
+                        </span>
+                        <span className="text-xs text-muted">{v.count}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+            ))}
+
+            <div className="flex items-center gap-4 px-4 py-4">
+              <button className="rounded-md bg-leaf px-4 py-2 font-semibold text-white hover:bg-leaf-dark">Aplicar</button>
+              {chips.length > 0 && (
+                <Link href={clearHref} className="font-medium text-leaf underline">
+                  Quitar filtros
+                </Link>
+              )}
+            </div>
+          </aside>
+        </AutoSubmitForm>
 
         <section aria-label="Resultados" className="min-w-0">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-paper px-4 py-2.5">
@@ -214,7 +218,7 @@ export async function CatalogView({
             </p>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted">Ordenar por</span>
-              <select name="orden" defaultValue={sort} className="rounded-md border border-line bg-white px-2 py-1.5 font-medium">
+              <select name="orden" form="filtros" defaultValue={sort} className="rounded-md border border-line bg-white px-2 py-1.5 font-medium">
                 {Object.entries(SORTS)
                   .filter(([k]) => k !== "relevancia" || params.q)
                   .map(([k, label]) => (
@@ -282,7 +286,7 @@ export async function CatalogView({
             </nav>
           )}
         </section>
-      </AutoSubmitForm>
+      </div>
     </>
   );
 }

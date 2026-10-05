@@ -13,19 +13,20 @@ export function AutoSubmitForm(props: React.ComponentProps<"form">) {
       ref={(form) => {
         if (!form) return;
         const wide = matchMedia("(min-width: 1024px)");
+        // Se escucha en el documento: un control puede pertenecer al formulario sin estar dentro (atributo form="…").
         const submit = (e: Event) => {
-          const { name } = e.target as HTMLInputElement;
+          const { name, form: owner } = e.target as HTMLInputElement;
           // Sin name = interruptor del panel en móvil, no es un filtro.
-          if (name && (wide.matches || name === "orden")) form.requestSubmit();
+          if (owner === form && name && (wide.matches || name === "orden")) form.requestSubmit();
         };
         // URLs limpias: sin precio_min= vacíos.
         const clean = (e: FormDataEvent) => {
           for (const [k, v] of [...e.formData]) if (v === "") e.formData.delete(k);
         };
-        form.addEventListener("change", submit);
+        document.addEventListener("change", submit);
         form.addEventListener("formdata", clean);
         return () => {
-          form.removeEventListener("change", submit);
+          document.removeEventListener("change", submit);
           form.removeEventListener("formdata", clean);
         };
       }}
