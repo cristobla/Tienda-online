@@ -1,6 +1,6 @@
 # Plataforma e-commerce (Chile) — Análisis técnico y arquitectura propuesta
 
-Estado: **propuesta para aprobación** (antes de FASE 1). Fecha: 2026-10-05.
+Estado: **aprobada** (2026-10-05). FASE 1 implementada.
 
 ## 1. Entorno existente
 
@@ -13,7 +13,7 @@ Proyecto vacío: no hay código, repositorio ni stack previo. Disponible: Node 2
 | Lenguaje | TypeScript (estricto) | Un solo lenguaje en front y back; tipos compartidos. |
 | Framework | Next.js (App Router) | SSR/SSG para SEO, rutas API para webhooks, server actions para el panel. Un solo despliegue. |
 | Base de datos | PostgreSQL 16 | Transacciones, `CHECK`, bloqueo de filas, JSONB, búsqueda full-text. |
-| ORM / migraciones | Prisma | Migraciones versionadas, consultas parametrizadas (anti SQL injection), SQL crudo cuando haga falta. |
+| ORM / migraciones | Drizzle ORM + drizzle-kit | Migraciones SQL versionadas y legibles, consultas parametrizadas (anti SQL injection), `CHECK` declarados en el esquema, sin binarios externos. |
 | Validación | Zod | Mismos esquemas en formulario y servidor. |
 | UI | Tailwind CSS | Responsive sin librería de componentes pesada. |
 | Auth | Sesiones propias en BD + cookie `httpOnly`/`Secure`/`SameSite=Lax`, hash Argon2id | Sin dependencia de terceros; control total de roles. |
@@ -47,8 +47,11 @@ src/
     audit/
     chile/              regiones, comunas, RUT, teléfono, CLP
   lib/                  db, env (validado con Zod), storage, utilidades
-prisma/
-  schema.prisma  migrations/  seed.ts
+  db/
+    schema/             tablas Drizzle (catalog, users, sales)
+    data/               regiones y comunas de Chile
+    migrate.ts  seed.ts  reference-data.ts
+drizzle/                migraciones SQL generadas (versionadas en git)
 tests/
 docs/
 ```
@@ -161,7 +164,7 @@ Zod en front y back; Prisma parametrizado; React escapa por defecto (sin `danger
 | Despacho | Tarifas por región/comuna configurables en el MVP; integración con couriers después (interfaz `ShippingProvider`). |
 
 ## 13. Plan de fases
-1. Arquitectura y BD: proyecto, esquema Prisma, migraciones, seed, módulos `chile` y `auth`.
+1. Arquitectura y BD: proyecto, esquema Drizzle, migraciones, seed, módulos `chile` y `auth`.
 2. Catálogo público: productos, variantes, categorías, marcas, búsqueda, filtros, orden.
 3. Panel administrativo.
 4. Inventario y movimientos.
@@ -175,3 +178,8 @@ Zod en front y back; Prisma parametrizado; React escapa por defecto (sin `danger
 - Proveedor de boleta/factura electrónica.
 - Almacenamiento de imágenes en producción (bucket S3-compatible).
 - Dominio, hosting y servicio de correo transaccional (confirmaciones de pedido).
+
+## 15. Registro de decisiones
+
+- **2026-10-05 — Drizzle en vez de Prisma.** Prisma requiere descargar un binario (schema engine) desde un servidor externo, lo que falla en entornos con red restringida y agrega una pieza más al despliegue. Drizzle es TypeScript puro, genera SQL legible y permite declarar los `CHECK` de inventario en el mismo esquema. Sin impacto en el resto de la arquitectura.
+- **Esquema agrupado en 3 archivos** (`catalog`, `users`, `sales`) en `src/db/schema/` en lugar de uno por módulo: las tablas tienen muchas FK cruzadas y así se evita importar entre módulos. La lógica de negocio sí vive por dominio en `src/modules/`.
