@@ -8,7 +8,7 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Carpetas clave: `src/app/(store)` tienda pública · `src/app/admin` panel · `src/app/media/[name]` imágenes subidas (disco local, `UPLOAD_DIR`) · `src/components/{store,admin}` + `src/components/icons.tsx` · `src/db/schema` (catalog, users, sales) · `drizzle/` migraciones · `docs/`.
 
 ## Estado de fases (plan en `docs/ARQUITECTURA.md` §13)
-1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ⏳ · 5. Carrito y pedidos · 6. Checkout · 7. Pagos · 8. Seguridad, SEO y cierre.
+1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ✅ · 5. Carrito y pedidos ⏳ · 6. Checkout · 7. Pagos · 8. Seguridad, SEO y cierre.
 - Cada fase depende de la anterior: los pedidos (5) usan reservas e inventario (4); el checkout (6) usa pedidos; los pagos (7) confirman pedidos.
 
 ## Fase 3 — lo implementado
@@ -30,11 +30,18 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Cambios de esquema: editar `src/db/schema/*`, luego `npm run db:generate -- --name <cambio>`; nunca editar migraciones ya publicadas.
 - Antes de diagnosticar "funciones faltantes", comparar la rama local con `origin/main` (`git branch -a`, `git log --all --graph`) y que `node_modules` corresponda al lockfile.
 
-## Para comenzar la Fase 4 (inventario)
-- Ya existe la única puerta de stock: `applyMovement()` en `src/modules/inventory` (usada por el stock inicial de variantes, tipo `INITIAL_STOCK`).
-- Tablas ya creadas en `src/db/schema/sales.ts`: `inventory_movements` (enum `inventory_movement_type`) y `stock_reservations` (`ACTIVE`/`CONSUMED`/`RELEASED`); los `CHECK` de la BD impiden stock negativo o menor a lo reservado.
-- Permisos ya definidos en `src/modules/auth/rbac.ts`: `inventory:read` (SALES, WAREHOUSE, ADMIN, SUPER_ADMIN) e `inventory:adjust` (WAREHOUSE, ADMIN, SUPER_ADMIN).
-- En el panel el stock hoy es solo lectura; ajustes manuales, compras e historial son trabajo de la Fase 4. No tocar la UI visual de la Fase 3 salvo lo necesario.
+## Fase 4 — lo implementado
+- `src/modules/inventory`: `applyMovement(tx, …)` (única puerta de `stock_on_hand`; exige `Transaction`, valida signo por tipo y motivo en ajustes), `adjustStock()` (ingreso `PURCHASE`, merma `DAMAGED`, conteo físico → `MANUAL_ADJUSTMENT`; bloquea la fila con `FOR UPDATE`), consultas `listInventory`/`getVariantStock`/`listMovements`.
+- Reservas sin UI: `reserveStock(tx, orderId, líneas)` (UPDATE condicional, todo o nada, `InsufficientStockError`, bloqueo en orden de id), `releaseOrderReservations(tx, orderId)`, `releaseExpiredReservations()`; idempotentes (solo `ACTIVE`). Reservar no crea movimientos.
+- Migración `0002_movimientos_inmutables.sql`: trigger que impide editar/borrar movimientos. `created_at` del movimiento = `clock_timestamp()`.
+- Panel `/admin/inventario` (listado con búsqueda y filtros agotado/bajo mínimo) y `/admin/inventario/[variantId]` (bodega/reservado/disponible/mínimo, 3 formularios, historial). `inventory:read` para ver, `inventory:adjust` para operar. Enlaces desde la ficha de variante y "Reponer pronto".
+- Pruebas en `tests/inventory.test.ts` (signos, rollback, inmutabilidad, merma vs. reservado, conteo desactualizado, sobreventa con stock 1, deadlock, concurrencia con historial encadenado). El helper `makeVariant` y el seed crean el stock vía `applyMovement`.
+
+## Para comenzar la Fase 5 (carrito y pedidos)
+- Crear el pedido `PENDING_PAYMENT` y llamar `reserveStock(tx, orderId, líneas)` en la MISMA transacción; capturar `InsufficientStockError` (trae `variantId` y `available`) para avisar al cliente.
+- Cancelación antes de pagar / pago fallido: `releaseOrderReservations`. Vencidas: `releaseExpiredReservations()` desde una tarea periódica o verificación perezosa (aún no hay programador de tareas).
+- Falta (cuando exista el pago): consumir la reserva → `SALE` con `stock_on_hand` y `stock_reserved` bajando en el mismo UPDATE (extender `applyMovement`; hacerlo en dos UPDATE rompe el CHECK `reserved <= on_hand`). También `SALE_CANCELLED` y `RETURN`.
+- El carrito NO reserva stock; los totales se recalculan en el servidor. `/carrito` hoy es solo interfaz.
 
 ## Plugins de la sesión
 - **Ponytail** (activo por hook): solución más simple que funcione, sin recortar validación, seguridad ni lo pedido explícitamente.

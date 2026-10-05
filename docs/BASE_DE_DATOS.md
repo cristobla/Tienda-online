@@ -31,6 +31,7 @@ Aunque la aplicación tenga un error, PostgreSQL rechaza:
 
 - `stock_on_hand < 0`, `stock_reserved < 0` o `stock_reserved > stock_on_hand`.
 - Movimientos donde `resulting_stock ≠ previous_stock + quantity`, o cantidad 0.
+- Editar o borrar un movimiento de inventario (trigger de `0002_movimientos_inmutables.sql`; solo se permite que `created_by` quede en NULL al borrar un usuario).
 - Más de una variante por defecto por producto.
 - `compare_at_price ≤ price`, precios o costos negativos, `units_per_pack < 1`.
 - Pedidos donde `total ≠ subtotal − descuento + envío`; líneas donde `line_total ≠ unit_price × quantity`.
@@ -64,6 +65,7 @@ npm run db:migrate                                    # aplica migraciones pendi
 ```
 
 Nunca editar una migración ya aplicada en producción; crear una nueva.
+Lo que Drizzle no declara (índices de expresión, triggers) va en una migración SQL propia: `npm run db:generate -- --custom --name descripcion`.
 
 ## Datos
 

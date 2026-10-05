@@ -8,6 +8,7 @@
 import { sql } from "drizzle-orm";
 import { slugify } from "@/lib/slug";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/modules/auth/password";
+import { applyMovement } from "@/modules/inventory";
 import { db, pool } from ".";
 import { loadReferenceData } from "./reference-data";
 import * as s from "./schema";
@@ -212,24 +213,15 @@ await db.transaction(async (tx) => {
           contentUnit: v.unit ?? "UNIT",
           unitsPerPack: v.pack ?? 1,
           attributes: v.attrs ?? {},
-          stockOnHand: v.stock,
           minimumStock: v.min ?? 0,
           isDefault: vi === 0,
           sortOrder: vi,
         })
         .returning({ id: s.productVariants.id });
 
-      // El stock inicial queda trazado igual que cualquier otro movimiento.
+      // El stock inicial pasa por la misma puerta que cualquier otro movimiento.
       if (v.stock > 0)
-        await tx.insert(s.inventoryMovements).values({
-          variantId: variant!.id,
-          type: "INITIAL_STOCK",
-          quantity: v.stock,
-          previousStock: 0,
-          resultingStock: v.stock,
-          reason: "Stock inicial (datos de prueba)",
-          createdBy: admin!.id,
-        });
+        await applyMovement(tx, { variantId: variant!.id, type: "INITIAL_STOCK", quantity: v.stock, reason: "Stock inicial (datos de prueba)", userId: admin!.id });
     }
   }
   console.log(`Seed listo: ${PRODUCTS.length} productos, ${n} variantes. Admin: ${ADMIN_EMAIL}`);

@@ -178,6 +178,7 @@ export async function dashboardStats() {
       .select({
         productId: s.products.id,
         product: s.products.name,
+        variantId: s.productVariants.id,
         variant: s.productVariants.name,
         sku: s.productVariants.sku,
         available: sql<number>`${s.productVariants.stockOnHand} - ${s.productVariants.stockReserved}`,

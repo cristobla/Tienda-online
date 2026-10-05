@@ -13,6 +13,7 @@ export const metadata: Metadata = { title: "Inicio" };
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ sin_permiso?: string }> }) {
   const user = await requireStaffPage();
   const showCatalog = can(user.role, "catalog:read");
+  const canInventory = can(user.role, "inventory:read");
   const [stats, activity] = await Promise.all([
     showCatalog ? dashboardStats() : null,
     can(user.role, "audit:read") ? listAudit({}).then((r) => r.slice(0, 8)) : null,
@@ -47,7 +48,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                       {v.product}
                     </Link>
                   </td>
-                  <td>{v.variant}</td>
+                  <td>
+                    {canInventory ? (
+                      <Link href={`/admin/inventario/${v.variantId}`} className="hover:text-leaf hover:underline">
+                        {v.variant}
+                      </Link>
+                    ) : (
+                      v.variant
+                    )}
+                  </td>
                   <td className="whitespace-nowrap font-mono text-xs">{v.sku}</td>
                   <td>{v.available <= 0 ? <Badge tone="bad">Agotado</Badge> : <Badge tone="warn">{v.available}</Badge>}</td>
                   <td>{v.minimum}</td>
