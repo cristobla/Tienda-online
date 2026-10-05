@@ -28,6 +28,7 @@ npm run dev                   # http://localhost:3000
 | `npm run db:migrate` | Aplica migraciones pendientes |
 | `npm run db:reference` | Carga regiones y comunas (producción) |
 | `npm run db:seed` | Reemplaza la BD de desarrollo con datos de prueba |
+| `npm run db:studio` | Explorador visual de las tablas en el navegador |
 
 ## Usuario de prueba
 
@@ -44,6 +45,8 @@ npm run dev                   # http://localhost:3000
 | `/categoria/[slug]` | Categoría con sus subcategorías |
 | `/marca/[slug]` | Productos de una marca |
 | `/producto/[slug]` | Ficha con selector de formato (`?variante=SKU`), características y JSON-LD |
+| `/carrito` | Solo interfaz hasta la FASE 5; `?vista_previa=1` muestra el diseño con productos del catálogo |
+| `/cuenta`, `/info/[tema]` | Páginas provisorias (cuenta de cliente, ayuda y legales por redactar) |
 | `/sitemap.xml`, `/robots.txt` | Generados desde la base |
 
 Filtros por URL: `marca`, `precio_min`, `precio_max`, `disponible=1`, `a_<atributo>` (atributos marcados como filtrables), `orden`, `pagina`.

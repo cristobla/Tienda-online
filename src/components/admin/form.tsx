@@ -43,7 +43,7 @@ function useField(name: string, initial: string | number | boolean | null | unde
   };
 }
 
-const input = "w-full rounded-md border border-line bg-white px-3 py-2 aria-invalid:border-oferta";
+const input = "w-full rounded-md border border-line bg-white px-3 py-2 hover:border-muted/50 focus:border-leaf aria-invalid:border-oferta aria-invalid:bg-oferta/5";
 
 type Common = { name: string; label: string; hint?: string; className?: string };
 

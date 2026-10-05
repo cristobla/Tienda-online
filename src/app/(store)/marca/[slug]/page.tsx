@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Breadcrumbs, CatalogView, type SP } from "@/components/store/catalog-view";
+import { CatalogTitle, CatalogView, type SP } from "@/components/store/catalog-view";
 import { getBrandBySlug } from "@/modules/brands/queries";
 import { loadCategories } from "@/modules/categories/queries";
 
@@ -22,13 +22,7 @@ export default async function BrandPage({ params, searchParams }: Props) {
       path={`/marca/${brand.slug}`}
       scope={{ categoryIds: visibleIds, brandId: brand.id }}
       searchParams={await searchParams}
-      header={
-        <>
-          <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: "Marcas" }, { name: brand.name }]} />
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{brand.name}</h1>
-          {brand.description && <p className="mt-2 max-w-prose text-muted">{brand.description}</p>}
-        </>
-      }
+      header={<CatalogTitle crumbs={[{ name: "Inicio", href: "/" }, { name: "Marcas" }, { name: brand.name }]} title={brand.name} description={brand.description} />}
     />
   );
 }

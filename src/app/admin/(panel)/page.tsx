@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, PageHeader, Section, Table } from "@/components/admin/ui";
+import { Badge, PageHeader, Section, StatCard, Table } from "@/components/admin/ui";
 import { listAudit } from "@/modules/audit";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
@@ -22,35 +22,20 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <>
       <PageHeader title="Inicio" />
       {(await searchParams).sin_permiso && (
-        <p role="alert" className="mb-6 rounded-md border border-oferta/40 bg-white px-4 py-3 text-sm text-oferta">
+        <p role="alert" className="mb-6 rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta">
           Tu rol no tiene acceso a esa sección.
         </p>
       )}
 
       {stats && (
         <>
-          <dl className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {[
-              { label: "Productos activos", value: stats.activeProducts, href: "/admin/productos?estado=activos" },
-              { label: "Inactivos", value: stats.inactiveProducts, href: "/admin/productos?estado=inactivos" },
-              { label: "Variantes agotadas", value: stats.outOfStock, href: "/admin/productos?stock=agotado", alert: stats.outOfStock > 0 },
-              { label: "Bajo stock mínimo", value: stats.lowStock, href: "/admin/productos?stock=bajo", alert: stats.lowStock > 0 },
-              { label: "Productos sin foto", value: stats.withoutImages },
-            ].map((s) => (
-              <div key={s.label} className="rounded-md border border-line bg-white p-4">
-                <dt className="text-sm text-muted">{s.label}</dt>
-                <dd className={`mt-1 text-3xl font-extrabold [font-stretch:80%] ${s.alert ? "text-oferta" : ""}`}>
-                  {s.href ? (
-                    <Link href={s.href} className="hover:underline">
-                      {s.value}
-                    </Link>
-                  ) : (
-                    s.value
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard label="Productos activos" value={stats.activeProducts} icon="box" href="/admin/productos?estado=activos" />
+            <StatCard label="Inactivos" value={stats.inactiveProducts} icon="layers" href="/admin/productos?estado=inactivos" />
+            <StatCard label="Variantes agotadas" value={stats.outOfStock} icon="alert" href="/admin/productos?stock=agotado" alert={stats.outOfStock > 0} />
+            <StatCard label="Bajo stock mínimo" value={stats.lowStock} icon="chart" href="/admin/productos?stock=bajo" alert={stats.lowStock > 0} />
+            <StatCard label="Productos sin foto" value={stats.withoutImages} icon="tag" />
+          </div>
 
           <div className="mt-8">
             <h2 className="mb-3 text-lg font-bold">Reponer pronto</h2>
