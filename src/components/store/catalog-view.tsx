@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/icons";
 import { ATTR_PREFIX, parseCatalogParams, SORTS, type Sort } from "@/modules/catalog/params";
 import { getFacets, listProducts, resolveFilters, type Scope } from "@/modules/catalog/queries";
 import { formatCLP } from "@/modules/chile";
@@ -16,19 +17,32 @@ export function hrefWith(path: string, sp: SP, changes: Record<string, string | 
   return qs ? `${path}?${qs}` : path;
 }
 
+/** Misma URL sin un valor puntual de un parámetro repetible (?marca=a&marca=b → quitar b). Vuelve a la página 1. */
+function hrefWithout(path: string, sp: SP, key: string, value?: string) {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (k === "pagina") continue;
+    for (const x of [v ?? []].flat()) if (!(k === key && (value === undefined || x === value))) u.append(k, x);
+  }
+  const qs = u.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
 export function Breadcrumbs({ items }: { items: { name: string; href?: string }[] }) {
   return (
-    <nav aria-label="Ruta" className="mb-3 text-sm text-muted">
-      <ol className="flex flex-wrap gap-1.5">
+    <nav aria-label="Ruta" className="mb-4 text-sm text-muted">
+      <ol className="flex flex-wrap items-center gap-1">
         {items.map((it, i) => (
-          <li key={i} className="flex gap-1.5">
-            {i > 0 && <span aria-hidden>/</span>}
+          <li key={i} className="flex items-center gap-1">
+            {i > 0 && <Icon name="chevron" className="size-3.5 opacity-60" />}
             {it.href ? (
               <Link href={it.href} className="hover:text-leaf hover:underline">
                 {it.name}
               </Link>
             ) : (
-              <span aria-current="page">{it.name}</span>
+              <span aria-current="page" className="font-medium text-ink">
+                {it.name}
+              </span>
             )}
           </li>
         ))}
@@ -37,7 +51,18 @@ export function Breadcrumbs({ items }: { items: { name: string; href?: string }[
   );
 }
 
-const box = "size-4 accent-leaf";
+const box = "size-4 shrink-0 accent-leaf";
+const group = "border-b border-line px-4 py-4 last:border-b-0";
+
+/** Páginas a mostrar: primera, última y vecinas de la actual, con huecos (null) entre medio. */
+function pageList(page: number, pages: number): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let n = 1; n <= pages; n++) {
+    if (n === 1 || n === pages || Math.abs(n - page) <= 1) out.push(n);
+    else if (out.at(-1) !== null) out.push(null);
+  }
+  return out;
+}
 
 /** Listado con filtros, orden y paginación. Lo usan /productos, /categoria/[slug] y /marca/[slug]. */
 export async function CatalogView({
@@ -58,38 +83,64 @@ export async function CatalogView({
   const [result, facets] = await Promise.all([listProducts(fullScope, filters, { sort, page: params.page }), getFacets(fullScope)]);
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
   const checked = (key: string, value: string) => [searchParams[key] ?? []].flat().includes(value);
-  const activeFilters = params.brandSlugs.length + Object.keys(params.attrs).length + (params.inStock ? 1 : 0) + (params.minPrice !== undefined || params.maxPrice !== undefined ? 1 : 0);
+
+  // Filtros activos como chips que se quitan con un enlace (sin JavaScript).
+  const chips: { label: string; href: string }[] = [
+    ...params.brandSlugs.map((slug) => ({
+      label: facets.brands.find((b) => b.slug === slug)?.name ?? slug,
+      href: hrefWithout(path, searchParams, "marca", slug),
+    })),
+    ...Object.entries(params.attrs).flatMap(([code, values]) => {
+      const def = facets.attributes.find((a) => a.def.code === code)?.def;
+      return values.map((v) => ({
+        label: `${def?.label ?? code}: ${def?.type === "BOOLEAN" ? (v === "true" ? "Sí" : "No") : v}`,
+        href: hrefWithout(path, searchParams, ATTR_PREFIX + code, v),
+      }));
+    }),
+    ...(params.inStock ? [{ label: "Con stock", href: hrefWithout(path, searchParams, "disponible") }] : []),
+    ...(params.minPrice !== undefined ? [{ label: `Desde ${formatCLP(params.minPrice)}`, href: hrefWithout(path, searchParams, "precio_min") }] : []),
+    ...(params.maxPrice !== undefined ? [{ label: `Hasta ${formatCLP(params.maxPrice)}`, href: hrefWithout(path, searchParams, "precio_max") }] : []),
+  ];
+  const clearHref = params.q ? `${path}?q=${encodeURIComponent(params.q)}` : path;
 
   return (
     <>
       {header}
-      <AutoSubmitForm action={path} className="mt-6 grid gap-x-10 lg:grid-cols-[15rem_1fr]">
+      <AutoSubmitForm action={path} className="mt-6 grid grid-cols-1 items-start gap-x-8 lg:grid-cols-[16rem_1fr]">
         {params.q && <input type="hidden" name="q" value={params.q} />}
 
         {/* En móvil los filtros se despliegan con este interruptor (sin JavaScript). */}
         <input id="ver-filtros" type="checkbox" className="peer sr-only" />
         <label
           htmlFor="ver-filtros"
-          className="mb-4 inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-line px-4 py-2 font-medium peer-focus-visible:outline-3 peer-focus-visible:outline-leaf lg:hidden"
+          className="mb-4 inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-4 py-2.5 font-semibold peer-focus-visible:outline-3 peer-focus-visible:outline-leaf lg:hidden"
         >
-          Filtros{activeFilters > 0 && ` (${activeFilters})`}
+          <Icon name="sliders" />
+          Filtrar{chips.length > 0 && ` (${chips.length})`}
         </label>
 
-        <aside className="mb-8 hidden space-y-7 text-sm peer-checked:block lg:mb-0 lg:block">
-          <label className="flex items-center gap-2 font-medium">
-            <input type="checkbox" name="disponible" value="1" defaultChecked={params.inStock} className={box} />
-            Solo productos con stock
-          </label>
+        <aside aria-label="Filtros" className="mb-6 hidden rounded-md border border-line bg-white text-sm peer-checked:block lg:sticky lg:top-4 lg:mb-0 lg:block">
+          <p className="flex items-center gap-2 border-b border-line px-4 py-3 font-bold">
+            <Icon name="sliders" className="size-4" />
+            Filtros
+          </p>
+          <div className={group}>
+            <label className="flex items-center gap-2 font-semibold">
+              <input type="checkbox" name="disponible" value="1" defaultChecked={params.inStock} className={box} />
+              Solo productos con stock
+            </label>
+          </div>
 
           {!scope.brandId && facets.brands.length > 0 && (
-            <fieldset>
-              <legend className="mb-2 font-bold">Marca</legend>
-              <ul className="space-y-1.5">
+            <fieldset className={group}>
+              <legend className="float-left mb-2 w-full font-bold">Marca</legend>
+              <ul className="clear-both space-y-2">
                 {facets.brands.map((b) => (
                   <li key={b.id}>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" name="marca" value={b.slug} defaultChecked={checked("marca", b.slug)} className={box} />
-                      {b.name} <span className="text-muted">({b.count})</span>
+                      <span className="flex-1">{b.name}</span>
+                      <span className="text-xs text-muted">{b.count}</span>
                     </label>
                   </li>
                 ))}
@@ -98,12 +149,12 @@ export async function CatalogView({
           )}
 
           {facets.price && facets.price.max > facets.price.min && (
-            <fieldset>
-              <legend className="mb-2 font-bold">Precio</legend>
-              <div className="flex items-center gap-2">
+            <fieldset className={group}>
+              <legend className="float-left mb-2 w-full font-bold">Precio</legend>
+              <div className="clear-both flex items-center gap-2">
                 {(["precio_min", "precio_max"] as const).map((name, i) => (
                   <label key={name} className="min-w-0 flex-1">
-                    <span className="sr-only">{i ? "Precio máximo" : "Precio mínimo"}</span>
+                    <span className="mb-1 block text-xs text-muted">{i ? "Hasta" : "Desde"}</span>
                     <input
                       type="number"
                       name={name}
@@ -121,9 +172,9 @@ export async function CatalogView({
           )}
 
           {facets.attributes.map(({ def, values }) => (
-            <fieldset key={def.code}>
-              <legend className="mb-2 font-bold">{def.label}</legend>
-              <ul className="space-y-1.5">
+            <fieldset key={def.code} className={group}>
+              <legend className="float-left mb-2 w-full font-bold">{def.label}</legend>
+              <ul className="clear-both space-y-2">
                 {values.map((v) => (
                   <li key={v.value}>
                     <label className="flex items-center gap-2">
@@ -134,8 +185,11 @@ export async function CatalogView({
                         defaultChecked={checked(ATTR_PREFIX + def.code, v.value)}
                         className={box}
                       />
-                      {def.type === "BOOLEAN" ? (v.value === "true" ? "Sí" : "No") : v.value}
-                      {def.unit && ` ${def.unit}`} <span className="text-muted">({v.count})</span>
+                      <span className="flex-1">
+                        {def.type === "BOOLEAN" ? (v.value === "true" ? "Sí" : "No") : v.value}
+                        {def.unit && ` ${def.unit}`}
+                      </span>
+                      <span className="text-xs text-muted">{v.count}</span>
                     </label>
                   </li>
                 ))}
@@ -143,24 +197,24 @@ export async function CatalogView({
             </fieldset>
           ))}
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 px-4 py-4">
             <button className="rounded-md bg-leaf px-4 py-2 font-semibold text-white hover:bg-leaf-dark">Aplicar</button>
-            {activeFilters > 0 && (
-              <Link href={params.q ? `${path}?q=${encodeURIComponent(params.q)}` : path} className="text-leaf underline">
+            {chips.length > 0 && (
+              <Link href={clearHref} className="font-medium text-leaf underline">
                 Quitar filtros
               </Link>
             )}
           </div>
         </aside>
 
-        <section aria-label="Resultados">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
-            <p className="text-sm text-muted" aria-live="polite">
+        <section aria-label="Resultados" className="min-w-0">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-paper px-4 py-2.5">
+            <p className="text-sm font-semibold" aria-live="polite">
               {result.total === 1 ? "1 producto" : `${result.total} productos`}
             </p>
             <label className="flex items-center gap-2 text-sm">
-              Ordenar por
-              <select name="orden" defaultValue={sort} className="rounded-md border border-line bg-white px-2 py-1.5">
+              <span className="text-muted">Ordenar por</span>
+              <select name="orden" defaultValue={sort} className="rounded-md border border-line bg-white px-2 py-1.5 font-medium">
                 {Object.entries(SORTS)
                   .filter(([k]) => k !== "relevancia" || params.q)
                   .map(([k, label]) => (
@@ -172,45 +226,116 @@ export async function CatalogView({
             </label>
           </div>
 
+          {chips.length > 0 && (
+            <ul aria-label="Filtros activos" className="mb-5 flex flex-wrap items-center gap-2">
+              {chips.map((c) => (
+                <li key={c.href + c.label}>
+                  <Link href={c.href} className="inline-flex items-center gap-1.5 rounded-sm bg-leaf-soft px-2.5 py-1 text-sm font-medium text-leaf-dark hover:bg-leaf hover:text-white">
+                    {c.label}
+                    <Icon name="close" className="size-3.5" />
+                    <span className="sr-only">(quitar)</span>
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link href={clearHref} className="text-sm font-medium text-muted underline hover:text-leaf">
+                  Limpiar todo
+                </Link>
+              </li>
+            </ul>
+          )}
+
           {result.items.length ? (
             <ProductGrid products={result.items} />
           ) : (
-            <div className="rounded-md bg-mist p-8">
-              <p className="text-lg font-semibold">
-                {params.q ? `No encontramos productos para «${params.q}».` : "No hay productos con estos filtros."}
-              </p>
-              <p className="mt-1 text-muted">
-                {params.q ? "Revisa la ortografía o prueba con una palabra más general." : "Quita algún filtro para ver más resultados."}
-              </p>
-              <Link href="/productos" className="mt-4 inline-block font-semibold text-leaf underline">
-                Ver todo el catálogo
-              </Link>
-            </div>
+            <EmptyResults q={params.q} />
           )}
 
           {pages > 1 && (
-            <nav aria-label="Páginas" className="mt-12 flex items-center justify-center gap-6 text-sm">
-              {result.page > 1 ? (
-                <Link href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" className="font-semibold text-leaf underline">
+            <nav aria-label="Páginas" className="mt-10 flex flex-wrap items-center justify-center gap-1.5 text-sm">
+              {result.page > 1 && (
+                <Link href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" className="rounded-md border border-line bg-white px-3 py-2 font-semibold hover:border-leaf">
                   Anterior
                 </Link>
-              ) : (
-                <span className="text-muted">Anterior</span>
               )}
-              <span>
-                Página {result.page} de {pages}
-              </span>
-              {result.page < pages ? (
-                <Link href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" className="font-semibold text-leaf underline">
+              {pageList(result.page, pages).map((n, i) =>
+                n === null ? (
+                  <span key={`gap${i}`} className="px-1 text-muted">
+                    …
+                  </span>
+                ) : n === result.page ? (
+                  <span key={n} aria-current="page" className="grid size-9 place-items-center rounded-md bg-leaf font-bold text-white">
+                    {n}
+                  </span>
+                ) : (
+                  <Link key={n} href={hrefWith(path, searchParams, { pagina: String(n) })} className="grid size-9 place-items-center rounded-md border border-line bg-white hover:border-leaf">
+                    <span className="sr-only">Página </span>
+                    {n}
+                  </Link>
+                ),
+              )}
+              {result.page < pages && (
+                <Link href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" className="rounded-md border border-line bg-white px-3 py-2 font-semibold hover:border-leaf">
                   Siguiente
                 </Link>
-              ) : (
-                <span className="text-muted">Siguiente</span>
               )}
             </nav>
           )}
         </section>
       </AutoSubmitForm>
     </>
+  );
+}
+
+function EmptyResults({ q }: { q?: string }) {
+  return (
+    <div className="grid place-items-center rounded-md border border-dashed border-line bg-paper px-6 py-14 text-center">
+      <span className="grid size-14 place-items-center rounded-full bg-white text-muted">
+        <Icon name="search" className="size-7" />
+      </span>
+      <p className="mt-4 text-lg font-bold">{q ? `No encontramos productos para «${q}».` : "No hay productos con estos filtros."}</p>
+      <p className="mt-1 max-w-sm text-muted">{q ? "Revisa la ortografía o prueba con una palabra más general." : "Quita algún filtro para ver más resultados."}</p>
+      <Link href="/productos" className="mt-5 rounded-md bg-leaf px-4 py-2 font-semibold text-white hover:bg-leaf-dark">
+        Ver todo el catálogo
+      </Link>
+    </div>
+  );
+}
+
+/** Encabezado común de las páginas de listado. */
+export function CatalogTitle({
+  crumbs,
+  title,
+  description,
+  children,
+}: {
+  crumbs: { name: string; href?: string }[];
+  title: string;
+  description?: string | null;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="bleed -mt-8 border-b border-line bg-paper py-6">
+      <Breadcrumbs items={crumbs} />
+      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>
+      {description && <p className="mt-2 max-w-prose text-muted">{description}</p>}
+      {children}
+    </div>
+  );
+}
+
+/** Subcategorías como accesos rápidos bajo el título. */
+export function SubcategoryLinks({ items }: { items: { id: string; slug: string; name: string }[] }) {
+  if (!items.length) return null;
+  return (
+    <ul className="mt-5 flex flex-wrap gap-2">
+      {items.map((c) => (
+        <li key={c.id}>
+          <Link href={`/categoria/${c.slug}`} className="inline-block rounded-sm border border-line bg-white px-3 py-1.5 text-sm font-medium hover:border-leaf hover:text-leaf">
+            {c.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

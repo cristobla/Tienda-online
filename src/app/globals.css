@@ -1,16 +1,27 @@
 @import "tailwindcss";
 
-/* Paleta: eucalipto sobre blanco; el amarillo es solo para el fleje de precio. */
+/*
+ * Paleta: eucalipto (marca y acciones) sobre blancos y grises verdosos; amarillo solo para el fleje
+ * de precio; rojo solo para ofertas y alertas. El "papel" separa secciones sin usar sombras.
+ */
 @theme {
   --color-ink: #14302b;
   --color-leaf: #0e7c66;
   --color-leaf-dark: #0a5e4d;
+  --color-leaf-soft: #dcefe8;
   --color-mist: #eef3f1;
+  --color-paper: #f7f9f8;
   --color-line: #d7e0dd;
   --color-muted: #556964;
   --color-fleje: #ffe14d;
   --color-oferta: #c8102e;
   --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Banda de fondo a todo el ancho dentro del <main> centrado; el contenido queda alineado con el resto. */
+@utility bleed {
+  margin-inline: calc(50% - 50vw);
+  padding-inline: calc(50vw - 50%);
 }
 
 @layer base {
@@ -19,9 +30,17 @@
     background: #fff;
     -webkit-text-size-adjust: 100%;
   }
+  body {
+    /* 100vw incluye la barra de scroll en Windows: evita el desborde horizontal de .bleed. */
+    overflow-x: clip;
+  }
   :focus-visible {
     outline: 3px solid var(--color-leaf);
     outline-offset: 2px;
+  }
+  /* Sin flechas en los <summary> usados como menús. */
+  summary::-webkit-details-marker {
+    display: none;
   }
   @media (prefers-reduced-motion: reduce) {
     *,

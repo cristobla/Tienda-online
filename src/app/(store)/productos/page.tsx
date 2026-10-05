@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Breadcrumbs, CatalogView, type SP } from "@/components/store/catalog-view";
+import { CatalogTitle, CatalogView, type SP } from "@/components/store/catalog-view";
 import { loadCategories } from "@/modules/categories/queries";
 
 type Props = { searchParams: Promise<SP> };
@@ -21,10 +21,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       scope={{ categoryIds: visibleIds }}
       searchParams={sp}
       header={
-        <>
-          <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: q ? "Búsqueda" : "Todos los productos" }]} />
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{q ? `Resultados para «${q}»` : "Todos los productos"}</h1>
-        </>
+        <CatalogTitle crumbs={[{ name: "Inicio", href: "/" }, { name: q ? "Búsqueda" : "Todos los productos" }]} title={q ? `Resultados para «${q}»` : "Todos los productos"} />
       }
     />
   );
