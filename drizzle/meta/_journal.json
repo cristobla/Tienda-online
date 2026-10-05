@@ -15,6 +15,13 @@
       "when": 1791180115169,
       "tag": "0001_busqueda",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791188739897,
+      "tag": "0002_movimientos_inmutables",
+      "breakpoints": true
     }
   ]
 }

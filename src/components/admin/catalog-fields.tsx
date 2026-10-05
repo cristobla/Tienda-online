@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type * as s from "@/db/schema";
 import { ATTR_FIELD, type AttributeDef } from "@/modules/catalog/attributes";
 import type { AdminCategory } from "@/modules/categories/admin";
@@ -110,7 +111,12 @@ export function VariantFields({ variant, withInitialStock }: { variant?: typeof 
               <p>
                 {variant.stockOnHand} en bodega · {variant.stockReserved} reservado · <strong>{variant.stockOnHand - variant.stockReserved} disponible</strong>
               </p>
-              <p className="mt-1 text-xs text-muted">Se modifica con movimientos de inventario (ingresos, ventas, ajustes).</p>
+              <p className="mt-1 text-xs text-muted">
+                Se modifica con movimientos de inventario (ingresos, ventas, ajustes).{" "}
+                <Link href={`/admin/inventario/${variant.id}`} className="font-medium text-leaf hover:underline">
+                  Ver movimientos y ajustar
+                </Link>
+              </p>
             </div>
           )
         )}

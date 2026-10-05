@@ -10,5 +10,7 @@ if (env.NODE_ENV !== "production") g.pgPool = pool;
 
 export const db = drizzle(pool, { schema, casing: "snake_case" });
 export type DB = typeof db;
+/** Solo transacción: para operaciones que deben ser atómicas con lo que las rodea (p. ej. stock + movimiento). */
+export type Transaction = Parameters<Parameters<DB["transaction"]>[0]>[0];
 /** Transacción o conexión: los servicios aceptan cualquiera de los dos para poder componerse. */
-export type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0] | DB;
+export type Tx = Transaction | DB;
