@@ -1,6 +1,7 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import * as s from "@/db/schema";
@@ -13,10 +14,12 @@ import {
   addImages,
   createProduct,
   createVariant,
+  dashboardStats,
   deleteImage,
   deleteProduct,
   deleteVariant,
   listAdminProducts,
+  makeImagePrimary,
   productSchema,
   setDefaultVariant,
   updateProduct,
@@ -58,8 +61,15 @@ describe("esquemas de formulario", () => {
     expect(variantSchema.safeParse({ ...v, price: "", compareAtPrice: "" }).success).toBe(false);
     expect(variantSchema.safeParse({ ...v, price: "10.5" }).success).toBe(false);
     expect(variantSchema.safeParse({ ...v, barcode: "123" }).success).toBe(false);
-    expect(variantSchema.safeParse({ ...v, sku: "con espacio" }).success).toBe(false);
+    // SKU tal cual: espacios internos, ceros y letras se conservan; solo se recorta afuera. Sin saltos de línea.
+    expect(variantSchema.parse({ ...v, sku: "  69718015 77005 " }).sku).toBe("69718015 77005");
+    expect(variantSchema.parse({ ...v, sku: "00000789" }).sku).toBe("00000789");
+    expect(variantSchema.safeParse({ ...v, sku: "A\nB" }).success).toBe(false);
+    expect(variantSchema.safeParse({ ...v, sku: " " }).success).toBe(false);
     expect(productSchema.parse({ name: " Jabón ", categoryId, slug: "" })).toMatchObject({ name: "Jabón", slug: null, active: false });
+    // Sin categoría es un borrador válido, pero no se puede publicar.
+    expect(productSchema.parse({ name: "Borrador" })).toMatchObject({ categoryId: null, active: false });
+    expect(productSchema.safeParse({ name: "X", active: "on" }).success).toBe(false);
   });
 
   it("valida atributos contra sus definiciones y alcance", () => {
@@ -161,6 +171,21 @@ describe("productos y variantes", () => {
     expect(await list({ stock: "agotado" })).toEqual(["Shampoo Ñandú"]);
     expect((await listAdminProducts({})).total).toBe(1);
   });
+
+  it("las alertas de stock del inicio ignoran los borradores (p. ej. los importados sin stock)", async () => {
+    await newProduct(0, "SKU-PUB");
+    await createProduct(adminId, {
+      product: productSchema.parse({ name: "Borrador importado" }),
+      attributes: {},
+      variant: variant({ sku: "SKU-DRAFT" }),
+      variantAttributes: {},
+      initialStock: 0,
+    });
+    const stats = await dashboardStats();
+    expect(stats.outOfStock).toBe(1);
+    expect(stats.lowList.map((v) => v.sku)).toEqual(["SKU-PUB"]);
+    expect(stats.inactiveProducts).toBe(1);
+  });
 });
 
 describe("categorías y marcas", () => {
@@ -183,22 +208,39 @@ describe("categorías y marcas", () => {
 });
 
 describe("imágenes", () => {
-  const png = () => new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])], "foto.png");
+  /** Imagen real (decodificable) del tamaño pedido. */
+  const image = async (w = 200, h = 200, name = "foto.png") =>
+    new File([new Uint8Array(await sharp({ create: { width: w, height: h, channels: 3, background: "#ffffff" } }).png().toBuffer())], name);
+  const uploaded = () => readdirSync(path.resolve(env.UPLOAD_DIR)).filter((f) => /^[0-9a-f-]{36}\./.test(f)).length;
 
   it("guarda solo imágenes reales y no deja archivos huérfanos si una falla", async () => {
     const p = await newProduct();
-    const [img] = await addImages(adminId, p.id, [png()], "Frente");
+    const [img] = await addImages(adminId, p.id, [await image()], "Frente");
     const file = path.resolve(env.UPLOAD_DIR, img!.url.replace("/media/", ""));
     expect(img!.url).toMatch(/^\/media\/[0-9a-f-]{36}\.png$/);
     expect(existsSync(file)).toBe(true);
 
     const before = await db.$count(s.productImages);
+    const files = uploaded();
     const fake = new File(["<svg onload=alert(1)>"], "x.png", { type: "image/png" });
-    await expect(addImages(adminId, p.id, [png(), fake], "")).rejects.toThrow(/no es JPG/);
+    await expect(addImages(adminId, p.id, [await image(), fake], "")).rejects.toThrow(/no es JPG/);
+    // Firma PNG válida pero contenido basura: se intenta decodificar y se rechaza.
+    const corrupt = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])], "rota.png");
+    await expect(addImages(adminId, p.id, [await image(), corrupt], "")).rejects.toThrow(/dañada/);
+    await expect(addImages(adminId, p.id, [await image(40, 40)], "")).rejects.toThrow(/muy pequeña/);
     expect(await db.$count(s.productImages)).toBe(before);
+    expect(uploaded()).toBe(files); // la imagen buena del lote fallido también se borró del disco
 
     await deleteImage(adminId, img!.id);
     expect(existsSync(file)).toBe(false);
+  });
+
+  it("hacer principal deja la imagen primera y conserva el orden de las demás", async () => {
+    const p = await newProduct();
+    const imgs = await addImages(adminId, p.id, [await image(), await image(), await image()], "");
+    await makeImagePrimary(adminId, imgs[2]!.id);
+    const order = (await db.select().from(s.productImages).where(eq(s.productImages.productId, p.id)).orderBy(s.productImages.sortOrder)).map((i) => i.id);
+    expect(order).toEqual([imgs[2]!.id, imgs[0]!.id, imgs[1]!.id]);
   });
 });
 

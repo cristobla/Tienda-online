@@ -7,7 +7,7 @@ import { hrefWith, type SP } from "@/components/store/catalog-view";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { listAllBrands } from "@/modules/brands/admin";
-import { ADMIN_PAGE_SIZE, listAdminProducts } from "@/modules/catalog/admin";
+import { ADMIN_PAGE_SIZE, ADMIN_SORTS, listAdminProducts } from "@/modules/catalog/admin";
 import { listCategoryTree } from "@/modules/categories/admin";
 import { formatCLP } from "@/modules/chile";
 
@@ -16,10 +16,11 @@ export const metadata: Metadata = { title: "Productos" };
 const one = (v: unknown) => (Array.isArray(v) ? v[0] : v);
 const params = z.object({
   q: z.preprocess(one, z.string().trim().max(100).optional()).catch(undefined),
-  categoria: z.preprocess(one, z.uuid().optional()).catch(undefined),
+  categoria: z.preprocess(one, z.union([z.uuid(), z.literal("ninguna")]).optional()).catch(undefined),
   marca: z.preprocess(one, z.uuid().optional()).catch(undefined),
   estado: z.preprocess(one, z.enum(["activos", "inactivos"]).optional()).catch(undefined),
   stock: z.preprocess(one, z.enum(["agotado", "bajo"]).optional()).catch(undefined),
+  orden: z.preprocess(one, z.enum(Object.keys(ADMIN_SORTS) as [keyof typeof ADMIN_SORTS]).optional()).catch(undefined),
   pagina: z.preprocess(one, z.coerce.number().int().min(1).max(10_000)).catch(1),
 });
 
@@ -31,14 +32,23 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const p = params.parse(sp);
   const [{ items, total }, categories, brands] = await Promise.all([
-    listAdminProducts({ q: p.q || undefined, categoryId: p.categoria, brandId: p.marca, status: p.estado, stock: p.stock, page: p.pagina }),
+    listAdminProducts({ q: p.q || undefined, categoryId: p.categoria, brandId: p.marca, status: p.estado, stock: p.stock, sort: p.orden, page: p.pagina }),
     listCategoryTree(),
     listAllBrands(),
   ]);
 
   return (
     <>
-      <PageHeader title="Productos">{canWrite && <ButtonLink href="/admin/productos/nuevo">Nuevo producto</ButtonLink>}</PageHeader>
+      <PageHeader title="Productos">
+        {canWrite && (
+          <>
+            <ButtonLink href="/admin/productos/importar" variant="plain">
+              Importar Excel
+            </ButtonLink>
+            <ButtonLink href="/admin/productos/nuevo">Nuevo producto</ButtonLink>
+          </>
+        )}
+      </PageHeader>
 
       <form role="search" className="mb-4 flex flex-wrap items-end gap-2">
         <label className="min-w-56 flex-1">
@@ -47,6 +57,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         </label>
         <select name="categoria" defaultValue={p.categoria ?? ""} aria-label="Categoría" className={select}>
           <option value="">Todas las categorías</option>
+          <option value="ninguna">Sin categoría (borradores)</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {"  ".repeat(c.depth) + c.name}
@@ -71,11 +82,18 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           <option value="agotado">Con variantes agotadas</option>
           <option value="bajo">Bajo stock mínimo</option>
         </select>
+        <select name="orden" defaultValue={p.orden ?? ""} aria-label="Ordenar" className={select}>
+          {Object.entries(ADMIN_SORTS).map(([k, label]) => (
+            <option key={k} value={k === "recientes" ? "" : k}>
+              {label}
+            </option>
+          ))}
+        </select>
         <button className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
       </form>
 
       <p className="mb-2 text-sm text-muted">{total === 1 ? "1 producto" : `${total} productos`}</p>
-      <Table head={["", "Producto", "Categoría", "Variantes", "Precio", "Disponible", "Estado"]} empty="No hay productos con esos filtros.">
+      <Table head={["", "Producto", "SKU", "Categoría", "Variantes", "Precio", "Disponible", "Estado"]} empty="No hay productos con esos filtros.">
         {items.map((r) => (
           <tr key={r.id}>
             <td className="w-12">
@@ -93,7 +111,11 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               )}
               {r.brand && <span className="block text-xs text-muted">{r.brand}</span>}
             </td>
-            <td className="text-muted">{r.category}</td>
+            <td className="whitespace-nowrap font-mono text-xs">
+              {r.sku}
+              {r.variants > 1 && <span className="block font-sans text-muted">y {r.variants - 1} más</span>}
+            </td>
+            <td className="text-muted">{r.category ?? <Badge tone="warn">Sin categoría</Badge>}</td>
             <td>{r.variants}</td>
             <td className="whitespace-nowrap">
               {r.minPrice == null ? "—" : r.minPrice === r.maxPrice ? formatCLP(r.minPrice) : `${formatCLP(r.minPrice)} – ${formatCLP(r.maxPrice!)}`}

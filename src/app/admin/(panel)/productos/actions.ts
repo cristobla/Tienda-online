@@ -164,6 +164,17 @@ export async function updateImageAction(imageId: string, prev: FormState, fd: Fo
   return done(prev, "Imagen guardada.");
 }
 
+export async function makeImagePrimaryAction(imageId: string, prev: FormState, fd: FormData): Promise<FormState> {
+  const user = await requirePermission("catalog:write");
+  try {
+    await catalog.makeImagePrimary(user.id, uuid(imageId));
+  } catch (e) {
+    return handleError(e, prev, fd);
+  }
+  refresh();
+  return done(prev, "Ahora es la imagen principal.");
+}
+
 export async function deleteImageAction(imageId: string, prev: FormState, fd: FormData): Promise<FormState> {
   const user = await requirePermission("catalog:write");
   try {

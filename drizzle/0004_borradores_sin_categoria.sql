@@ -1,0 +1,2 @@
+ALTER TABLE "products" ALTER COLUMN "category_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_active_needs_category" CHECK (NOT "products"."active" OR "products"."category_id" IS NOT NULL);

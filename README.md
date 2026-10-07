@@ -74,7 +74,8 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 | `/admin` | Indicadores, variantes a reponer y actividad reciente | staff |
 | `/admin/pedidos`, `/admin/pedidos/[id]` | Pedidos con búsqueda y filtro por estado; detalle con productos (copia al momento de la compra), totales, stock reservado e historial; cancelar antes del pago y avanzar preparación/despacho/entrega | `orders:read` / cambiar estado: `orders:manage` |
 | `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros | `catalog:read` |
-| `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes, SEO | `catalog:write` |
+| `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes (con «Hacer principal»), SEO | `catalog:write` |
+| `/admin/productos/importar` | Importar el catálogo desde Excel (.xlsx): vista previa por fila, opciones y confirmación | `catalog:write` |
 | `/admin/inventario`, `/admin/inventario/[variante]` | Stock por variante (bodega, reservado, disponible), historial; ingresos, mermas y conteo físico | `inventory:read` / ajustar: `inventory:adjust` |
 | `/admin/despacho` | Costo y plazo de despacho por región (sin costo = no se despacha) | `shipping:manage` |
 | `/admin/categorias`, `/admin/marcas`, `/admin/atributos` | Árbol de categorías, marcas y definiciones de atributos | `catalog:write` |
@@ -85,6 +86,7 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 - Descripciones con formato básico: `**negrita**`, `*cursiva*`, listas `- ` / `1. ` y títulos `## `.
 - Imágenes: JPG, PNG, WebP o AVIF, máx. 5 MB c/u, guardadas en `UPLOAD_DIR` (por defecto `./uploads`, fuera del repositorio). **En producción, montar esa carpeta en un volumen persistente.**
 - Lo que tiene historial (stock, ventas, productos asociados) no se elimina: se desactiva.
+- Importar Excel: hoja `Catalogo` (archivo preparado: `sku`, `nombre`, `precio_clp`; opcionales `stock_inicial`, `publicar_web`, `marca`, `categoria_ruta` como «Aseo del hogar > Cocina», `codigo_barras`, `descripcion`) o hoja `Productos` (exportación del sistema: `Código`, `Nombre`, `Precio de Venta Bruto`). Los nuevos quedan como borrador hasta tener categoría; nada se guarda hasta confirmar. Los archivos reales del negocio van en `/datos/` (fuera de git).
 - Pedidos: nacen "Pendiente de pago" con el stock reservado; si no se paga a tiempo (`RESERVATION_TTL_MINUTES`) se cancelan solos y el stock vuelve a estar disponible. Marcar como pagado, reembolsar o anular un pedido pagado solo lo hace el módulo de pagos (FASE 7), nunca el panel.
 
 ## Documentación

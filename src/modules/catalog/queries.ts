@@ -248,7 +248,8 @@ export async function getProductBySlug(slug: string) {
     .from(s.products)
     .leftJoin(s.brands, eq(s.brands.id, s.products.brandId))
     .where(and(eq(s.products.slug, slug), eq(s.products.active, true)));
-  const category = row && byId.get(row.product.categoryId);
+  // Un borrador sin categoría no es público (y no puede estar activo: CHECK products_active_needs_category).
+  const category = row?.product.categoryId ? byId.get(row.product.categoryId) : undefined;
   if (!row || !category) return null;
 
   const [variants, images, defs] = await Promise.all([

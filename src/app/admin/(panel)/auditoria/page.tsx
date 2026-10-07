@@ -12,12 +12,12 @@ export const metadata: Metadata = { title: "Auditoría" };
 
 const one = (v: unknown) => (Array.isArray(v) ? v[0] : v);
 const params = z.object({
-  tipo: z.preprocess(one, z.enum(["product", "variant", "category", "brand", "attribute", "user", "order", "shipping"]).optional()).catch(undefined),
+  tipo: z.preprocess(one, z.enum(["product", "variant", "category", "brand", "attribute", "user", "order", "shipping", "catalog"]).optional()).catch(undefined),
   id: z.preprocess(one, z.string().max(64).optional()).catch(undefined),
   pagina: z.preprocess(one, z.coerce.number().int().min(1).max(10_000)).catch(1),
 });
 
-const TYPES = { product: "Productos", variant: "Variantes", category: "Categorías", brand: "Marcas", attribute: "Atributos", user: "Usuarios", order: "Pedidos", shipping: "Despacho" };
+const TYPES = { product: "Productos", variant: "Variantes", category: "Categorías", brand: "Marcas", attribute: "Atributos", user: "Usuarios", order: "Pedidos", shipping: "Despacho", catalog: "Importaciones" };
 
 const show = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
 
@@ -61,6 +61,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                 )}
               </td>
               <td className="max-w-xl text-xs">
+                {log.action === "catalog.import" && <ImportSummary after={log.after} />}
                 {changes.length > 0 && (
                   <ul className="space-y-0.5">
                     {changes.slice(0, 8).map((c) => (
@@ -78,5 +79,17 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       </Table>
       <Pagination page={p.pagina} hasNext={rows.length > AUDIT_PAGE_SIZE} href={(n) => hrefWith("/admin/auditoria", sp, { pagina: String(n) })} />
     </>
+  );
+}
+
+/** Resumen de una importación de Excel: archivo y totales (el detalle por producto está en "Productos"). */
+function ImportSummary({ after }: { after: unknown }) {
+  const a = after as { archivo?: string; resultado?: Record<string, number> } | null;
+  const r = a?.resultado;
+  if (!r) return null;
+  return (
+    <span className="break-words">
+      {a.archivo} · {r.created} creados, {r.updated} actualizados, {r.excluded} excluidos, {r.stockMovements} con stock inicial
+    </span>
   );
 }

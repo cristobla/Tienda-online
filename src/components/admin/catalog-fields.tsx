@@ -25,8 +25,8 @@ export function ProductFields({
           name="categoryId"
           label="Categoría"
           initial={product?.categoryId}
-          required
-          empty="Elige…"
+          empty="Sin categoría (borrador)"
+          hint="Obligatoria para publicar."
           options={categories.map((c) => ({ value: c.id, label: c.path + (c.active ? "" : " (inactiva)") }))}
         />
         <Select
@@ -84,7 +84,7 @@ export function VariantFields({ variant, withInitialStock }: { variant?: typeof 
     <>
       <div className={grid}>
         <Text name="v.name" label="Presentación" initial={variant?.name} required maxLength={100} hint="Ej.: 500 ml, Pack 6 × 90 g, Talla M." />
-        <Text name="v.sku" label="SKU" initial={variant?.sku} required maxLength={64} pattern="[A-Za-z0-9._\-]+" />
+        <Text name="v.sku" label="SKU" initial={variant?.sku} required maxLength={64} hint="Código comercial tal cual (se conservan ceros y espacios internos)." />
         <Text name="v.barcode" label="Código de barras" initial={variant?.barcode} inputMode="numeric" maxLength={14} hint="EAN-13 u otro GTIN. Opcional." />
         <Text name="v.sortOrder" label="Orden" type="number" min={0} initial={variant?.sortOrder ?? 0} required />
       </div>

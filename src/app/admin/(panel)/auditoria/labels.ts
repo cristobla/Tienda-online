@@ -23,6 +23,8 @@ const LABELS: Record<string, string> = {
   "user.password_reset": "cambió la contraseña de un usuario",
   "order.status": "cambió el estado de un pedido",
   "shipping.update": "cambió las tarifas de despacho",
+  "product.import": "creó o actualizó un producto desde Excel",
+  "catalog.import": "importó un catálogo desde Excel",
 };
 
 export const actionLabel = (action: string) => LABELS[action] ?? action;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Submit } from "@/components/admin/form";
 import type { FormState } from "@/lib/form";
 
@@ -9,6 +9,8 @@ const MB = 1024 * 1024;
 /** Subida de imágenes. Los límites se revisan también aquí para avisar antes de enviar megas por la red. */
 export function UploadForm({ action }: { action: (prev: FormState, fd: FormData) => Promise<FormState> }) {
   const [state, formAction] = useActionState(action, {});
+  // Vista previa local de lo elegido (no sube nada hasta enviar). Se liberan las URL anteriores al cambiar.
+  const [previews, setPreviews] = useState<{ url: string; name: string; kb: number }[]>([]);
   return (
     <form action={formAction} className="space-y-3 rounded-md border border-dashed border-line p-4" key={state.v}>
       <p className="text-sm font-semibold">Subir imágenes</p>
@@ -27,9 +29,25 @@ export function UploadForm({ action }: { action: (prev: FormState, fd: FormData)
             big ? `"${big.name}" supera 5 MB.` : files.length > 10 ? "Máximo 10 imágenes por vez." : total > 24 * MB ? "En total superan 24 MB: súbelas en dos tandas." : "",
           );
           e.target.reportValidity();
+          for (const p of previews) URL.revokeObjectURL(p.url);
+          setPreviews(files.map((f) => ({ url: URL.createObjectURL(f), name: f.name, kb: Math.round(f.size / 1024) })));
         }}
         className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-mist file:px-3 file:py-2 file:font-semibold"
       />
+      {previews.length > 0 && (
+        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Imágenes elegidas">
+          {previews.map((p) => (
+            <li key={p.url} className="text-xs">
+              {/* <img> y no next/image: es una URL local (blob:) que no pasa por el optimizador. */}
+              <img src={p.url} alt="" className="aspect-square w-full rounded-sm border border-line bg-mist object-contain" />
+              <span className="mt-1 block truncate" title={p.name}>
+                {p.name}
+              </span>
+              <span className="text-muted">{p.kb} KB</span>
+            </li>
+          ))}
+        </ul>
+      )}
       <label className="block text-sm">
         <span className="mb-1 block font-semibold">Texto alternativo</span>
         <input name="alt" maxLength={200} className="w-full rounded-md border border-line px-3 py-2" placeholder="Ej.: Botella de 500 ml, vista frontal" />
