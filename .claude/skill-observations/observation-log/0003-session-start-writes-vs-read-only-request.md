@@ -22,3 +22,5 @@ commands_verified: none
 **Suggested improvement:** In Session Start step 1/2, add a "read-only turn" rule: when the user's instruction forbids file modifications, run only the read-only parts (probe, frontmatter scan without the `checkpoints.log` append), hold pending observations in the session, and flush them at the first turn where writes are allowed. Consider splitting the scan snippet so the append is a separate command that can be omitted without editing the snippet.
 
 **Principle:** A skill's mandatory bookkeeping writes must yield to an explicit user prohibition on modifying files; provide a defined deferral path (read-only subset now, flush at the first permitted write) instead of leaving the conflict to improvisation.
+
+**Recurrence (2026-10-07):** Same conflict in the catalog-import session: the attached prompt opened with a read-only diagnosis ("NO MODIFIQUES NADA EN ESTE DIAGNÓSTICO"). The agent again skipped the `checkpoints.log` append during that turn and flushed it only after the user confirmed implementation. Second independent instance — the deferral rule is now validated by repetition, not a one-off.

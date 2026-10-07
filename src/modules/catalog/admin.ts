@@ -4,7 +4,7 @@
  */
 import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/db";
+import { db, type Transaction } from "@/db";
 import * as s from "@/db/schema";
 import { field, UserError } from "@/lib/form";
 import { slugify } from "@/lib/slug";
@@ -14,23 +14,41 @@ import { applyMovement } from "@/modules/inventory";
 
 // ───────────── Esquemas ─────────────
 
-export const productSchema = z.object({
-  name: field.text(200),
-  slug: field.optText(200),
-  shortDescription: field.optText(300),
-  description: field.optText(10_000),
-  brandId: field.optUuid(),
-  categoryId: z.uuid("Elige una categoría"),
-  active: field.bool(),
-  featured: field.bool(),
-  metaTitle: field.optText(70),
-  metaDescription: field.optText(170),
-});
+export const productSchema = z
+  .object({
+    name: field.text(200),
+    slug: field.optText(200),
+    shortDescription: field.optText(300),
+    description: field.optText(10_000),
+    brandId: field.optUuid(),
+    // Sin categoría = borrador sin clasificar (p. ej. recién importado); no se puede publicar así.
+    categoryId: field.optUuid(),
+    active: field.bool(),
+    featured: field.bool(),
+    metaTitle: field.optText(70),
+    metaDescription: field.optText(170),
+  })
+  .refine((p) => !p.active || p.categoryId, { path: ["categoryId"], message: "Para publicarlo elige una categoría" });
 export type ProductInput = z.infer<typeof productSchema>;
+
+/**
+ * SKU comercial: texto exacto. Solo se normaliza Unicode (NFC) y se recortan espacios exteriores; se conservan
+ * ceros iniciales, espacios internos, letras y signos ("000789" ≠ "00000789"). Nunca pasa por Number.
+ */
+export const skuSchema = z
+  .string({ error: "Obligatorio" })
+  .transform((v) => v.normalize("NFC").trim())
+  .pipe(
+    z
+      .string()
+      .min(1, "Obligatorio")
+      .max(64, "Máximo 64 caracteres")
+      .regex(/^[^\p{Cc}]+$/u, "Sin saltos de línea ni caracteres de control"),
+  );
 
 export const variantSchema = z
   .object({
-    sku: z.string().trim().regex(/^[A-Za-z0-9._-]{1,64}$/, "Letras, números, punto, guion o guion bajo (máx. 64)"),
+    sku: skuSchema,
     barcode: z
       .string()
       .trim()
@@ -67,12 +85,16 @@ const productValues = (d: ProductInput) => ({ ...d, slug: slugify(d.slug ?? d.na
 
 export const ADMIN_PAGE_SIZE = 50;
 
+export const ADMIN_SORTS = { recientes: "Modificados recientemente", nombre: "Nombre A–Z", precio_asc: "Menor precio", precio_desc: "Mayor precio" } as const;
+
 export type AdminProductFilters = {
   q?: string;
-  categoryId?: string;
+  /** Una categoría (con subcategorías) o "ninguna" = borradores sin clasificar. */
+  categoryId?: string | "ninguna";
   brandId?: string;
   status?: "activos" | "inactivos";
   stock?: "agotado" | "bajo";
+  sort?: keyof typeof ADMIN_SORTS;
   page?: number;
 };
 
@@ -83,7 +105,9 @@ export type AdminProductRow = {
   active: boolean;
   featured: boolean;
   brand: string | null;
-  category: string;
+  category: string | null;
+  /** SKU de la variante por defecto. */
+  sku: string | null;
   imageUrl: string | null;
   variants: number;
   minPrice: number | null;
@@ -103,22 +127,30 @@ export async function listAdminProducts(f: AdminProductFilters) {
     where.push(sql`(f_unaccent(lower(p.name)) LIKE f_unaccent(lower(${like}))
       OR EXISTS (SELECT 1 FROM product_variants sv WHERE sv.product_id = p.id AND (sv.sku ILIKE ${like} OR sv.barcode = ${f.q})))`);
   }
-  if (f.categoryId)
+  if (f.categoryId === "ninguna") where.push(sql`p.category_id IS NULL`);
+  else if (f.categoryId)
     where.push(sql`p.category_id IN (WITH RECURSIVE t AS (SELECT id FROM categories WHERE id = ${f.categoryId}
       UNION ALL SELECT c.id FROM categories c JOIN t ON c.parent_id = t.id) SELECT id FROM t)`);
   if (f.brandId) where.push(sql`p.brand_id = ${f.brandId}`);
   if (f.status) where.push(f.status === "activos" ? sql`p.active` : sql`NOT p.active`);
   if (f.stock) where.push(f.stock === "agotado" ? sql`v.out_of_stock > 0` : sql`v.low > 0`);
+  const order = {
+    recientes: sql`p.updated_at DESC`,
+    nombre: sql`f_unaccent(lower(p.name)) ASC`,
+    precio_asc: sql`v.min_price ASC NULLS LAST`,
+    precio_desc: sql`v.max_price DESC NULLS LAST`,
+  }[f.sort ?? "recientes"];
 
   const res = await db.execute<Record<string, unknown>>(sql`
     SELECT p.id, p.name, p.slug, p.active, p.featured, b.name AS brand, c.name AS category,
       (SELECT i.url FROM product_images i WHERE i.product_id = p.id ORDER BY i.sort_order LIMIT 1) AS image_url,
-      v.variants, v.min_price, v.max_price, v.available, v.out_of_stock, v.low, count(*) OVER ()::int AS total
+      v.sku, v.variants, v.min_price, v.max_price, v.available, v.out_of_stock, v.low, count(*) OVER ()::int AS total
     FROM products p
-    JOIN categories c ON c.id = p.category_id
+    LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN brands b ON b.id = p.brand_id
     CROSS JOIN LATERAL (
-      SELECT count(*)::int AS variants, min(x.price) AS min_price, max(x.price) AS max_price,
+      SELECT (array_agg(x.sku ORDER BY x.is_default DESC, x.sort_order))[1] AS sku,
+        count(*)::int AS variants, min(x.price) AS min_price, max(x.price) AS max_price,
         coalesce(sum(x.stock_on_hand - x.stock_reserved) FILTER (WHERE x.active), 0)::int AS available,
         count(*) FILTER (WHERE x.active AND x.stock_on_hand - x.stock_reserved <= 0)::int AS out_of_stock,
         count(*) FILTER (WHERE x.active AND x.stock_on_hand - x.stock_reserved > 0
@@ -126,7 +158,7 @@ export async function listAdminProducts(f: AdminProductFilters) {
       FROM product_variants x WHERE x.product_id = p.id
     ) v
     WHERE ${sql.join(where, sql` AND `)}
-    ORDER BY p.updated_at DESC, p.id
+    ORDER BY ${order}, p.id
     LIMIT ${ADMIN_PAGE_SIZE} OFFSET ${(page - 1) * ADMIN_PAGE_SIZE}`);
 
   const items: AdminProductRow[] = res.rows.map((r) => ({
@@ -136,7 +168,8 @@ export async function listAdminProducts(f: AdminProductFilters) {
     active: r.active as boolean,
     featured: r.featured as boolean,
     brand: r.brand as string | null,
-    category: r.category as string,
+    category: r.category as string | null,
+    sku: r.sku as string | null,
     imageUrl: r.image_url as string | null,
     variants: r.variants as number,
     minPrice: r.min_price as number | null,
@@ -164,15 +197,17 @@ export async function getVariant(id: string) {
   return v ?? null;
 }
 
-/** Números para el inicio del panel. */
+/** Números para el inicio del panel. Las alertas de stock son de lo publicado: un borrador sin stock no es una urgencia. */
 export async function dashboardStats() {
   const [counts, low] = await Promise.all([
     db.execute<Record<string, number>>(sql`SELECT
       (SELECT count(*) FROM products WHERE active)::int AS active_products,
       (SELECT count(*) FROM products WHERE NOT active)::int AS inactive_products,
-      (SELECT count(*) FROM product_variants WHERE active AND stock_on_hand - stock_reserved <= 0)::int AS out_of_stock,
-      (SELECT count(*) FROM product_variants WHERE active AND stock_on_hand - stock_reserved > 0
-         AND stock_on_hand - stock_reserved <= minimum_stock)::int AS low_stock,
+      (SELECT count(*) FROM product_variants v JOIN products p ON p.id = v.product_id
+         WHERE v.active AND p.active AND v.stock_on_hand - v.stock_reserved <= 0)::int AS out_of_stock,
+      (SELECT count(*) FROM product_variants v JOIN products p ON p.id = v.product_id
+         WHERE v.active AND p.active AND v.stock_on_hand - v.stock_reserved > 0
+         AND v.stock_on_hand - v.stock_reserved <= v.minimum_stock)::int AS low_stock,
       (SELECT count(*) FROM products p WHERE NOT EXISTS (SELECT 1 FROM product_images i WHERE i.product_id = p.id))::int AS without_images`),
     db
       .select({
@@ -189,6 +224,7 @@ export async function dashboardStats() {
       .where(
         and(
           eq(s.productVariants.active, true),
+          eq(s.products.active, true),
           sql`${s.productVariants.stockOnHand} - ${s.productVariants.stockReserved} <= ${s.productVariants.minimumStock}`,
         ),
       )
@@ -208,24 +244,32 @@ export async function dashboardStats() {
 
 // ───────────── Productos ─────────────
 
+type NewProduct = { product: ProductInput; attributes: s.Attributes; variant: VariantInput; variantAttributes: s.Attributes; initialStock: number };
+
+/**
+ * Producto + variante por defecto (+ stock inicial como movimiento) dentro de una transacción ya abierta.
+ * La usan el formulario y la importación; cada una audita a su manera.
+ */
+export async function insertProduct(tx: Transaction, userId: string, input: NewProduct, stockReason = "Stock inicial al crear") {
+  const [product] = await tx
+    .insert(s.products)
+    .values({ ...productValues(input.product), attributes: input.attributes })
+    .returning();
+  const [variant] = await tx
+    .insert(s.productVariants)
+    .values({ ...input.variant, attributes: input.variantAttributes, productId: product!.id, isDefault: true })
+    .returning();
+  if (input.initialStock > 0)
+    await applyMovement(tx, { variantId: variant!.id, type: "INITIAL_STOCK", quantity: input.initialStock, reason: stockReason, userId });
+  return { product: product!, variant: variant! };
+}
+
 /** Todo producto nace con su variante por defecto (un producto sin variantes no se puede vender). */
-export async function createProduct(
-  userId: string,
-  input: { product: ProductInput; attributes: s.Attributes; variant: VariantInput; variantAttributes: s.Attributes; initialStock: number },
-) {
+export async function createProduct(userId: string, input: NewProduct) {
   return db.transaction(async (tx) => {
-    const [product] = await tx
-      .insert(s.products)
-      .values({ ...productValues(input.product), attributes: input.attributes })
-      .returning();
-    const [variant] = await tx
-      .insert(s.productVariants)
-      .values({ ...input.variant, attributes: input.variantAttributes, productId: product!.id, isDefault: true })
-      .returning();
-    if (input.initialStock > 0)
-      await applyMovement(tx, { variantId: variant!.id, type: "INITIAL_STOCK", quantity: input.initialStock, reason: "Stock inicial al crear", userId });
-    await audit(tx, { userId, action: "product.create", entityType: "product", entityId: product!.id, after: { ...product, variants: [variant] } });
-    return product!;
+    const { product, variant } = await insertProduct(tx, userId, input);
+    await audit(tx, { userId, action: "product.create", entityType: "product", entityId: product.id, after: { ...product, variants: [variant] } });
+    return product;
   });
 }
 
@@ -357,6 +401,22 @@ export async function updateImage(userId: string, id: string, data: z.infer<type
     }
     const [row] = await tx.update(s.productImages).set(data).where(eq(s.productImages.id, id)).returning();
     await audit(tx, { userId, action: "image.update", entityType: "product", entityId: before.productId, before, after: row });
+  });
+}
+
+/** La imagen pasa a ser la principal (primera); las demás conservan su orden relativo. */
+export async function makeImagePrimary(userId: string, id: string) {
+  await db.transaction(async (tx) => {
+    const [img] = await tx.select().from(s.productImages).where(eq(s.productImages.id, id)).for("update");
+    if (!img) throw new UserError("La imagen no existe.");
+    const all = await tx
+      .select({ id: s.productImages.id, sortOrder: s.productImages.sortOrder })
+      .from(s.productImages)
+      .where(eq(s.productImages.productId, img.productId))
+      .orderBy(asc(s.productImages.sortOrder), asc(s.productImages.createdAt));
+    const order = [img.id, ...all.map((i) => i.id).filter((x) => x !== img.id)];
+    for (const [i, imageId] of order.entries()) await tx.update(s.productImages).set({ sortOrder: i }).where(eq(s.productImages.id, imageId));
+    await audit(tx, { userId, action: "image.update", entityType: "product", entityId: img.productId, before: { principal: all[0]?.id }, after: { principal: img.id } });
   });
 }
 

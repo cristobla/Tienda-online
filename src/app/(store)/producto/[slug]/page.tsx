@@ -47,7 +47,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     ...(content ? [{ code: "_contenido", label: "Contenido", value: content }] : []),
     ...describeAttributes({ ...product.attributes, ...selected.attributes }, attributeDefs),
   ];
-  const related = await relatedProducts(product.id, product.categoryId);
+  const related = await relatedProducts(product.id, categoryPath.at(-1)!.id);
   const inStock = selected.available > 0;
   const off = discountPercent(selected);
 

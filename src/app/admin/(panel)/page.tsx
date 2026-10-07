@@ -44,8 +44,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard label="Productos activos" value={stats.activeProducts} icon="box" href="/admin/productos?estado=activos" />
             <StatCard label="Inactivos" value={stats.inactiveProducts} icon="layers" href="/admin/productos?estado=inactivos" />
-            <StatCard label="Variantes agotadas" value={stats.outOfStock} icon="alert" href="/admin/productos?stock=agotado" alert={stats.outOfStock > 0} />
-            <StatCard label="Bajo stock mínimo" value={stats.lowStock} icon="chart" href="/admin/productos?stock=bajo" alert={stats.lowStock > 0} />
+            <StatCard label="Variantes agotadas" value={stats.outOfStock} icon="alert" href="/admin/productos?stock=agotado&estado=activos" alert={stats.outOfStock > 0} />
+            <StatCard label="Bajo stock mínimo" value={stats.lowStock} icon="chart" href="/admin/productos?stock=bajo&estado=activos" alert={stats.lowStock > 0} />
             <StatCard label="Productos sin foto" value={stats.withoutImages} icon="tag" />
           </div>
 

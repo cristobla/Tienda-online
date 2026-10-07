@@ -12,7 +12,7 @@ import { getAdminProduct } from "@/modules/catalog/admin";
 import { loadAttributeDefinitions } from "@/modules/catalog/queries";
 import { listCategoryTree } from "@/modules/categories/admin";
 import { formatCLP } from "@/modules/chile";
-import { deleteImageAction, deleteProductAction, updateImageAction, updateProductAction, uploadImagesAction } from "../actions";
+import { deleteImageAction, deleteProductAction, makeImagePrimaryAction, updateImageAction, updateProductAction, uploadImagesAction } from "../actions";
 import { UploadForm } from "./upload-form";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ creado?: string }> };
@@ -91,11 +91,20 @@ export default async function EditProductPage({ params, searchParams }: Props) {
         <Section title="Imágenes">
           {images.length > 0 && (
             <ul className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {images.map((img) => (
-                <li key={img.id} className="rounded-md border border-line p-3">
+              {images.map((img, n) => (
+                // La clave incluye el orden: al reordenar ("Hacer principal") el formulario se rearma con los valores nuevos.
+                <li key={`${img.id}:${img.sortOrder}`} className="rounded-md border border-line p-3">
                   <div className="relative mb-3 aspect-square overflow-hidden rounded-sm bg-mist">
                     <Image src={img.url} alt={img.alt} fill sizes="(min-width: 1024px) 20vw, 50vw" className="object-contain" />
+                    {n === 0 && <span className="absolute left-2 top-2 rounded-sm bg-leaf px-2 py-0.5 text-xs font-bold text-white">Principal</span>}
                   </div>
+                  {n > 0 && (
+                    <AdminForm action={makeImagePrimaryAction.bind(null, img.id)} className="mb-3">
+                      <Submit variant="plain" pendingText="Cambiando…">
+                        Hacer principal
+                      </Submit>
+                    </AdminForm>
+                  )}
                   <AdminForm action={updateImageAction.bind(null, img.id)} className="space-y-3">
                     <Text name="alt" label="Texto alternativo" initial={img.alt} maxLength={200} hint="Describe la foto (accesibilidad y SEO)." />
                     <div className="grid grid-cols-2 gap-2">

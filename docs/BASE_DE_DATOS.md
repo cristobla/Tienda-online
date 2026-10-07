@@ -9,7 +9,7 @@ PostgreSQL 16. Esquema en `src/db/schema/`, migraciones SQL en `drizzle/`.
 | Catálogo | `categories` | Árbol de profundidad libre (`parent_id`), orden con `sort_order`. |
 | | `brands` | Marcas; `active` para desactivar sin borrar. |
 | | `attribute_definitions` | Atributos extensibles (aroma, talla, registro ISP…): tipo, alcance producto/variante, filtrable. |
-| | `products` | Ficha conceptual: nombre, slug, descripción, marca, categoría, `attributes` JSONB, SEO, destacado. |
+| | `products` | Ficha conceptual: nombre, slug, descripción, marca, categoría (opcional en borradores), `attributes` JSONB, SEO, destacado. |
 | | `product_variants` | Unidad vendible: SKU, código de barras, precio, precio anterior, costo, contenido neto + unidad, unidades por pack, stock físico/reservado, stock mínimo. |
 | | `product_images` | Imágenes por producto, opcionalmente asociadas a una variante. |
 | Inventario | `inventory_movements` | Historial inmutable de cada cambio de stock físico. |
@@ -34,6 +34,7 @@ Aunque la aplicación tenga un error, PostgreSQL rechaza:
 - Movimientos donde `resulting_stock ≠ previous_stock + quantity`, o cantidad 0.
 - Editar o borrar un movimiento de inventario (trigger de `0002_movimientos_inmutables.sql`; solo se permite que `created_by` quede en NULL al borrar un usuario).
 - Más de una variante por defecto por producto.
+- Un producto publicado (`active`) sin categoría (`products_active_needs_category`, migración `0004_borradores_sin_categoria.sql`): un borrador puede no tenerla, por ejemplo al importar un catálogo desde Excel.
 - `compare_at_price ≤ price`, precios o costos negativos, `units_per_pack < 1`.
 - Pedidos donde `total ≠ subtotal − descuento + envío`; líneas donde `line_total ≠ unit_price × quantity`.
 - Emails de usuario con mayúsculas (se normalizan a minúsculas).

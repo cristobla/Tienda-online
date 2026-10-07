@@ -84,9 +84,8 @@ export const products = pgTable(
     shortDescription: text("short_description"),
     description: text(),
     brandId: uuid("brand_id").references(() => brands.id, { onDelete: "restrict" }),
-    categoryId: uuid("category_id")
-      .notNull()
-      .references(() => categories.id, { onDelete: "restrict" }),
+    /** NULL = borrador sin clasificar (p. ej. recién importado); para publicar se exige categoría (CHECK abajo). */
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "restrict" }),
     attributes: jsonb().$type<Attributes>().notNull().default({}),
     active: boolean().notNull().default(true),
     featured: boolean().notNull().default(false),
@@ -100,6 +99,7 @@ export const products = pgTable(
     index("products_active_featured_idx").on(t.active, t.featured),
     index("products_created_idx").on(t.createdAt),
     index("products_attributes_gin").using("gin", t.attributes),
+    check("products_active_needs_category", sql`NOT ${t.active} OR ${t.categoryId} IS NOT NULL`),
   ],
 );
 
