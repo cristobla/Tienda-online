@@ -2,6 +2,8 @@
 services:
   db:
     image: postgres:16-alpine
+    # Vuelve a levantarse sola cuando Docker inicia (p. ej. después de reiniciar o de un corte de luz).
+    restart: unless-stopped
     environment:
       POSTGRES_USER: tienda
       POSTGRES_PASSWORD: tienda
@@ -11,5 +13,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
+    # "Sano" = acepta conexiones; `docker compose up -d --wait` espera hasta aquí.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tienda -d tienda"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 volumes:
   pgdata:

@@ -5,7 +5,10 @@ import * as schema from "./schema";
 
 // Reutiliza el pool entre recargas en desarrollo (Next recarga módulos).
 const g = globalThis as unknown as { pgPool?: Pool };
-export const pool = g.pgPool ?? new Pool({ connectionString: env.DATABASE_URL, max: 10 });
+// Si la base se reinicia, cada conexión inactiva del pool emite "error": sin este listener Node cerraría el servidor.
+// El pool descarta esa conexión y la próxima consulta abre una nueva.
+export const pool =
+  g.pgPool ?? new Pool({ connectionString: env.DATABASE_URL, max: 10 }).on("error", (e) => console.error("PostgreSQL perdió una conexión:", e.message));
 if (env.NODE_ENV !== "production") g.pgPool = pool;
 
 export const db = drizzle(pool, { schema, casing: "snake_case" });

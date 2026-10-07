@@ -120,12 +120,12 @@ export default async function Home() {
             return (
               <div key={c.id} className="flex flex-col rounded-md border border-line bg-white">
                 <Link href={`/categoria/${c.slug}`} className={`group flex items-center gap-4 rounded-t-md p-5 ${st.tint}`}>
-                  <span className="grid size-12 place-items-center rounded-md bg-white/70">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-md bg-white/70">
                     <Icon name={st.icon} className="size-7" />
                   </span>
-                  <span className="flex-1">
-                    <span className="block text-xl font-extrabold group-hover:underline">{c.name}</span>
-                    <span className="text-sm opacity-80">{c.children.length} subcategorías</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xl font-extrabold leading-tight group-hover:underline">{c.name}</span>
+                    <span className="block whitespace-nowrap text-sm opacity-80">{c.children.length} subcategorías</span>
                   </span>
                   <Icon name="chevron" />
                 </Link>

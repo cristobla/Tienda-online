@@ -1,22 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge, PageHeader, Section, StatCard, Table } from "@/components/admin/ui";
+import { SITE } from "@/lib/site";
 import { listAudit } from "@/modules/audit";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { dashboardStats } from "@/modules/catalog/admin";
 import { formatDateTime } from "@/modules/chile";
+import { orderStats } from "@/modules/orders";
 import { actionLabel } from "./auditoria/labels";
 
-export const metadata: Metadata = { title: "Inicio" };
+// absolute: la plantilla "· Panel" del layout solo aplica a las páginas hijas, no a la de su mismo segmento.
+export const metadata: Metadata = { title: { absolute: `Inicio · Panel ${SITE.name}` } };
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ sin_permiso?: string }> }) {
   const user = await requireStaffPage();
   const showCatalog = can(user.role, "catalog:read");
   const canInventory = can(user.role, "inventory:read");
-  const [stats, activity] = await Promise.all([
+  const [stats, activity, orders] = await Promise.all([
     showCatalog ? dashboardStats() : null,
     can(user.role, "audit:read") ? listAudit({}).then((r) => r.slice(0, 8)) : null,
+    can(user.role, "orders:read") ? orderStats() : null,
   ]);
 
   return (
@@ -26,6 +30,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <p role="alert" className="mb-6 rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta">
           Tu rol no tiene acceso a esa sección.
         </p>
+      )}
+
+      {orders && (
+        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="Pedidos pendientes de pago" value={orders.pending} icon="cart" href="/admin/pedidos?estado=PENDING_PAYMENT" />
+          <StatCard label="Pagados por preparar" value={orders.paid} icon="truck" href="/admin/pedidos?estado=PAID" alert={orders.paid > 0} />
+        </div>
       )}
 
       {stats && (

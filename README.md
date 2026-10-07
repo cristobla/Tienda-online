@@ -17,11 +17,22 @@ npm run db:seed               # datos de prueba + usuario admin
 npm run dev                   # http://localhost:3000
 ```
 
+**Después de reiniciar el PC** basta con `npm run dev`: antes de arrancar verifica que PostgreSQL responda y, si no, abre Docker Desktop y levanta el contenedor (`scripts/db-up.mjs`; el contenedor además se reinicia solo cuando Docker inicia). Si aun así falla, el mensaje dice qué hacer. Recomendado: en Docker Desktop → Settings → General, activar "Start Docker Desktop when you sign in".
+
+**Para presentar o desplegar**, usar el modo producción (páginas mucho más rápidas y sin el indicador de desarrollo):
+
+```bash
+# detener `npm run dev` (Ctrl+C) para liberar el puerto 3000, y luego:
+npm run build                 # compila
+npm run start                 # http://localhost:3000
+```
+
 ## Comandos
 
 | Comando | Qué hace |
 |---|---|
-| `npm run dev` | Servidor de desarrollo |
+| `npm run dev` | Servidor de desarrollo (antes verifica/levanta la base de datos) |
+| `npm run build`, `npm run start` | Compilación y servidor de producción (`start` también verifica la base) |
 | `npm test` | Tests (usa `DATABASE_URL_TEST`, la recrea en cada corrida) |
 | `npm run typecheck` | Verificación de tipos |
 | `npm run db:generate` | Genera una migración a partir de cambios en el esquema |

@@ -21,7 +21,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const transitions = can(user.role, "orders:manage") ? manualTransitions(o) : [];
   const active = reservations.filter((r) => r.status === "ACTIVE");
   const stock = active.length
-    ? `Reservado hasta ${formatDateTime(new Date(Math.min(...active.map((r) => r.expiresAt.getTime()))))}.`
+    ? `Reservado hasta ${formatDateTime(new Date(Math.min(...active.map((r) => r.expiresAt.getTime()))))}` // la hora ya termina en "m."
     : reservations.some((r) => r.status === "CONSUMED")
       ? "Descontado del stock al confirmarse el pago."
       : reservations.length
