@@ -12,12 +12,12 @@ export const metadata: Metadata = { title: "Auditoría" };
 
 const one = (v: unknown) => (Array.isArray(v) ? v[0] : v);
 const params = z.object({
-  tipo: z.preprocess(one, z.enum(["product", "variant", "category", "brand", "attribute", "user", "order"]).optional()).catch(undefined),
+  tipo: z.preprocess(one, z.enum(["product", "variant", "category", "brand", "attribute", "user", "order", "shipping"]).optional()).catch(undefined),
   id: z.preprocess(one, z.string().max(64).optional()).catch(undefined),
   pagina: z.preprocess(one, z.coerce.number().int().min(1).max(10_000)).catch(1),
 });
 
-const TYPES = { product: "Productos", variant: "Variantes", category: "Categorías", brand: "Marcas", attribute: "Atributos", user: "Usuarios", order: "Pedidos" };
+const TYPES = { product: "Productos", variant: "Variantes", category: "Categorías", brand: "Marcas", attribute: "Atributos", user: "Usuarios", order: "Pedidos", shipping: "Despacho" };
 
 const show = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
 

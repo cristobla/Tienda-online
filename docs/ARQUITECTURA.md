@@ -1,6 +1,6 @@
 # Plataforma e-commerce (Chile) — Análisis técnico y arquitectura propuesta
 
-Estado: **aprobada** (2026-10-05). FASE 1 a 5 implementadas.
+Estado: **aprobada** (2026-10-05). FASE 1 a 6 implementadas.
 
 ## 1. Entorno existente
 
@@ -209,3 +209,6 @@ Zod en el servidor y restricciones HTML en el navegador; consultas parametrizada
 - **FASE 5 — Lo que mueve dinero no se hace desde el panel.** El mapa de transiciones incluye `PAID`/`REFUNDED` y cancelar pedidos pagados, pero el panel solo ofrece cancelar antes del pago (libera reservas, pide motivo) y avanzar preparación → despacho → entrega. El resto lo hará el módulo de pagos (FASE 7) con confirmación del proveedor.
 - **FASE 5 — Vencimiento como tarea en el proceso.** `expireOrders()` cancela pedidos impagos con reserva vencida (`payment_status = EXPIRED`), un pedido por transacción (sin deadlocks con pedidos nuevos). Corre cada minuto desde `src/instrumentation.ts` y antes de crear cada pedido. Con varias instancias es idempotente; pasar a cron/cola si se despliega en serverless.
 - **FASE 5 — Invitados con ficha propia.** Un pedido sin cuenta crea su `customer`; con cuenta (`user_id`) se reutiliza la ficha. No se fusionan invitados por email (cualquiera podría escribir el email de otro).
+- **FASE 6 — Tarifa de despacho por región en tabla propia** (`shipping_rates`, no en `regions`: la carga de referencia de regiones no la pisa). Los precios son del negocio: se configuran en `/admin/despacho`; el seed trae valores de prueba. Excepciones por comuna o envío gratis se agregan cuando el negocio las defina.
+- **FASE 6 — Checkout en dos pasos sin JavaScript.** Elegir comuna es un GET (`/checkout?comuna=`) que muestra costo, plazo y total; confirmar es un POST con `expectedTotal`. El servidor recalcula productos y despacho en la transacción del pedido; si algo cambió, no crea nada.
+- **FASE 6 — Solo compra como invitado.** Cada pedido crea su ficha de cliente. Las cuentas de cliente (registro, "mis pedidos", unir carrito) quedan pendientes. El comprobante `/pedido/[id]` se accede por enlace secreto (UUID v4).

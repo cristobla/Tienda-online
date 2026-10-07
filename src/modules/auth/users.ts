@@ -23,7 +23,8 @@ const password = z
   .max(200, "Máximo 200 caracteres");
 
 export const newUserSchema = z.object({
-  email: z.email("Email inválido").trim().toLowerCase(),
+  // Primero recortar y pasar a minúsculas, después validar: z.email().trim() valida antes de recortar.
+  email: z.string().trim().toLowerCase().pipe(z.email("Email inválido")),
   role: z.enum(STAFF_ROLES, "Elige un rol"),
   password,
 });

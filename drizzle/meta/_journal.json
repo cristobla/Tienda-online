@@ -22,6 +22,13 @@
       "when": 1791188739897,
       "tag": "0002_movimientos_inmutables",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791220108428,
+      "tag": "0003_tarifas_despacho",
+      "breakpoints": true
     }
   ]
 }

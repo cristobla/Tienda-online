@@ -143,7 +143,15 @@ export function Check({ name, label, hint, initial }: Common & { initial?: boole
   );
 }
 
-export function Submit({ children = "Guardar", variant = "primary" }: { children?: React.ReactNode; variant?: "primary" | "danger" | "plain" }) {
+export function Submit({
+  children = "Guardar",
+  variant = "primary",
+  pendingText = "Guardando…",
+}: {
+  children?: React.ReactNode;
+  variant?: "primary" | "danger" | "plain";
+  pendingText?: string;
+}) {
   const { pending } = useFormStatus();
   const styles = {
     primary: "bg-leaf text-white hover:bg-leaf-dark",
@@ -152,7 +160,7 @@ export function Submit({ children = "Guardar", variant = "primary" }: { children
   }[variant];
   return (
     <button disabled={pending} className={`rounded-md px-5 py-2 font-semibold disabled:opacity-60 ${styles}`}>
-      {pending ? "Guardando…" : children}
+      {pending ? pendingText : children}
     </button>
   );
 }

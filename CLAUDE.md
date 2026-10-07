@@ -8,7 +8,7 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Carpetas clave: `src/app/(store)` tienda pública · `src/app/admin` panel · `src/app/media/[name]` imágenes subidas (disco local, `UPLOAD_DIR`) · `src/components/{store,admin}` + `src/components/icons.tsx` · `src/db/schema` (catalog, users, sales) · `drizzle/` migraciones · `docs/`.
 
 ## Estado de fases (plan en `docs/ARQUITECTURA.md` §13)
-1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ✅ · 5. Carrito y pedidos ✅ · 6. Checkout ⏳ · 7. Pagos · 8. Seguridad, SEO y cierre.
+1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ✅ · 5. Carrito y pedidos ✅ · 6. Checkout ✅ · 7. Pagos ⏳ · 8. Seguridad, SEO y cierre.
 - Cada fase depende de la anterior: los pedidos (5) usan reservas e inventario (4); el checkout (6) usa pedidos; los pagos (7) confirman pedidos.
 
 ## Fase 3 — lo implementado
@@ -55,12 +55,19 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - `src/app/icon.svg` (favicon), `viewport.themeColor`. Contacto del footer en `SITE.email`/`SITE.hours` (null = no se muestra; no inventar datos).
 - Raw SQL en Drizzle: en un select de una sola tabla, `${tabla.col}` se escribe SIN calificar; dentro de una subconsulta se ata a la tabla interna. Escribir `"tabla"."col"` explícito (bug real en `listOrders`, cubierto por test).
 
-## Para comenzar la Fase 6 (checkout)
-- Formulario de checkout que llame `createOrderFromCart` con `expectedTotal = getCart(...).subtotal` mostrado al cliente. Extender `orderInputSchema` con teléfono/RUT (`normalizeChileanPhone`, `normalizeRut`), dirección (`shippingAddress` snapshot + `shippingCommuneId`) y costo de despacho (`shippingTotal`; el CHECK exige `total = subtotal − descuento + envío`).
-- Capturar `UserError`/`InsufficientStockError` y devolver al carrito, que ya muestra cada problema por línea.
-- Pendiente de decidir: cuentas de cliente (registro/ingreso, "mis pedidos"; hoy el login es solo staff) y fusionar el carrito de la cookie al ingresar (`carts.user_id` existe, sin uso). Página de confirmación/detalle del pedido para el cliente.
-- Fase 7: consumir la reserva → `SALE` (físico y reservado bajan en el mismo UPDATE; extender `applyMovement`), `SALE_CANCELLED`, reembolsos; el pago tardío sobre un pedido vencido (`CANCELLED`/`EXPIRED`) intenta re-reservar. Esas transiciones son las que `movesMoney` hoy bloquea en el panel.
-- `releaseExpiredReservations()` (Fase 4) quedó sin uso en la app: `expireOrders()` también cancela el pedido.
+## Fase 6 — lo implementado
+- Migración `0003_tarifas_despacho`: tabla `shipping_rates` (región → `cost` CLP IVA incl. + `eta` texto). Región sin fila = no se despacha. Editable en `/admin/despacho` (permiso nuevo `shipping:manage`, auditado `shipping.update`). El seed carga tarifas DE PRUEBA para las 16 regiones.
+- `src/modules/shipping`: `quoteShipping(communeId, tx?)`, `listDeliveryCommunes()` (solo regiones con tarifa), `listShippingRates()`, `parseShippingForm()`, `saveShippingRates()`.
+- `orderInputSchema` ahora incluye teléfono (obligatorio, normalizado +56), RUT (opcional, módulo 11), `communeId`, calle, número, depto., indicaciones. `createOrderFromCart` cotiza el despacho dentro de la transacción, compara `expectedTotal` = subtotal + despacho, guarda `shippingAddress` (copia con nombres de comuna/región), `shippingCommuneId`, `shippingTotal`, teléfono y RUT (pedido y ficha de cliente). Email: recortar ANTES de validar (`z.string().trim().pipe(z.email())`; `z.email().trim()` rechaza espacios finales).
+- Tienda: `/checkout` en dos pasos sin JS (GET `?comuna=` cotiza; POST confirma con `checkoutAction`), redirige al carrito si no está listo. `/pedido/[id]`: comprobante para el cliente por enlace secreto (UUID), `noindex`. El carrito enlaza al checkout cuando `ready`.
+- Compra solo como invitado (`userId` null): no hay cuentas de cliente. El pedido queda `PENDING_PAYMENT` y vence según `RESERVATION_TTL_MINUTES` hasta que exista el pago (Fase 7).
+- Pruebas: `tests/checkout.test.ts` (despacho en el total, copia de dirección, contacto normalizado, comuna sin despacho, tarifa cambiada, validación, tarifas del panel). `makeCommune()` en `tests/helpers.ts` (las tablas de referencia no se vacían entre tests).
+
+## Para comenzar la Fase 7 (pagos)
+- Interfaz `PaymentProvider` (§7 de ARQUITECTURA): transferencia (el admin confirma, auditado) y fake (solo dev/test); Webpay/Mercado Pago cuando haya credenciales. Tablas `payments` y `payment_events` (idempotencia por `provider,event_id`) ya existen.
+- Al confirmar el pago: consumir la reserva → `SALE` (físico y reservado bajan en el MISMO UPDATE; extender `applyMovement`), `status = PAID`, `paidAt`. Pago tardío sobre pedido vencido: re-reservar o marcar para reembolso. Anular pagado → `SALE_CANCELLED` + reembolso. Son las transiciones que hoy bloquea `movesMoney`.
+- `/pedido/[id]` es donde el cliente verá las instrucciones/botón de pago; hoy dice que la reserva vence.
+- Antes de exponer públicamente: limitar pedidos pendientes por IP/email (un bot puede reservar stock 30 min por pedido) — Fase 8, ver `docs/DESPLIEGUE.md`.
 
 ## Plugins de la sesión
 - **Ponytail** (activo por hook): solución más simple que funcione, sin recortar validación, seguridad ni lo pedido explícitamente.

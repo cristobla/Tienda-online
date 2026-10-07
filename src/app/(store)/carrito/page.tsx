@@ -98,11 +98,15 @@ export default async function CartPage() {
             </div>
           </dl>
           <p className="mt-1 text-right text-xs text-muted">IVA incluido</p>
-          {/* El checkout (datos de despacho y pago) llega en la FASE 6. */}
-          <button type="button" disabled className="mt-5 w-full rounded-md bg-leaf px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-leaf/60">
-            Continuar con la compra
-          </button>
-          <p className="mt-2 text-center text-xs text-muted">El pago en línea se habilita muy pronto.</p>
+          {ready ? (
+            <Link href="/checkout" className="mt-5 block w-full rounded-md bg-leaf px-5 py-3 text-center font-bold text-white hover:bg-leaf-dark">
+              Continuar con la compra
+            </Link>
+          ) : (
+            <button type="button" disabled className="mt-5 w-full cursor-not-allowed rounded-md bg-leaf/60 px-5 py-3 font-bold text-white">
+              Continuar con la compra
+            </button>
+          )}
           <Link href="/productos" className="mt-3 block text-center text-sm font-medium text-leaf hover:underline">
             Seguir comprando
           </Link>
