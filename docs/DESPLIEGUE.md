@@ -6,7 +6,7 @@ Guía para pasar de "funciona en mi PC" a una tienda pública. Está ordenada po
 
 | # | Tema | Por qué bloquea | Quién |
 |---|---|---|---|
-| 1 | **Pagos (FASE 7)** | Hoy un pedido queda "pendiente de pago" y se cancela solo a los 30 min: no hay forma de pagar. | Desarrollo + credenciales del comercio |
+| 1 | **Pagos (FASE 7)** | Base lista con **transferencia bancaria** (el admin confirma en `/admin/pagos`). Falta: cargar la cuenta real en `/admin/pagos/configuracion` y programar `npm run jobs`. Pagos con tarjeta: pendientes (docs/PAGOS.md §9). | Negocio (cuenta) + desarrollo (pasarelas) |
 | 2 | **Credenciales de pago** | Webpay Plus (código de comercio + API key) y/o Mercado Pago (access token + secreto de webhook). Se tramitan con Transbank / Mercado Pago a nombre de la empresa. Transferencia bancaria no necesita credenciales (el admin confirma). | Negocio |
 | 3 | **Boleta / factura electrónica (SII)** | Cada venta debe emitir documento tributario. Contratar un proveedor de DTE con API. | Negocio + desarrollo |
 | 4 | **Textos legales** | Términos y condiciones, política de privacidad, cambios y devoluciones (derecho a retracto en compras a distancia, Ley 19.496), tratamiento de datos personales (Ley 19.628 y Ley 21.719, que entra en vigencia en diciembre de 2026). Revisar con asesoría legal. Se publican en `/info/*`. | Negocio + legal |
@@ -51,7 +51,10 @@ Elegir el servidor en una región cercana (São Paulo / Santiago si el proveedor
 | `DATABASE_URL` | `postgres://USUARIO:CLAVE_LARGA@HOST:5432/tienda` (usuario propio, no `tienda/tienda`) |
 | `APP_URL` | `https://tu-dominio.cl` |
 | `SESSION_TTL_DAYS` | `30` (o menos para el panel) |
+| `APP_ENV` | `production` (explícito; habilita las reglas de producción: sin pago simulado ni datos de ejemplo, `APP_URL` https) |
 | `RESERVATION_TTL_MINUTES` | `30` (tiempo para pagar antes de liberar el stock) |
+| `TRANSFER_RESERVATION_MINUTES` | Opcional: plazo propio para transferencias (p. ej. `1440` = 24 h); sin definir usa el anterior |
+| `PAYMENT_SIMULATION` | `off` (en producción no tiene efecto aunque esté `on`) |
 | `UPLOAD_DIR` | Ruta de un volumen persistente, p. ej. `/data/uploads` |
 
 No van en producción: `DATABASE_URL_TEST`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`. Las credenciales de pago se agregan en la FASE 7. Nunca subir `.env` al repositorio.
@@ -67,6 +70,10 @@ No van en producción: `DATABASE_URL_TEST`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASS
    npm run db:reference    # 16 regiones y 346 comunas
    ```
    Crear el Super Admin (comando de §4.2).
+   Programar las tareas de pedidos y pagos (vencimiento + reconciliación), p. ej. cron cada minuto:
+   ```bash
+   npm run jobs
+   ```
 5. **Compilar y arrancar**: `npm run build` y `npm run start` (o la imagen Docker). Detrás de Caddy/PaaS con HTTPS.
 6. **Cargar el negocio desde el panel**: tarifas de despacho, categorías, marcas, atributos, productos con fotos y stock inicial (cada ingreso queda como movimiento de inventario).
 7. **Prueba completa** con un pedido real de bajo monto (cuando existan los pagos): pagar, ver el pedido pagado en el panel, stock descontado, boleta emitida.

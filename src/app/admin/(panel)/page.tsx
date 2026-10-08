@@ -8,6 +8,7 @@ import { can } from "@/modules/auth/rbac";
 import { dashboardStats } from "@/modules/catalog/admin";
 import { formatDateTime } from "@/modules/chile";
 import { orderStats } from "@/modules/orders";
+import { paymentStats } from "@/modules/payments";
 import { actionLabel } from "./auditoria/labels";
 
 // absolute: la plantilla "· Panel" del layout solo aplica a las páginas hijas, no a la de su mismo segmento.
@@ -20,7 +21,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const [stats, activity, orders] = await Promise.all([
     showCatalog ? dashboardStats() : null,
     can(user.role, "audit:read") ? listAudit({}).then((r) => r.slice(0, 8)) : null,
-    can(user.role, "orders:read") ? orderStats() : null,
+    can(user.role, "orders:read") ? Promise.all([orderStats(), paymentStats()]).then(([o, p]) => ({ ...o, ...p })) : null,
   ]);
 
   return (
@@ -36,6 +37,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard label="Pedidos pendientes de pago" value={orders.pending} icon="cart" href="/admin/pedidos?estado=PENDING_PAYMENT" />
           <StatCard label="Pagados por preparar" value={orders.paid} icon="truck" href="/admin/pedidos?estado=PAID" alert={orders.paid > 0} />
+          <StatCard label="Transferencias por comprobar" value={orders.toConfirm} icon="check" href="/admin/pagos?metodo=transferencia&estado=PENDING" alert={orders.toConfirm > 0} />
+          {orders.review > 0 && <StatCard label="Pagos en revisión" value={orders.review} icon="alert" href="/admin/pagos?estado=REVIEW" alert />}
         </div>
       )}
 

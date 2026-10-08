@@ -19,8 +19,9 @@ PostgreSQL 16. Esquema en `src/db/schema/`, migraciones SQL en `drizzle/`.
 | | `order_items` | Copia de nombre, SKU y precio al momento de la compra. |
 | | `order_status_history` | Quién cambió el estado y cuándo. |
 | Despacho | `shipping_rates` | Costo (CLP, IVA incl.) y plazo por región; sin fila = no se despacha a esa región. |
-| Pagos | `payments` | Intentos de pago por proveedor. |
-| | `payment_events` | Eventos/webhooks recibidos; único por (proveedor, event_id) → idempotencia. |
+| Pagos | `payments` | Intento de pago (varios por pedido): referencia interna, proveedor, ambiente, cuenta, referencia externa, monto congelado, estado, acción entregada al cliente, dinero recibido y verificación, incidencia. Ver `docs/PAGOS.md`. |
+| | `payment_events` | Entradas de proveedores y comandos del admin, guardadas antes de procesarse (recibido / procesado / fallido / ignorado, reintentos); único por (proveedor, event_id). |
+| | `payment_methods` | Interruptor y configuración NO secreta por método (cuenta para transferencias). Sin credenciales. |
 | Usuarios | `users`, `sessions` | Credenciales (Argon2id) y sesiones (se guarda el hash del token). |
 | | `customers`, `addresses` | Cliente (puede ser invitado, `user_id` NULL), RUT, teléfono, direcciones. |
 | Chile | `regions`, `communes` | 16 regiones (código CUT) y 346 comunas. |
@@ -34,6 +35,7 @@ Aunque la aplicación tenga un error, PostgreSQL rechaza:
 - Movimientos donde `resulting_stock ≠ previous_stock + quantity`, o cantidad 0.
 - Editar o borrar un movimiento de inventario (trigger de `0002_movimientos_inmutables.sql`; solo se permite que `created_by` quede en NULL al borrar un usuario).
 - Más de una variante por defecto por producto.
+- Dos intentos con la misma referencia externa del mismo proveedor, ambiente y cuenta (`payments_external_ref`), más de un intento `PENDING` por pedido y método (`payments_one_pending`), o una segunda venta (`SALE`) del mismo pedido y producto (`movements_one_sale_per_order_line`) — migración `0005_pagos`.
 - Un producto publicado (`active`) sin categoría (`products_active_needs_category`, migración `0004_borradores_sin_categoria.sql`): un borrador puede no tenerla, por ejemplo al importar un catálogo desde Excel.
 - `compare_at_price ≤ price`, precios o costos negativos, `units_per_pack < 1`.
 - Pedidos donde `total ≠ subtotal − descuento + envío`; líneas donde `line_total ≠ unit_price × quantity`.
