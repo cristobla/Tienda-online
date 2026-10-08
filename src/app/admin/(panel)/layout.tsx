@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 const NAV: { href: string; label: string; icon: IconName; perm?: Permission }[] = [
   { href: "/admin", label: "Inicio", icon: "chart" },
   { href: "/admin/pedidos", label: "Pedidos", icon: "cart", perm: "orders:read" },
+  { href: "/admin/pagos", label: "Pagos", icon: "check", perm: "orders:read" },
   { href: "/admin/productos", label: "Productos", icon: "box", perm: "catalog:read" },
   { href: "/admin/inventario", label: "Inventario", icon: "truck", perm: "inventory:read" },
   { href: "/admin/categorias", label: "Categorías", icon: "layers", perm: "catalog:write" },

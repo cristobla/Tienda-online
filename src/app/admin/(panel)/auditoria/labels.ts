@@ -25,6 +25,11 @@ const LABELS: Record<string, string> = {
   "shipping.update": "cambió las tarifas de despacho",
   "product.import": "creó o actualizó un producto desde Excel",
   "catalog.import": "importó un catálogo desde Excel",
+  "payment.result": "registró el resultado de un pago",
+  "payment.confirm_transfer": "confirmó una transferencia",
+  "payment.resolve": "cerró una incidencia de pago (devuelto)",
+  "payment.settings": "cambió la cuenta para transferencias",
+  "payment.method": "habilitó o deshabilitó un medio de pago",
 };
 
 export const actionLabel = (action: string) => LABELS[action] ?? action;
@@ -33,5 +38,7 @@ export const actionLabel = (action: string) => LABELS[action] ?? action;
 export function entityHref(type: string, id: string): string | null {
   const base = { product: "productos", category: "categorias", brand: "marcas", attribute: "atributos", user: "usuarios", order: "pedidos" }[type];
   if (type === "shipping") return "/admin/despacho";
+  if (type === "payment") return `/admin/pagos/${id}`;
+  if (type === "payment_method") return "/admin/pagos/configuracion";
   return base ? `/admin/${base}/${id}` : null;
 }

@@ -12,7 +12,7 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   test: {
     globalSetup: "./tests/global-setup.ts",
-    env: { NODE_ENV: "test", DATABASE_URL: process.env.DATABASE_URL_TEST ?? "", UPLOAD_DIR: join(tmpdir(), "tienda-test-uploads") },
+    env: { NODE_ENV: "test", APP_ENV: "test", PAYMENT_SIMULATION: "on", DATABASE_URL: process.env.DATABASE_URL_TEST ?? "", UPLOAD_DIR: join(tmpdir(), "tienda-test-uploads") },
     fileParallelism: false,
   },
 });

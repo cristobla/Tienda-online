@@ -12,12 +12,12 @@ export const metadata: Metadata = { title: "Auditoría" };
 
 const one = (v: unknown) => (Array.isArray(v) ? v[0] : v);
 const params = z.object({
-  tipo: z.preprocess(one, z.enum(["product", "variant", "category", "brand", "attribute", "user", "order", "shipping", "catalog"]).optional()).catch(undefined),
+  tipo: z.preprocess(one, z.enum(["product", "variant", "category", "brand", "attribute", "user", "order", "shipping", "catalog", "payment"]).optional()).catch(undefined),
   id: z.preprocess(one, z.string().max(64).optional()).catch(undefined),
   pagina: z.preprocess(one, z.coerce.number().int().min(1).max(10_000)).catch(1),
 });
 
-const TYPES = { product: "Productos", variant: "Variantes", category: "Categorías", brand: "Marcas", attribute: "Atributos", user: "Usuarios", order: "Pedidos", shipping: "Despacho", catalog: "Importaciones" };
+const TYPES = { product: "Productos", variant: "Variantes", category: "Categorías", brand: "Marcas", attribute: "Atributos", user: "Usuarios", order: "Pedidos", shipping: "Despacho", catalog: "Importaciones", payment: "Pagos" };
 
 const show = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
 
@@ -47,7 +47,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       <Table head={["Fecha", "Usuario", "Acción", "Cambios"]} empty="Sin registros.">
         {rows.slice(0, AUDIT_PAGE_SIZE).map(({ log, email }) => {
           const href = entityHref(log.entityType, log.entityId);
-          const changes = log.action.endsWith(".update") || log.action === "variant.set_default" ? changedFields(log.before, log.after) : [];
+          const changes = log.action.endsWith(".update") || log.action === "variant.set_default" || log.action.startsWith("payment.") ? changedFields(log.before, log.after) : [];
           return (
             <tr key={log.id}>
               <td className="whitespace-nowrap text-muted">{formatDateTime(log.createdAt)}</td>

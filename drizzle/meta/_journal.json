@@ -36,6 +36,13 @@
       "when": 1791397574687,
       "tag": "0004_borradores_sin_categoria",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791403959388,
+      "tag": "0005_pagos",
+      "breakpoints": true
     }
   ]
 }

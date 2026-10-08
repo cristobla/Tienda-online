@@ -122,14 +122,14 @@ Liberación de expiradas: tarea periódica + verificación perezosa al leer.
 
 ## 7. Pagos
 
-Interfaz `PaymentProvider`: `createPayment`, `getPaymentStatus`, `handleWebhook`, `cancelPayment`, `refundPayment`. Tablas `Payment` (intentos por pedido) y `PaymentEvent` (eventos recibidos, con clave única para **idempotencia**).
+Implementado en la FASE 7 (base + transferencia); detalle completo en [PAGOS.md](PAGOS.md). Contrato `PaymentProvider` (`configure`, `start` → acción tipada instrucciones/redirección/espera, `verify`, `parseReturn`, `parseWebhook`; reembolso y cancelación remota como capacidades). `payments` = intentos por pedido; `payment_events` = entradas guardadas antes de procesarse, deduplicadas por (proveedor, id de evento).
 
 Regla: un pedido pasa a pagado **solo** tras confirmación verificada con el proveedor desde el servidor (webhook con firma validada o consulta de estado server-to-server). Llegar a la página de "gracias" no cambia nada.
 
 Adaptadores:
-- **Transferencia bancaria** (real, sin credenciales): el admin confirma manualmente; queda auditado.
-- **Fake** (solo desarrollo/tests, bloqueado en producción).
-- **Webpay Plus / Mercado Pago**: estructura y variables de entorno preparadas; implementación en FASE 7 siguiendo la documentación oficial vigente. Requieren código de comercio / access token que hoy no existen. Nota: en Webpay la confirmación ocurre cuando el servidor ejecuta el *commit* al volver el usuario, no por webhook; la interfaz contempla ambos flujos.
+- **Transferencia bancaria** (operativa): el admin confirma tras ver el dinero en la cuenta; mismo flujo central que una pasarela; auditado.
+- **Simulado** (solo `APP_ENV` local/test con `PAYMENT_SIMULATION=on`; bloqueado en producción): ejercita retorno, webhook, consulta, timeout y reconciliación.
+- **Webpay Plus / Mercado Pago / Khipu**: registrados como pendientes (deshabilitados, responden 404). Nota: en Webpay la confirmación ocurre cuando el servidor ejecuta el *commit* al volver el usuario, no por webhook; el contrato contempla ambos flujos.
 
 ## 8. Usuarios, permisos y clientes
 
@@ -170,7 +170,7 @@ Zod en el servidor y restricciones HTML en el navegador; consultas parametrizada
 4. Inventario y movimientos.
 5. Carrito y pedidos.
 6. Checkout.
-7. Pagos (transferencia + fake; Webpay/Mercado Pago cuando haya credenciales).
+7. Pagos: base del módulo + transferencia + simulado ✅; Webpay/Mercado Pago/Khipu pendientes (requieren implementar su protocolo y credenciales).
 8. Seguridad, testing, SEO, optimización y documentación final.
 
 ## 14. Configuración externa pendiente (no inventada)
@@ -216,3 +216,8 @@ Zod en el servidor y restricciones HTML en el navegador; consultas parametrizada
 - **Catálogo real — Reglas de importación.** Productos nuevos como borrador con variante «Unidad»; precio = venta bruto CLP entero (`1000.0` sí, `2011.1` no: no se redondea); el costo neto no va a `cost_price` (queda en la auditoría, `product.import` → `origen`); stock inicial opcional (apagado por defecto) solo para variantes nuevas y vía `applyMovement`; un SKU existente solo cambia los campos elegidos y nunca su stock, reservas ni imágenes; celda vacía no borra; un SKU ausente no se desactiva; no se crean marcas/categorías sin la opción explícita. Códigos numéricos de más de 15 dígitos se rechazan (Excel ya perdió precisión) y los marcados en el archivo exigen confirmación.
 - **Catálogo real — Categoría opcional en borradores** (migración `0004`): permite importar sin categorías y clasificarlas después (re-importando con `categoria_ruta` + `publicar_web` o desde la ficha). Filtro «Sin categoría» en `/admin/productos`. Las alertas de stock del inicio del panel cuentan solo productos publicados.
 - **Catálogo real — Imágenes validadas con `sharp`** (ya venía con Next; ahora declarado en `package.json`): se decodifican para rechazar archivos dañados y medidas fuera de 100–8000 px. «Hacer principal» reordena las imágenes de un producto.
+- **FASE 7 — Un solo flujo confirma pedidos** (`applyResult` en `src/modules/payments`): la confirmación del admin (transferencia) y las pasarelas (retorno, webhook, consulta) llegan con un resultado VERIFICADO; los adaptadores no escriben pedidos ni stock. Se bloquea el pedido y después el intento (mismo orden que el vencimiento) y el intento con `FOR NO KEY UPDATE` (no choca con la referencia que toma un evento: evita deadlocks entre dos confirmaciones).
+- **FASE 7 — Estados reutilizados + 2 valores** (`UNCERTAIN`, `REVIEW`) en `payment_status`: estado del intento, dinero recibido (`received_amount`) y estado del pedido son cosas distintas. Un pago verificado no retrocede; el dinero que no confirma el pedido queda en REVIEW (reembolso manual pendiente), nunca se descarta.
+- **FASE 7 — Venta = consumir la reserva en un solo UPDATE** (`applyMovement` con `fromReserved`, `consumeOrderReservations`), con índice único que impide una segunda venta del mismo pedido y producto. Pago tardío: reservar todo de nuevo o REVIEW, sin sobreventa.
+- **FASE 7 — `APP_ENV` explícito** (no basta `NODE_ENV`): el simulador y los datos bancarios de ejemplo solo existen en local/test; en producción `APP_URL` debe ser https.
+- **FASE 7 — Jobs fuera del request:** `npm run jobs` (vencimiento + reconciliación) para cron; el temporizador del servidor es solo comodidad. La confirmación compara el vencimiento con el reloj de la base aunque el job no haya corrido.
