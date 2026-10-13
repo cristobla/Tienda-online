@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { AdminForm, Submit, TextArea } from "@/components/admin/form";
@@ -7,6 +8,7 @@ import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { formatCLP, formatDateTime } from "@/modules/chile";
 import { getOrder, manualTransitions, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/modules/orders";
+import { getProvider, orderPayments } from "@/modules/payments";
 import { changeStatusAction } from "../actions";
 import { ORDER_TONE, PAYMENT_TONE } from "../labels";
 
@@ -18,6 +20,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const data = z.uuid().safeParse(id).success ? await getOrder(id) : null;
   if (!data) notFound();
   const { order: o, items, history, reservations, hasAccount } = data;
+  const payments = await orderPayments(o.id);
   const transitions = can(user.role, "orders:manage") ? manualTransitions(o) : [];
   const active = reservations.filter((r) => r.status === "ACTIVE");
   const stock = active.length
@@ -134,6 +137,27 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             </dl>
           </Section>
 
+          <Section title="Pagos">
+            {payments.length ? (
+              <ul className="space-y-2 text-sm">
+                {payments.map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <Link href={`/admin/pagos/${p.id}`} className="font-mono text-leaf hover:underline">
+                      {p.reference}
+                    </Link>
+                    <span className="flex items-center gap-2">
+                      <span className="text-muted">{getProvider(p.provider)?.label ?? p.provider}</span>
+                      <Badge tone={PAYMENT_TONE[p.status]}>{PAYMENT_STATUS_LABELS[p.status]}</Badge>
+                    </span>
+                    {p.incident && <span className="w-full text-xs text-oferta">{p.incident}</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">Sin intentos de pago.</p>
+            )}
+          </Section>
+
           <Section title="Stock">
             <p className="text-sm">{stock}</p>
           </Section>
@@ -158,7 +182,10 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             </Section>
           )}
           {o.status !== "CANCELLED" && o.status !== "REFUNDED" && (
-            <p className="text-xs text-muted">Cobros, anulación de pedidos pagados y reembolsos se registran solo con la confirmación del proveedor de pagos.</p>
+            <p className="text-xs text-muted">
+              El pago se registra en Pagos (transferencia comprobada en la cuenta o verificación del proveedor), nunca cambiando el estado a mano. Anular un pedido pagado
+              y reembolsar todavía se gestionan fuera del sistema.
+            </p>
           )}
         </div>
       </div>

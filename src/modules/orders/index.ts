@@ -1,6 +1,6 @@
 /**
  * Pedidos: creación desde el carrito (con reserva de stock), máquina de estados y consultas del panel.
- * Un pedido nace PENDING_PAYMENT con sus reservas; solo el módulo de pagos (FASE 7) lo pasa a PAID.
+ * Un pedido nace PENDING_PAYMENT con sus reservas; solo el módulo de pagos (markOrderPaid) lo pasa a PAID.
  */
 import { and, asc, desc, eq, ilike, lte, or, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -36,6 +36,8 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   CANCELLED: "Anulado",
   REFUNDED: "Reembolsado",
   PARTIALLY_REFUNDED: "Reembolso parcial",
+  UNCERTAIN: "Por verificar",
+  REVIEW: "En revisión",
 };
 
 /** Transiciones permitidas. Agregar un estado = enum + una línea aquí. */
@@ -105,8 +107,14 @@ async function customerFor(tx: Transaction, input: OrderInput, userId: string | 
  * Convierte el carrito en un pedido PENDING_PAYMENT. Todo en una transacción: pedido, ítems (copia de nombre,
  * SKU y precio), historial, reservas y borrado del carrito; si algo falla —precio cambiado, producto retirado,
  * stock insuficiente— no queda nada y el carrito sigue intacto.
+ * `opts.within` corre en la MISMA transacción con el pedido ya reservado (el módulo de pagos crea ahí el intento).
  */
-export async function createOrderFromCart(cartId: string, input: OrderInput, userId: string | null = null) {
+export async function createOrderFromCart(
+  cartId: string,
+  input: OrderInput,
+  userId: string | null = null,
+  opts: { reservationMinutes?: number; within?: (tx: Transaction, order: Order, reservedUntil: Date) => Promise<void> } = {},
+) {
   await expireOrders(); // verificación perezosa: lo vencido no debe bloquear este pedido
   return db.transaction(async (tx) => {
     // Un doble envío del mismo carrito espera aquí y luego lo encuentra borrado: nunca dos pedidos.
@@ -160,7 +168,8 @@ export async function createOrderFromCart(cartId: string, input: OrderInput, use
     );
     await tx.insert(s.orderStatusHistory).values({ orderId: order!.id, toStatus: "PENDING_PAYMENT", changedBy: userId });
     // Reserva atómica (FASE 4): si otro cliente se llevó el stock entre la lectura y aquí, lanza y se revierte todo.
-    await reserveStock(tx, order!.id, lines);
+    const [reserved] = await reserveStock(tx, order!.id, lines, opts.reservationMinutes);
+    await opts.within?.(tx, order!, reserved!.expiresAt);
     await tx.delete(s.carts).where(eq(s.carts.id, cartId));
     return order!;
   });
@@ -168,18 +177,28 @@ export async function createOrderFromCart(cartId: string, input: OrderInput, use
 
 // ───────────── Estados ─────────────
 
-async function lockOrder(tx: Transaction, orderId: string) {
+export async function lockOrder(tx: Transaction, orderId: string) {
   const [o] = await tx.select().from(s.orders).where(eq(s.orders.id, orderId)).for("update");
   if (!o) throw new UserError("El pedido no existe.");
   return o;
 }
 
-/** Aplica una transición sobre un pedido ya bloqueado. Cancelar libera las reservas en la misma transacción. */
+/**
+ * Aplica una transición sobre un pedido ya bloqueado. Cancelar libera las reservas y cierra sus solicitudes de pago
+ * pendientes (vencidas o anuladas aquí, sin afirmar nada sobre el dinero: si llega, se registra como pago tardío).
+ */
 async function transition(tx: Transaction, o: Order, to: OrderStatus, opts: { userId: string | null; note?: string | null; paymentStatus?: PaymentStatus }) {
   if (!TRANSITIONS[o.status].includes(to))
     throw new UserError(`Un pedido "${ORDER_STATUS_LABELS[o.status]}" no puede pasar a "${ORDER_STATUS_LABELS[to]}".`);
   const cancel = to === "CANCELLED";
-  if (cancel) await releaseOrderReservations(tx, o.id);
+  if (cancel) {
+    await releaseOrderReservations(tx, o.id);
+    await tx
+      .update(s.payments)
+      // Solo el vencimiento indica paymentStatus; una cancelación del panel o del cliente anula.
+      .set({ status: opts.paymentStatus ? "EXPIRED" : "CANCELLED" })
+      .where(and(eq(s.payments.orderId, o.id), eq(s.payments.status, "PENDING")));
+  }
   const [row] = await tx
     .update(s.orders)
     .set({
@@ -225,10 +244,39 @@ export async function expireOrders() {
       const o = await lockOrder(tx, id);
       // Otro proceso ya lo tomó, o hay un pago en curso (lo resuelve el módulo de pagos).
       if (o.status !== "PENDING_PAYMENT" || movesMoney(o, "CANCELLED")) return;
-      await transition(tx, o, "CANCELLED", { userId: null, paymentStatus: "EXPIRED", note: "Reserva vencida: no se recibió el pago a tiempo." });
+      // Un pago en revisión o ya devuelto no se borra del resumen: el pedido se cancela, el dinero conserva su estado.
+      const paymentStatus = o.paymentStatus === "PENDING" ? "EXPIRED" : o.paymentStatus;
+      await transition(tx, o, "CANCELLED", { userId: null, paymentStatus, note: "Reserva vencida: no se recibió el pago a tiempo." });
       n++;
     });
   return n;
+}
+
+// ───────────── Pago (lo llama solo el módulo de pagos, con el pedido bloqueado) ─────────────
+
+/** Un pedido cancelado por vencimiento (no expresamente) puede recuperarse si llega el pago y hay stock. */
+export const recoverable = (o: Pick<Order, "status" | "paymentStatus">) => o.status === "CANCELLED" && o.paymentStatus === "EXPIRED";
+
+/** Pago verificado y venta ya registrada: PENDING_PAYMENT (o cancelado por vencimiento) → PAID. */
+export async function markOrderPaid(tx: Transaction, o: Order, opts: { method: string; userId: string | null; note: string }) {
+  if (o.status !== "PENDING_PAYMENT" && !recoverable(o)) throw new Error(`El pedido ${o.orderNumber} no está esperando un pago.`);
+  const [row] = await tx
+    .update(s.orders)
+    .set({ status: "PAID", paymentStatus: "PAID", paymentMethod: opts.method, paidAt: new Date(), cancelledAt: null })
+    .where(eq(s.orders.id, o.id))
+    .returning();
+  await tx.insert(s.orderStatusHistory).values({ orderId: o.id, fromStatus: o.status, toStatus: "PAID", changedBy: opts.userId, note: opts.note });
+  return row!;
+}
+
+/** Resumen de dinero del pedido (p. ej. REVIEW: hay un pago recibido por resolver). No cambia su estado operativo. */
+export async function setOrderPaymentStatus(tx: Transaction, o: Order, paymentStatus: PaymentStatus) {
+  await tx.update(s.orders).set({ paymentStatus }).where(eq(s.orders.id, o.id));
+}
+
+/** Pago tardío sin stock sobre un pedido aún pendiente: se cancela como vencido, con el dinero en revisión. */
+export function cancelExpiredWithPayment(tx: Transaction, o: Order, note: string) {
+  return transition(tx, o, "CANCELLED", { userId: null, paymentStatus: "REVIEW", note });
 }
 
 // ───────────── Consultas del panel ─────────────

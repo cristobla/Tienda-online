@@ -5,9 +5,9 @@ import { AdminForm, Submit, Text, TextArea } from "@/components/admin/form";
 import { Icon } from "@/components/icons";
 import { AutoSubmitForm } from "@/components/store/auto-submit-form";
 import { Breadcrumbs, type SP } from "@/components/store/catalog-view";
-import { env } from "@/lib/env";
 import { currentCartId, getCart } from "@/modules/cart";
 import { formatCLP } from "@/modules/chile";
+import { checkoutMethods, formatMinutes } from "@/modules/payments";
 import { listDeliveryCommunes, quoteShipping } from "@/modules/shipping";
 import { checkoutAction } from "./actions";
 
@@ -24,7 +24,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
   if (!cart.ready) redirect("/carrito"); // vacío o con productos por ajustar: el carrito explica qué hacer
   const raw = Number([(await searchParams).comuna].flat()[0]);
   const communeId = Number.isInteger(raw) && raw > 0 ? raw : null;
-  const [groups, quote] = await Promise.all([listDeliveryCommunes(), communeId ? quoteShipping(communeId) : null]);
+  const [groups, quote, methods] = await Promise.all([listDeliveryCommunes(), communeId ? quoteShipping(communeId) : null, checkoutMethods()]);
   const total = cart.subtotal + (quote?.cost ?? 0);
 
   return (
@@ -100,10 +100,29 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
                   <Text name="rut" label="RUT" maxLength={30} hint="Opcional" />
                 </div>
                 <TextArea name="notes" label="Indicaciones para el despacho" rows={2} maxLength={300} hint="Opcional. Ej.: dejar en conserjería." />
-                <p className="text-sm text-muted">
-                  Al confirmar reservamos tus productos por {env.RESERVATION_TTL_MINUTES} minutos mientras se completa el pago.
-                </p>
-                <Submit pendingText="Confirmando…">Confirmar pedido · {formatCLP(total)}</Submit>
+                <fieldset>
+                  <legend className="mb-2 text-sm font-semibold">Medio de pago</legend>
+                  {methods.length ? (
+                    <div className="grid gap-2">
+                      {methods.map((m, i) => (
+                        <label key={m.id} className="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3 has-[:checked]:border-leaf has-[:checked]:bg-leaf-soft">
+                          <input type="radio" name="paymentMethod" value={m.id} defaultChecked={i === 0} required className="mt-1 size-4 accent-leaf" />
+                          <span className="text-sm">
+                            <span className="font-semibold">{m.label}</span>
+                            {m.testOnly && <span className="ml-2 rounded-sm bg-oferta px-1.5 py-0.5 text-xs font-bold text-white">PRUEBA</span>}
+                            <span className="block text-muted">{m.description}</span>
+                            <span className="block text-muted">Reservamos tus productos por {formatMinutes(m.reservationMinutes)} mientras se completa el pago.</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p role="alert" className="text-sm font-medium text-oferta">
+                      Por ahora no hay medios de pago disponibles. Vuelve a intentarlo pronto.
+                    </p>
+                  )}
+                </fieldset>
+                {methods.length > 0 && <Submit pendingText="Confirmando…">Confirmar pedido · {formatCLP(total)}</Submit>}
               </AdminForm>
             ) : (
               <p className="mt-3 text-sm text-muted">Primero elige la comuna de despacho.</p>

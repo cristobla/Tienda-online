@@ -27,6 +27,8 @@ jobs:
       # Credenciales de prueba del contenedor de CI, no secretos.
       DATABASE_URL: postgres://tienda:tienda@localhost:5432/tienda_test
       DATABASE_URL_TEST: postgres://tienda:tienda@localhost:5432/tienda_test
+      # Ambiente explícito: la build corre con NODE_ENV=production y sin esto exigiría APP_URL https.
+      APP_ENV: test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

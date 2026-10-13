@@ -21,4 +21,6 @@ export const PAYMENT_TONE: Record<PaymentStatus, Tone> = {
   CANCELLED: "off",
   REFUNDED: "bad",
   PARTIALLY_REFUNDED: "bad",
+  UNCERTAIN: "warn",
+  REVIEW: "bad",
 };

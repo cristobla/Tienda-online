@@ -9,6 +9,8 @@ export const PERMISSIONS = [
   "inventory:adjust",
   "orders:read",
   "orders:manage",
+  /** Confirmar transferencias, resolver incidencias de pago y configurar métodos de pago. */
+  "payments:manage",
   "shipping:manage",
   "customers:read",
   "customers:write",

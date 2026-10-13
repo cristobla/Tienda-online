@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigserial,
+  boolean,
   char,
   check,
   index,
@@ -12,6 +13,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { productVariants, timestamps } from "./catalog";
@@ -54,6 +56,10 @@ export const inventoryMovements = pgTable(
     check("movements_quantity_nonzero", sql`${t.quantity} <> 0`),
     check("movements_math", sql`${t.resultingStock} = ${t.previousStock} + ${t.quantity}`),
     check("movements_resulting_nonneg", sql`${t.resultingStock} >= 0`),
+    // Un pedido genera su venta una sola vez por producto, aunque lleguen dos confirmaciones a la vez.
+    uniqueIndex("movements_one_sale_per_order_line")
+      .on(t.referenceId, t.variantId)
+      .where(sql`${t.type} = 'SALE' AND ${t.referenceType} = 'ORDER'`),
   ],
 );
 
@@ -80,6 +86,10 @@ export const paymentStatus = pgEnum("payment_status", [
   "CANCELLED",
   "REFUNDED",
   "PARTIALLY_REFUNDED",
+  /** Sin respuesta confiable del proveedor (timeout, error de red): se resuelve consultando; nunca se asume rechazo. */
+  "UNCERTAIN",
+  /** Dinero recibido que NO confirma el pedido (monto distinto, pago tardío sin stock, pago duplicado o sobre un pedido cancelado): revisión / reembolso pendiente. */
+  "REVIEW",
 ]);
 
 export const orderNumberSeq = pgSequence("order_number_seq", { startWith: 1000 });
@@ -246,7 +256,16 @@ export const cartItems = pgTable(
 
 // ───────────── Pagos ─────────────
 
-/** Cada intento de pago de un pedido con un proveedor. */
+/** Lo que el cliente recibe para pagar un intento. Se guarda congelado en el intento; nunca contiene secretos. */
+export type PaymentAction =
+  | { kind: "instructions"; title: string; lines: { label: string; value: string }[]; note?: string; example?: boolean }
+  | { kind: "redirect"; method: "GET" | "POST"; url: string; fields: Record<string, string> }
+  | { kind: "wait"; message: string };
+
+/**
+ * Cada intento de pago de un pedido (un pedido puede tener varios). Tres cosas distintas: `status` es el estado del
+ * intento; `received_amount`/`received_at`, el dinero verificado como recibido; `orders.status`, el estado operativo.
+ */
 export const payments = pgTable(
   "payments",
   {
@@ -254,35 +273,92 @@ export const payments = pgTable(
     orderId: uuid("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "restrict" }),
+    /** N.º de intento dentro del pedido (1, 2, …). */
+    attempt: integer().notNull().default(1),
+    /** Referencia interna del intento ("ORD-001234-2"): corta (cabe en buy_order de Webpay) y única; también es la clave de idempotencia ante el proveedor. */
+    reference: text().notNull().unique(),
     provider: text().notNull(),
+    /** Ambiente (local, test, integration, production) y cuenta/comercio receptor: el contexto de la referencia externa. */
+    environment: text().notNull(),
+    account: text().notNull().default(""),
+    /** Identificador del proveedor (token, id de pago, n.º de operación bancaria). Siempre texto. */
     providerReference: text("provider_reference"),
     amount: integer().notNull(),
     currency: char({ length: 3 }).notNull().default("CLP"),
     status: paymentStatus().notNull().default("PENDING"),
+    /** Acción entregada al cliente, congelada al emitir el intento (p. ej. la cuenta de ese momento). */
+    checkout: jsonb().$type<PaymentAction>(),
+    /** Último resultado: lo normalizado y lo que respondió el proveedor (o registró el admin), sin secretos. Explica cada transición. */
     raw: jsonb(),
+    receivedAmount: integer("received_amount"),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** Motivo de la revisión / reembolso pendiente, o cómo se resolvió. */
+    incident: text(),
+    lastError: text("last_error"),
     ...timestamps,
   },
   (t) => [
     index("payments_order_idx").on(t.orderId),
-    unique("payments_provider_ref").on(t.provider, t.providerReference),
+    index("payments_status_idx").on(t.status, t.createdAt),
+    unique("payments_order_attempt").on(t.orderId, t.attempt),
+    // La misma referencia externa (token, n.º de operación) no se aplica a dos intentos del mismo proveedor, ambiente y cuenta.
+    unique("payments_external_ref").on(t.provider, t.environment, t.account, t.providerReference),
+    // Un solo intento pendiente por pedido y método: un doble clic o una recarga no crean otro.
+    uniqueIndex("payments_one_pending").on(t.orderId, t.provider).where(sql`${t.status} = 'PENDING'`),
     check("payments_amount_pos", sql`${t.amount} > 0`),
+    check("payments_received_pos", sql`${t.receivedAmount} IS NULL OR ${t.receivedAmount} > 0`),
   ],
 );
 
-/** Eventos recibidos de proveedores. La unicidad (provider, event_id) da idempotencia a los webhooks. */
+export const paymentEventStatus = pgEnum("payment_event_status", ["RECEIVED", "PROCESSED", "FAILED", "IGNORED"]);
+
+/**
+ * Entradas de proveedores (webhook, retorno del navegador) y comandos del admin. Las de proveedores se guardan
+ * ANTES de procesarse: recibido no es procesado, y una que falló queda para reintentar. (provider, event_id) deduplica.
+ */
 export const paymentEvents = pgTable(
   "payment_events",
   {
     id: uuid().primaryKey().defaultRandom(),
     provider: text().notNull(),
-    eventId: text("event_id").notNull(),
+    /** webhook | return | admin */
+    source: text().notNull(),
+    /** Id del evento en el proveedor o del comando del admin, cuando existe. */
+    eventId: text("event_id"),
     paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+    /** Lo que traía la entrada para encontrar el intento (token, referencia). */
+    reference: text(),
     payload: jsonb().notNull(),
+    status: paymentEventStatus().notNull().default("RECEIVED"),
+    tries: integer().notNull().default(0),
+    lastError: text("last_error"),
     processedAt: timestamp("processed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
-  (t) => [unique("payment_events_provider_event").on(t.provider, t.eventId)],
+  (t) => [
+    unique("payment_events_provider_event").on(t.provider, t.eventId),
+    index("payment_events_status_idx").on(t.status, t.createdAt),
+    index("payment_events_payment_idx").on(t.paymentId),
+  ],
 );
+
+/** Métodos de pago: interruptor del admin y configuración NO secreta (cuenta para transferencias). Las credenciales van en el entorno. */
+export const paymentMethods = pgTable("payment_methods", {
+  provider: text().primaryKey(),
+  enabled: boolean().notNull().default(true),
+  settings: jsonb().notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
 
 // ───────────── Auditoría ─────────────
 

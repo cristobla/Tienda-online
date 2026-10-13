@@ -27,18 +27,35 @@ const SIGN: Record<MovementType, 1 | -1 | 0> = {
  * ÚNICA puerta para cambiar stock_on_hand. Exige una transacción: el stock y su movimiento se guardan juntos o ninguno.
  * El UPDATE bloquea la fila, así previous/resulting son exactos aunque haya cambios simultáneos;
  * los CHECK de la base rechazan cualquier resultado negativo o menor a lo reservado.
+ * `fromReserved` (solo SALE): unidades que salen de lo reservado en el MISMO UPDATE; en dos pasos, el intermedio
+ * (físico bajo y reservado intacto) violaría reservado ≤ físico.
  */
 export async function applyMovement(
   tx: Transaction,
-  m: { variantId: string; type: MovementType; quantity: number; reason?: string | null; referenceType?: string; referenceId?: string | null; userId?: string | null },
+  m: {
+    variantId: string;
+    type: MovementType;
+    quantity: number;
+    fromReserved?: number;
+    reason?: string | null;
+    referenceType?: string;
+    referenceId?: string | null;
+    userId?: string | null;
+  },
 ) {
   if (!Number.isInteger(m.quantity) || m.quantity === 0) throw new Error("La cantidad del movimiento debe ser un entero distinto de 0.");
   const sign = SIGN[m.type];
   if (sign !== 0 && Math.sign(m.quantity) !== sign) throw new Error(`Un movimiento ${m.type} debe ser ${sign > 0 ? "positivo" : "negativo"}.`);
   if (m.type === "MANUAL_ADJUSTMENT" && !m.reason?.trim()) throw new Error("Un ajuste manual requiere motivo.");
+  const fromReserved = m.fromReserved ?? 0;
+  if (fromReserved && (m.type !== "SALE" || !Number.isInteger(fromReserved) || fromReserved < 0 || fromReserved > -m.quantity))
+    throw new Error("Solo una venta descuenta lo reservado, y nunca más que lo vendido.");
   const [row] = await tx
     .update(productVariants)
-    .set({ stockOnHand: sql`${productVariants.stockOnHand} + ${m.quantity}` })
+    .set({
+      stockOnHand: sql`${productVariants.stockOnHand} + ${m.quantity}`,
+      ...(fromReserved && { stockReserved: sql`${productVariants.stockReserved} - ${fromReserved}` }),
+    })
     .where(eq(productVariants.id, m.variantId))
     .returning({ stock: productVariants.stockOnHand });
   if (!row) throw new Error(`Variante ${m.variantId} no existe.`);
@@ -160,6 +177,35 @@ async function releaseWhere(tx: Transaction, where: SQL) {
 /** Pago fallido, anulado o pedido cancelado antes de pagar. */
 export function releaseOrderReservations(tx: Transaction, orderId: string) {
   return releaseWhere(tx, eq(stockReservations.orderId, orderId));
+}
+
+/**
+ * Pago confirmado: cada reserva ACTIVE del pedido pasa a CONSUMED y se registra su venta (SALE), que baja físico y
+ * reservado juntos. Se toma cada reserva una sola vez (UPDATE … WHERE ACTIVE), y la base impide una segunda venta
+ * del mismo pedido y producto. Quien llama debe tener bloqueado el pedido y haber comprobado que la reserva sigue vigente.
+ */
+export async function consumeOrderReservations(tx: Transaction, orderId: string, userId: string | null = null) {
+  const taken = await tx
+    .update(stockReservations)
+    .set({ status: "CONSUMED" })
+    .where(and(eq(stockReservations.orderId, orderId), eq(stockReservations.status, "ACTIVE")))
+    .returning();
+  for (const r of byVariant(taken))
+    await applyMovement(tx, { variantId: r.variantId, type: "SALE", quantity: -r.quantity, fromReserved: r.quantity, referenceType: "ORDER", referenceId: orderId, userId });
+  return taken;
+}
+
+/** Reservas ACTIVE del pedido y si siguen vigentes según el reloj de la base (aunque el job de vencimiento no haya corrido). */
+export async function reservationState(tx: Transaction, orderId: string) {
+  const [r] = await tx
+    .select({
+      active: sql<number>`count(*)::int`,
+      live: sql<boolean>`coalesce(bool_and(${stockReservations.expiresAt} > now()), false)`,
+      expiresAt: sql<Date | null>`min(${stockReservations.expiresAt})`.mapWith((v) => (v ? new Date(v) : null)),
+    })
+    .from(stockReservations)
+    .where(and(eq(stockReservations.orderId, orderId), eq(stockReservations.status, "ACTIVE")));
+  return { active: r!.active, live: r!.active > 0 && r!.live, expiresAt: r!.expiresAt };
 }
 
 /** Para la tarea periódica (y la verificación perezosa) de reservas vencidas. */

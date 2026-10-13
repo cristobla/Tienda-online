@@ -7,7 +7,7 @@ export async function resetDb() {
   await db.execute(sql`TRUNCATE
     audit_logs, payment_events, payments, stock_reservations, shipping_rates, order_status_history, order_items, orders,
     cart_items, carts, inventory_movements, product_images, product_variants, products,
-    attribute_definitions, categories, brands, addresses, customers, sessions, users CASCADE`);
+    attribute_definitions, categories, brands, addresses, customers, sessions, users, payment_methods CASCADE`);
 }
 
 /** Crea categoría + producto + una variante con el stock indicado (como movimiento INITIAL_STOCK). */

@@ -40,6 +40,7 @@ npm run start                 # http://localhost:3000
 | `npm run db:reference` | Carga regiones y comunas (producción) |
 | `npm run db:seed` | Reemplaza la BD de desarrollo con datos de prueba |
 | `npm run db:studio` | Explorador visual de las tablas en el navegador |
+| `npm run jobs` | Vence pedidos impagos y reconcilia pagos (programar con cron en producción; ver `docs/PAGOS.md`) |
 
 ## Usuario de prueba
 
@@ -72,6 +73,8 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 | Ruta | Qué permite | Permiso |
 |---|---|---|
 | `/admin` | Indicadores, variantes a reponer y actividad reciente | staff |
+| `/admin/pagos`, `/admin/pagos/[id]` | Intentos de pago: búsqueda, filtros, eventos; confirmar transferencias (tras verlas en la cuenta) y cerrar incidencias | `orders:read` / confirmar: `payments:manage` |
+| `/admin/pagos/configuracion` | Medios de pago (implementado / configurado / habilitado) y cuenta para transferencias (datos no secretos) | `payments:manage` |
 | `/admin/pedidos`, `/admin/pedidos/[id]` | Pedidos con búsqueda y filtro por estado; detalle con productos (copia al momento de la compra), totales, stock reservado e historial; cancelar antes del pago y avanzar preparación/despacho/entrega | `orders:read` / cambiar estado: `orders:manage` |
 | `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros | `catalog:read` |
 | `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes (con «Hacer principal»), SEO | `catalog:write` |
@@ -87,12 +90,14 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 - Imágenes: JPG, PNG, WebP o AVIF, máx. 5 MB c/u, guardadas en `UPLOAD_DIR` (por defecto `./uploads`, fuera del repositorio). **En producción, montar esa carpeta en un volumen persistente.**
 - Lo que tiene historial (stock, ventas, productos asociados) no se elimina: se desactiva.
 - Importar Excel: hoja `Catalogo` (archivo preparado: `sku`, `nombre`, `precio_clp`; opcionales `stock_inicial`, `publicar_web`, `marca`, `categoria_ruta` como «Aseo del hogar > Cocina», `codigo_barras`, `descripcion`) o hoja `Productos` (exportación del sistema: `Código`, `Nombre`, `Precio de Venta Bruto`). Los nuevos quedan como borrador hasta tener categoría; nada se guarda hasta confirmar. Los archivos reales del negocio van en `/datos/` (fuera de git).
-- Pedidos: nacen "Pendiente de pago" con el stock reservado; si no se paga a tiempo (`RESERVATION_TTL_MINUTES`) se cancelan solos y el stock vuelve a estar disponible. Marcar como pagado, reembolsar o anular un pedido pagado solo lo hace el módulo de pagos (FASE 7), nunca el panel.
+- Pedidos: nacen "Pendiente de pago" con el stock reservado y un intento de pago; si no se paga a tiempo (`RESERVATION_TTL_MINUTES`) se cancelan solos y el stock vuelve a estar disponible. Solo el módulo de pagos los marca como pagados (transferencia comprobada o verificación del proveedor); el cambio de estado manual no puede.
+- Pagos: hoy transferencia bancaria (y un pago simulado solo en local con `APP_ENV=local` + `PAYMENT_SIMULATION=on`, en `/pago/simulado/...`). Webpay, Mercado Pago y Khipu están pendientes. Ver [docs/PAGOS.md](docs/PAGOS.md).
 
 ## Documentación
 
 - [Arquitectura y decisiones](docs/ARQUITECTURA.md)
 - [Base de datos](docs/BASE_DE_DATOS.md)
+- [Pagos](docs/PAGOS.md)
 - [Despliegue y puesta en producción](docs/DESPLIEGUE.md)
 
 ## Estado
@@ -103,5 +108,5 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 - [x] FASE 4 — Inventario y movimientos
 - [x] FASE 5 — Carrito y pedidos
 - [x] FASE 6 — Checkout
-- [ ] FASE 7 — Integración de pagos
+- [~] FASE 7 — Pagos: base del módulo + transferencia bancaria ✅ · pasarelas online pendientes
 - [ ] FASE 8 — Seguridad, testing, SEO y optimización

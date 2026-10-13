@@ -15,7 +15,8 @@
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts",
     "db:reference": "tsx --env-file-if-exists=.env src/db/load-reference.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/db/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "jobs": "tsx --env-file-if-exists=.env scripts/jobs.ts"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

@@ -10,7 +10,8 @@ import { slugify } from "@/lib/slug";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/modules/auth/password";
 import { addToCart, getCart } from "@/modules/cart";
 import { applyMovement } from "@/modules/inventory";
-import { changeOrderStatus, createOrderFromCart } from "@/modules/orders";
+import { changeOrderStatus } from "@/modules/orders";
+import { confirmTransfer, placeOrder } from "@/modules/payments";
 import { quoteShipping } from "@/modules/shipping";
 import { db, pool } from ".";
 import { loadReferenceData } from "./reference-data";
@@ -241,8 +242,8 @@ await db.transaction(async (tx) => {
   console.log(`Seed listo: ${PRODUCTS.length} productos, ${n} variantes, tarifas de despacho de prueba. Admin: ${ADMIN_EMAIL}`);
 });
 
-// Pedidos de prueba: pasan por el carrito y el servicio de pedidos, así reservan stock igual que uno real.
-// El pendiente se cancela solo cuando vence su reserva (RESERVATION_TTL_MINUTES).
+// Pedidos de prueba: pasan por el carrito, el checkout y el servicio de pagos (transferencia), así reservan stock y
+// crean su intento de pago igual que uno real. El pendiente se cancela solo cuando vence su reserva.
 const variantId = async (sku: string) => (await db.select({ id: s.productVariants.id }).from(s.productVariants).where(eq(s.productVariants.sku, sku)))[0]!.id;
 const [providencia] = await db.select({ id: s.communes.id }).from(s.communes).where(eq(s.communes.name, "Providencia"));
 const demoOrder = async (n: number, lines: [string, number][]) => {
@@ -250,7 +251,7 @@ const demoOrder = async (n: number, lines: [string, number][]) => {
   for (const [sku, quantity] of lines) cart = await addToCart(cart, { variantId: await variantId(sku), quantity });
   const { subtotal } = await getCart(cart);
   const ship = (await quoteShipping(providencia!.id))!;
-  return createOrderFromCart(cart!, {
+  return placeOrder(cart!, {
     email: `cliente${n}@demo.local`,
     firstName: "Cliente",
     lastName: `Demo ${n}`,
@@ -262,12 +263,17 @@ const demoOrder = async (n: number, lines: [string, number][]) => {
     apartment: null,
     notes: "[DATO DE PRUEBA]",
     expectedTotal: subtotal + ship.cost,
-  });
+  }, "transferencia");
 };
 const [admin] = await db.select({ id: s.users.id }).from(s.users).where(eq(s.users.email, ADMIN_EMAIL));
 await demoOrder(1, [["DEMO-001-2", 2], ["DEMO-003-1", 3]]);
 const cancelled = await demoOrder(2, [["DEMO-011-1", 1]]);
 await changeOrderStatus(admin!.id, cancelled.id, { to: "CANCELLED", note: "El cliente desistió (dato de prueba)." });
-console.log("Pedidos de prueba: 1 pendiente de pago, 1 cancelado.");
+// Pagado: el admin comprueba la transferencia (mismo flujo que en el panel) → venta y stock descontado.
+const paid = await demoOrder(3, [["DEMO-002-1", 1]]);
+const [attempt] = await db.select().from(s.payments).where(eq(s.payments.orderId, paid.id));
+const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
+await confirmTransfer(admin!.id, attempt!.id, { amount: attempt!.amount, receivedOn: today, bankReference: "DEMO-0001", note: "[DATO DE PRUEBA]", commandId: crypto.randomUUID() });
+console.log("Pedidos de prueba: 1 pendiente de pago (transferencia), 1 cancelado, 1 pagado (transferencia confirmada).");
 
 await pool.end();
