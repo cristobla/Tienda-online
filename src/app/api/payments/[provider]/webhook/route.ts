@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp } from "@/lib/client-ip";
 import { isBlocked, registerFailure } from "@/modules/auth/rate-limit";
 import { inboundProvider, receiveProviderInput } from "@/modules/payments";
 
@@ -12,8 +13,7 @@ const MAX_BYTES = 65_536;
 export async function POST(req: Request, { params }: { params: Promise<{ provider: string }> }) {
   const p = await inboundProvider((await params).provider);
   if (!p?.provider.parseWebhook || !p.provider.capabilities.webhook) return new NextResponse(null, { status: 404 });
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  const key = `webhook:${p.provider.id}:${ip}`;
+  const key = `webhook:${p.provider.id}:${clientIp(req.headers)}`;
   if (isBlocked(key, 30)) return new NextResponse(null, { status: 429 });
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BYTES || !req.headers.get("content-type")?.includes("application/json"))
     return new NextResponse(null, { status: 415 });

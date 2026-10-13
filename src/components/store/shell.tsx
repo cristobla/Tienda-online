@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
-import { SITE } from "@/lib/site";
+import { SITE, socialLinks } from "@/lib/site";
 import type { CategoryNode } from "@/modules/categories/queries";
 
 /** Buscador del catálogo: formulario GET a /productos?q= (funciona sin JavaScript). */
@@ -171,6 +171,17 @@ export function StoreFooter({ roots }: { roots: CategoryNode[] }) {
             {SITE.name}
           </p>
           <p className="mt-3 max-w-xs text-sm text-white/80">{SITE.description}</p>
+          {socialLinks().length > 0 && (
+            <ul aria-label="Redes sociales" className="mt-4 flex flex-wrap gap-3 text-sm">
+              {socialLinks().map((l) => (
+                <li key={l.label}>
+                  <a href={l.url} rel="me noopener" target="_blank" className="rounded-md border border-white/30 px-3 py-1 hover:border-white hover:text-white">
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
           {/* Solo se muestra el contacto que ya está definido en SITE (no se publican datos inventados). */}
           {(SITE.email || SITE.hours) && (
             <dl className="mt-5 space-y-1 text-sm text-white/80">

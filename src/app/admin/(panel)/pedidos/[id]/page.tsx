@@ -8,6 +8,7 @@ import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { formatCLP, formatDateTime } from "@/modules/chile";
 import { getOrder, manualTransitions, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/modules/orders";
+import { EMAIL_LABELS, orderEmails } from "@/modules/mail";
 import { getProvider, orderPayments } from "@/modules/payments";
 import { changeStatusAction } from "../actions";
 import { ORDER_TONE, PAYMENT_TONE } from "../labels";
@@ -20,7 +21,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const data = z.uuid().safeParse(id).success ? await getOrder(id) : null;
   if (!data) notFound();
   const { order: o, items, history, reservations, hasAccount } = data;
-  const payments = await orderPayments(o.id);
+  const [payments, emails] = await Promise.all([orderPayments(o.id), orderEmails(o.id)]);
   const transitions = can(user.role, "orders:manage") ? manualTransitions(o) : [];
   const active = reservations.filter((r) => r.status === "ACTIVE");
   const stock = active.length
@@ -155,6 +156,24 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               </ul>
             ) : (
               <p className="text-sm text-muted">Sin intentos de pago.</p>
+            )}
+          </Section>
+
+          <Section title="Correos al cliente">
+            {emails.length ? (
+              <ul className="space-y-2 text-sm">
+                {emails.map((m) => (
+                  <li key={m.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span>{EMAIL_LABELS[m.kind] ?? m.kind}</span>
+                    <Badge tone={m.status === "SENT" ? "ok" : m.status === "PENDING" ? "warn" : m.status === "FAILED" ? "bad" : "off"}>
+                      {m.status === "SENT" && m.sentAt ? `Enviado ${formatDateTime(m.sentAt)}` : { PENDING: "En cola", FAILED: "Falló", SKIPPED: "No enviado", SENT: "Enviado" }[m.status]}
+                    </Badge>
+                    {m.lastError && m.status !== "SENT" && <span className="w-full text-xs text-muted">{m.lastError}</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">Sin correos.</p>
             )}
           </Section>
 

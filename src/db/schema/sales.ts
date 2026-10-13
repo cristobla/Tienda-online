@@ -360,6 +360,33 @@ export const paymentMethods = pgTable("payment_methods", {
     .$onUpdate(() => new Date()),
 });
 
+// ───────────── Correos al cliente ─────────────
+
+export const emailStatus = pgEnum("email_status", ["PENDING", "SENT", "FAILED", "SKIPPED"]);
+
+/**
+ * Cola de avisos al cliente. Se escribe en la MISMA transacción que el hecho que avisa (pedido creado, pago
+ * confirmado, despacho): si ese cambio se revierte, el correo no existe. Lo envía el job (`npm run jobs`), con
+ * reintentos; el texto se arma al enviar, con los datos vigentes del pedido.
+ */
+export const emailOutbox = pgTable(
+  "email_outbox",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** "order.received:<pedido>": el mismo aviso se encola una sola vez. */
+    key: text().notNull().unique(),
+    kind: text().notNull(),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+    to: text().notNull(),
+    status: emailStatus().notNull().default("PENDING"),
+    tries: integer().notNull().default(0),
+    lastError: text("last_error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("email_outbox_status_idx").on(t.status, t.createdAt), index("email_outbox_order_idx").on(t.orderId)],
+);
+
 // ───────────── Auditoría ─────────────
 
 export const auditLogs = pgTable(

@@ -40,7 +40,8 @@ npm run start                 # http://localhost:3000
 | `npm run db:reference` | Carga regiones y comunas (producción) |
 | `npm run db:seed` | Reemplaza la BD de desarrollo con datos de prueba |
 | `npm run db:studio` | Explorador visual de las tablas en el navegador |
-| `npm run jobs` | Vence pedidos impagos y reconcilia pagos (programar con cron en producción; ver `docs/PAGOS.md`) |
+| `npm run jobs` | Vence pedidos impagos, reconcilia pagos y envía los correos en cola (programar con cron en producción) |
+| `npm run admin:create -- correo@dominio.cl` | Crea un Super Admin (primer usuario en producción); pide la contraseña sin mostrarla |
 
 ## Usuario de prueba
 
@@ -59,12 +60,14 @@ npm run start                 # http://localhost:3000
 | `/producto/[slug]` | Ficha con selector de formato (`?variante=SKU`), cantidad, agregar al carrito, características y JSON-LD |
 | `/carrito` | Carrito: cambiar cantidades y quitar, con precio y stock actuales (no reserva stock) |
 | `/checkout` | Comuna de despacho (costo y plazo) → datos y dirección → confirmar pedido (reserva el stock) |
-| `/pedido/[id]` | Comprobante del pedido para el cliente (enlace secreto, no indexado) |
+| `/pedido/[id]` | Pedido y pago para el cliente: instrucciones, estado, reintento (enlace secreto, no indexado) |
 | `/cuenta`, `/info/[tema]` | Páginas provisorias (cuenta de cliente, ayuda y legales por redactar) |
 | `/sitemap.xml`, `/robots.txt` | Generados desde la base |
+| `/feed/productos.xml` | Feed de productos para Google Merchant Center y el catálogo de Meta (publicados con foto) |
+| `/opengraph-image` | Imagen al compartir la tienda en redes (los productos con foto usan la suya) |
 
 Filtros por URL: `marca`, `precio_min`, `precio_max`, `disponible=1`, `a_<atributo>` (atributos marcados como filtrables), `orden`, `pagina`.
-El nombre de la tienda se cambia en `src/lib/site.ts`.
+El nombre de la tienda, el contacto y las redes sociales se cambian en `src/lib/site.ts`. Conectar buscadores y redes: `docs/DESPLIEGUE.md` §8.
 
 ## Panel de administración
 
@@ -109,4 +112,4 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 - [x] FASE 5 — Carrito y pedidos
 - [x] FASE 6 — Checkout
 - [~] FASE 7 — Pagos: base del módulo + transferencia bancaria ✅ · pasarelas online pendientes
-- [ ] FASE 8 — Seguridad, testing, SEO y optimización
+- [~] FASE 8 — Esencial ✅ (seguridad, límites, correos, SEO y feed para Google/Meta) · Docker y 301 pendientes

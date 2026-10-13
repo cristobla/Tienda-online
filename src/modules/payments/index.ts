@@ -11,6 +11,7 @@ import * as s from "@/db/schema";
 import { env } from "@/lib/env";
 import { field, UserError } from "@/lib/form";
 import { audit } from "@/modules/audit";
+import { enqueueEmail } from "@/modules/mail";
 import { formatCLP } from "@/modules/chile";
 import { consumeOrderReservations, InsufficientStockError, releaseOrderReservations, reservationState, reserveStock } from "@/modules/inventory";
 import {
@@ -200,14 +201,22 @@ async function openAttempt(tx: Transaction, order: typeof s.orders.$inferSelect,
  * Checkout: pedido + reserva + intento en UNA transacción (un doble envío no crea nada más: el carrito queda
  * bloqueado y luego borrado). Recién después se pide la acción de pago al proveedor, fuera de la transacción.
  */
+/** Pedidos impagos simultáneos por email: un bot no puede dejar el stock reservado creando pedidos (el límite por conexión va en el checkout). */
+export const MAX_PENDING_PER_EMAIL = 3;
+
 export async function placeOrder(cartId: string, input: OrderInput, providerId: string, userId: string | null = null) {
   const x = await providerSetup(db, providerId);
   if (!x?.ctx || x.reason) throw new UserError("Elige un medio de pago disponible.");
+  // shortcut: sin bloqueo entre envíos simultáneos (dos pueden pasar a la vez); el límite por conexión acota el resto.
+  const pending = await db.$count(s.orders, and(eq(s.orders.email, input.email), eq(s.orders.status, "PENDING_PAYMENT")));
+  if (pending >= MAX_PENDING_PER_EMAIL)
+    throw new UserError(`Ya tienes ${pending} pedidos esperando pago con este email. Págalos o espera a que venzan antes de crear otro.`);
   let paymentId = "";
   const order = await createOrderFromCart(cartId, input, userId, {
     reservationMinutes: x.provider.reservationMinutes(),
     within: async (tx, o, until) => {
       paymentId = (await openAttempt(tx, o, providerId, until)).id;
+      await enqueueEmail(tx, "order.received", o); // el texto (con las instrucciones de pago) se arma al enviar
     },
   });
   await beginAttempt(paymentId);
