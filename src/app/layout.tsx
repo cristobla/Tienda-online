@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: { default: SITE.name, template: `%s | ${SITE.name}` },
   description: SITE.description,
   openGraph: { siteName: SITE.name, locale: "es_CL", type: "website" },
+  // Vista previa grande al compartir (X, WhatsApp, Facebook); la imagen general sale de app/opengraph-image.tsx.
+  twitter: { card: "summary_large_image" },
 };
 
 // Barra del navegador móvil del mismo verde que la franja superior de la tienda.

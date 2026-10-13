@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons";
+import { JsonLd } from "@/components/store/json-ld";
 import { Fleje, ProductGrid, ProductImage } from "@/components/store/product-card";
 import { SearchBar } from "@/components/store/shell";
+import { env } from "@/lib/env";
+import { SITE, socialLinks } from "@/lib/site";
 import { listBrands } from "@/modules/brands/queries";
 import { listProducts } from "@/modules/catalog/queries";
 import { loadCategories } from "@/modules/categories/queries";
@@ -46,9 +49,29 @@ export default async function Home() {
     listBrands(),
   ]);
   const spotlight = featured.items[0];
+  // Para buscadores: la tienda (con sus redes, cuando existan) y el buscador interno.
+  const siteLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "OnlineStore",
+      name: SITE.name,
+      url: env.APP_URL,
+      logo: `${env.APP_URL}/icon.svg`,
+      email: SITE.email ?? undefined,
+      sameAs: socialLinks().map((l) => l.url),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE.name,
+      url: env.APP_URL,
+      potentialAction: { "@type": "SearchAction", target: `${env.APP_URL}/productos?q={search_term_string}`, "query-input": "required name=search_term_string" },
+    },
+  ];
 
   return (
     <>
+      <JsonLd data={siteLd} />
       <section className="bleed -mt-8 bg-mist py-10 sm:py-14">
         <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.25fr_1fr]">
           <div>

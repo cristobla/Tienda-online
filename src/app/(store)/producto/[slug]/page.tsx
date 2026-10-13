@@ -5,10 +5,12 @@ import { notFound } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Breadcrumbs, hrefWith, type SP } from "@/components/store/catalog-view";
 import { AddToCartForm } from "@/components/store/cart-forms";
+import { JsonLd } from "@/components/store/json-ld";
 import { Fleje, ProductGrid, ProductImage, SoldOutButton, StockBadge } from "@/components/store/product-card";
 import { env } from "@/lib/env";
 import { Markdown } from "@/lib/markdown";
 import { MAX_ITEM_QTY } from "@/modules/cart";
+import { validGtin } from "@/modules/catalog/feed";
 import { contentLabel, discountPercent } from "@/modules/catalog/pricing";
 import { describeAttributes, getProductBySlug, relatedProducts } from "@/modules/catalog/queries";
 import { formatCLP } from "@/modules/chile";
@@ -24,7 +26,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: p.metaTitle ?? p.name,
     description,
     alternates: { canonical: `/producto/${p.slug}` },
-    openGraph: { title: p.name, description, images: images.slice(0, 1).map((i) => ({ url: i.url, alt: i.alt })) },
+    // El openGraph de la página reemplaza al general: sin foto propia se repite la imagen general de la tienda.
+    openGraph: { title: p.name, description, images: images.length ? images.slice(0, 1).map((i) => ({ url: i.url, alt: i.alt })) : ["/opengraph-image"] },
   };
 }
 
@@ -66,22 +69,23 @@ export default async function ProductPage({ params, searchParams }: Props) {
     name: product.name,
     description: product.shortDescription ?? undefined,
     sku: selected.sku,
-    gtin13: selected.barcode ?? undefined,
+    // Solo un GTIN real (EAN-8/UPC-12/EAN-13/GTIN-14 con dígito verificador); los códigos internos no se informan.
+    gtin: validGtin(selected.barcode) ? selected.barcode : undefined,
     image: images.map((i) => new URL(i.url, env.APP_URL).href),
     brand: brand ? { "@type": "Brand", name: brand.name } : undefined,
     offers: variants.length > 1 ? variants.map(offer) : offer(selected),
   };
+  const crumbs = [{ name: "Inicio", href: "/" }, ...categoryPath.map((c) => ({ name: c.name, href: `/categoria/${c.slug}` })), { name: product.name, href: path }];
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: `${env.APP_URL}${c.href}` })),
+  };
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        // JSON.stringify escapa comillas; "<" se escapa para que el texto no pueda cerrar el <script>.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
-      />
-      <Breadcrumbs
-        items={[{ name: "Inicio", href: "/" }, ...categoryPath.map((c) => ({ name: c.name, href: `/categoria/${c.slug}` })), { name: product.name }]}
-      />
+      <JsonLd data={[jsonLd, breadcrumbLd]} />
+      <Breadcrumbs items={[...crumbs.slice(0, -1), { name: product.name }]} />
 
       <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
         <div className="lg:sticky lg:top-4 lg:self-start">

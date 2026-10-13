@@ -11,6 +11,7 @@ import { audit } from "@/modules/audit";
 import { cartLines } from "@/modules/cart";
 import { normalizeChileanPhone, normalizeRut } from "@/modules/chile";
 import { releaseOrderReservations, reserveStock } from "@/modules/inventory";
+import { enqueueEmail } from "@/modules/mail";
 import { quoteShipping } from "@/modules/shipping";
 
 export type OrderStatus = (typeof s.orderStatus.enumValues)[number];
@@ -221,6 +222,7 @@ export async function changeOrderStatus(userId: string, orderId: string, input: 
       throw new UserError("Ese cambio involucra el pago: lo registra el módulo de pagos con la confirmación del proveedor.");
     if (input.to === "CANCELLED" && !input.note) throw new UserError("Indica el motivo de la cancelación.", "note");
     const row = await transition(tx, o, input.to, { userId, note: input.note });
+    if (input.to === "SHIPPED") await enqueueEmail(tx, "order.shipped", row);
     const pick = (x: Order) => ({ status: x.status, paymentStatus: x.paymentStatus });
     await audit(tx, { userId, action: "order.status", entityType: "order", entityId: o.id, before: pick(o), after: pick(row) });
     return row;
@@ -266,6 +268,7 @@ export async function markOrderPaid(tx: Transaction, o: Order, opts: { method: s
     .where(eq(s.orders.id, o.id))
     .returning();
   await tx.insert(s.orderStatusHistory).values({ orderId: o.id, fromStatus: o.status, toStatus: "PAID", changedBy: opts.userId, note: opts.note });
+  await enqueueEmail(tx, "order.paid", row!);
   return row!;
 }
 

@@ -2,6 +2,7 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { clientIp } from "@/lib/client-ip";
 import type { FormState } from "@/lib/form";
 import { clearFailures, isBlocked, registerFailure } from "@/modules/auth/rate-limit";
 import { isStaff } from "@/modules/auth/rbac";
@@ -11,8 +12,7 @@ export async function login(prev: FormState, fd: FormData): Promise<FormState> {
   const email = String(fd.get("email") ?? "").trim().toLowerCase().slice(0, 200);
   const password = String(fd.get("password") ?? "").slice(0, 200);
   const h = await headers();
-  // ponytail: x-forwarded-for es confiable solo detrás de un proxy propio; definir la IP real al desplegar (FASE 8).
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const ip = clientIp(h);
   const keys = { ip: `ip:${ip}`, account: `acct:${ip}|${email}` };
   const fail = (error: string): FormState => ({ v: (prev.v ?? 0) + 1, error, values: { email } });
 

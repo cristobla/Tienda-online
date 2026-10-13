@@ -32,16 +32,20 @@ Elegir el servidor en una región cercana (São Paulo / Santiago si el proveedor
 - Página de error amigable si la base cae, reconexión automática del pool, pedidos vencidos liberados cada minuto.
 - Sesiones con cookie `httpOnly` + `Secure` (en producción) + `SameSite=Lax`, contraseñas Argon2id, permisos por rol, auditoría.
 
-## 4. Lo que hay que agregar antes de publicar (FASE 8)
+## 4. Endurecimiento (FASE 8)
 
-1. **Imagen Docker de la app**: `Dockerfile` multi-etapa con `output: "standalone"` en `next.config.ts`, y un `docker-compose.prod.yml` (app + PostgreSQL con contraseña propia, sin publicar el puerto 5432 + Caddy). El `docker-compose.yml` actual es **solo de desarrollo** (usuario y clave `tienda`).
-2. **Crear el primer Super Admin en producción**: hoy el usuario admin solo lo crea el seed. Hace falta un comando tipo `npm run admin:create` que pida email y contraseña.
-3. **Cabeceras de seguridad** (`next.config.ts`): Content-Security-Policy, Strict-Transport-Security, X-Frame-Options/`frame-ancestors`, Referrer-Policy.
-4. **IP real detrás del proxy**: el límite de intentos de login usa `x-forwarded-for`; configurar que solo se confíe en el proxy propio.
-5. **Límite de pedidos pendientes** por IP/email: sin él, un bot puede reservar stock 30 minutos por pedido.
-6. **Correo transaccional** (confirmación de pedido, cambios de estado): proveedor tipo Resend, Postmark, Amazon SES o SMTP del dominio.
-7. **SEO de producción**: 404 reales en productos/categorías inexistentes (hoy 200 + `noindex` por el streaming), redirecciones 301 al cambiar slugs, `APP_URL` con el dominio para sitemap y canónicas.
-8. **Imágenes**: si se usa una plataforma sin disco persistente, implementar el adaptador S3 (la interfaz `saveImage/readImage/deleteImageFile` en `src/lib/storage.ts` ya está preparada).
+Hecho (rama `fase-8-esencial`):
+- ✅ **Primer Super Admin**: `npm run admin:create -- correo@dominio.cl` (pide la contraseña sin mostrarla).
+- ✅ **Cabeceras de seguridad** (`next.config.ts`): Content-Security-Policy (solo recursos propios, sin frames ni formularios hacia otros sitios), HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`. Al sumar una pasarela, analytics o píxeles de redes hay que agregar sus dominios a la CSP.
+- ✅ **IP real detrás del proxy**: `TRUSTED_PROXY_HOPS` (por omisión 1 en producción). Lo usan el límite de ingreso al panel, el de pedidos y el de webhooks.
+- ✅ **Límite de pedidos pendientes**: máximo 3 esperando pago por email y 10 pedidos cada 15 minutos por conexión.
+- ✅ **Correos al cliente** (pedido recibido con las instrucciones de pago, pago confirmado, despachado): cola en la base, enviada por `npm run jobs`. Proveedor: Resend (`RESEND_API_KEY`, `MAIL_FROM`); sin clave, en local se muestran en la consola y en producción esperan en cola.
+- ✅ **SEO de producción**: 404 reales, JSON-LD (tienda, buscador, producto, migas), imagen para compartir y feed de productos (§8).
+
+Pendiente:
+1. **Imagen Docker de la app** (depende del hosting elegido): `Dockerfile` multi-etapa con `output: "standalone"` en `next.config.ts`, y un `docker-compose.prod.yml` (app + PostgreSQL con contraseña propia, sin publicar el puerto 5432 + Caddy). El `docker-compose.yml` actual es **solo de desarrollo** (usuario y clave `tienda`).
+2. **Redirecciones 301** al cambiar el slug de un producto o categoría (hoy el enlace viejo da 404).
+3. **Imágenes**: si se usa una plataforma sin disco persistente, implementar el adaptador S3 (la interfaz `saveImage/readImage/deleteImageFile` en `src/lib/storage.ts` ya está preparada).
 
 ## 5. Variables de entorno en producción
 
@@ -56,6 +60,9 @@ Elegir el servidor en una región cercana (São Paulo / Santiago si el proveedor
 | `TRANSFER_RESERVATION_MINUTES` | Opcional: plazo propio para transferencias (p. ej. `1440` = 24 h); sin definir usa el anterior |
 | `PAYMENT_SIMULATION` | `off` (en producción no tiene efecto aunque esté `on`) |
 | `UPLOAD_DIR` | Ruta de un volumen persistente, p. ej. `/data/uploads` |
+| `TRUSTED_PROXY_HOPS` | Proxies propios delante de la app (Caddy o el del hosting). Por omisión `1` en producción |
+| `MAIL_FROM` | Remitente verificado en el proveedor, p. ej. `Tienda <pedidos@tu-dominio.cl>` |
+| `RESEND_API_KEY` | Clave de Resend (secreta). Sin ella los correos quedan en cola |
 
 No van en producción: `DATABASE_URL_TEST`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`. Las credenciales de pago se agregan en la FASE 7. Nunca subir `.env` al repositorio.
 
@@ -69,8 +76,11 @@ No van en producción: `DATABASE_URL_TEST`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASS
    npm run db:migrate      # crea las tablas
    npm run db:reference    # 16 regiones y 346 comunas
    ```
-   Crear el Super Admin (comando de §4.2).
-   Programar las tareas de pedidos y pagos (vencimiento + reconciliación), p. ej. cron cada minuto:
+   Crear el Super Admin:
+   ```bash
+   npm run admin:create -- correo@tu-dominio.cl
+   ```
+   Programar las tareas (vencimiento, reconciliación de pagos y envío de correos), p. ej. cron cada minuto:
    ```bash
    npm run jobs
    ```
@@ -86,3 +96,16 @@ No van en producción: `DATABASE_URL_TEST`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASS
 - **Monitoreo**: revisar los logs del proceso (errores y el aviso "Error al vencer pedidos"); agregar un servicio de errores (p. ej. Sentry) y un chequeo de disponibilidad del sitio.
 - **Pedidos pendientes y stock**: el panel muestra pendientes de pago, por preparar y variantes bajo el mínimo.
 - **Usuarios del panel**: un usuario por persona, con el rol mínimo (Ventas, Bodega, Administrador); desactivar a quien deja la empresa.
+
+## 8. Buscadores y redes (después de publicar)
+
+La tienda ya entrega lo que estas plataformas leen. Estas son las conexiones, en orden:
+
+1. **Datos de la marca**: en `src/lib/site.ts`, el nombre, el email, el horario y las URL de los perfiles (`social`: Instagram, Facebook, TikTok). Aparecen en el pie, en la imagen al compartir y en los datos para Google (`sameAs`).
+2. **Google Search Console**: verificar el dominio (registro DNS TXT, sin tocar el código) y enviar `https://tu-dominio.cl/sitemap.xml`. Revisar «Resultados enriquecidos»: cada producto declara precio, stock, marca, GTIN y migas.
+3. **Google Merchant Center** (Google Shopping y las fichas gratuitas): fuente de datos programada → `https://tu-dominio.cl/feed/productos.xml` (diaria). Solo entran los productos publicados **con foto**; con un código de barras real (EAN-13 válido) se identifican mejor.
+4. **Meta Commerce Manager** (catálogo de Instagram y Facebook Shops): catálogo → fuente de datos → la misma URL del feed, programada.
+5. **Perfil de empresa en Google** (Maps): con la dirección o la zona de despacho del negocio.
+6. **Medición** (Google Analytics, píxel de Meta): necesitan su ID y agregar sus dominios a la CSP de `next.config.ts`. Revisar el consentimiento según la Ley 21.719.
+
+Fotos: cuadradas, de 1200 px o más y con fondo blanco. Las usan la ficha, Google Shopping, el catálogo de Meta y la vista previa al compartir un producto.

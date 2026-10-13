@@ -43,6 +43,13 @@
       "when": 1791403959388,
       "tag": "0005_pagos",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791864516293,
+      "tag": "0006_correos",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { clientIp } from "@/lib/client-ip";
 import { fail, fieldErrors, type FormState, formObject, handleError, UserError } from "@/lib/form";
+import { isBlocked, registerFailure } from "@/modules/auth/rate-limit";
 import { currentCartId } from "@/modules/cart";
 import { orderInputSchema } from "@/modules/orders";
 import { placeOrder } from "@/modules/payments";
@@ -19,10 +22,14 @@ export async function checkoutAction(prev: FormState, fd: FormData): Promise<For
   if (!method.success) return fail(prev, fd, "Elige un medio de pago.");
   const cartId = await currentCartId();
   if (!cartId) return fail(prev, fd, "Tu carrito está vacío.");
+  // Pedidos por conexión en 15 minutos: cada uno reserva stock mientras espera el pago.
+  const key = `checkout:${clientIp(await headers())}`;
+  if (isBlocked(key, 10)) return fail(prev, fd, "Demasiados pedidos seguidos desde esta conexión. Intenta de nuevo en unos minutos.");
   let orderId: string;
   try {
     // Compra como invitado: las cuentas de cliente aún no existen (el ingreso actual es solo del personal).
     orderId = (await placeOrder(cartId, input.data, method.data)).id;
+    registerFailure(key); // cuenta el pedido creado (mismo contador en memoria que los intentos de ingreso)
   } catch (e) {
     revalidatePath("/checkout"); // el resumen vuelve con los montos actuales
     // La comuna se elige arriba (no es un campo de este formulario): su error va como mensaje general.

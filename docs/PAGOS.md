@@ -192,4 +192,5 @@ No basta con pegar una API key. Pasos:
 3. **Probar contra el ambiente de integración** con `APP_ENV=integration` y una URL pública HTTPS (las pruebas de retorno lo exigen), usando las tarjetas y montos de prueba oficiales. Agregar pruebas del adaptador con respuestas grabadas del sandbox: aprobado, rechazado, abortado, timeout, retorno repetido.
 4. **Programar `npm run jobs`** en el servidor y revisar que la reconciliación resuelva los intentos inciertos.
 5. **Validar** concurrencia, recuperación (reinicio a mitad del flujo) y que un pendiente o deshabilitado siga respondiendo 404.
-6. **Recién entonces** marcar `implemented: true`, cargar las credenciales de producción en el servidor y habilitar el método desde el panel.
+6. **Permitir su dominio en la CSP** de `next.config.ts` (`form-action`, y `connect-src`/`script-src` si usa un script propio), porque hoy solo se permiten formularios hacia la propia tienda.
+7. **Recién entonces** marcar `implemented: true`, cargar las credenciales de producción en el servidor y habilitar el método desde el panel.

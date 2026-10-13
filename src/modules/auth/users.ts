@@ -43,7 +43,8 @@ export async function getUser(id: string) {
   return u ? safe(u) : null;
 }
 
-export async function createStaffUser(actorId: string, data: z.infer<typeof newUserSchema>) {
+/** `actorId` null = sistema (el primer Super Admin, creado con `npm run admin:create`). */
+export async function createStaffUser(actorId: string | null, data: z.infer<typeof newUserSchema>) {
   const passwordHash = await hashPassword(data.password);
   return db.transaction(async (tx) => {
     const [row] = await tx.insert(users).values({ email: data.email, role: data.role, passwordHash }).returning();
