@@ -12,13 +12,13 @@ import { Icon } from "@/components/icons";
 export function AddToCartForm({ variantId, max, large = false }: { variantId: string; max?: number; large?: boolean }) {
   const [state, action, pending] = useActionState(addToCartAction, {});
   const qty = useRef<HTMLInputElement>(null);
-  const step = "grid w-10 place-items-center text-xl text-muted hover:text-leaf";
+  const step = "grid w-11 place-items-center self-stretch text-xl text-muted transition-colors hover:text-ink";
   return (
     <form action={action}>
       <input type="hidden" name="variantId" value={variantId} />
       <div className={large ? "flex flex-wrap items-stretch gap-3" : ""}>
         {large ? (
-          <div role="group" aria-label="Cantidad" className="flex items-center rounded-md border border-line">
+          <div role="group" aria-label="Cantidad" className="flex items-center rounded-full border-[1.5px] border-ink/20 bg-white">
             <button type="button" onClick={() => qty.current?.stepDown()} aria-label="Quitar una unidad" className={step}>
               −
             </button>
@@ -32,7 +32,7 @@ export function AddToCartForm({ variantId, max, large = false }: { variantId: st
               required
               inputMode="numeric"
               aria-label="Cantidad"
-              className="w-12 border-x border-line bg-transparent py-3 text-center font-semibold"
+              className="w-12 [appearance:textfield] bg-transparent py-3 text-center text-lg font-bold [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
             <button type="button" onClick={() => qty.current?.stepUp()} aria-label="Agregar una unidad" className={step}>
               +
@@ -41,12 +41,7 @@ export function AddToCartForm({ variantId, max, large = false }: { variantId: st
         ) : (
           <input type="hidden" name="quantity" value="1" />
         )}
-        <button
-          disabled={pending}
-          className={`flex items-center justify-center gap-2 rounded-md bg-leaf font-bold text-white hover:bg-leaf-dark disabled:cursor-wait disabled:bg-leaf/60 ${
-            large ? "flex-1 px-6 py-3.5 text-lg" : "w-full px-3 py-2 text-sm"
-          }`}
-        >
+        <button disabled={pending} className={`btn-buy ${large ? "flex-1 px-6 py-3.5 text-lg" : "w-full px-3 py-2 text-sm"}`}>
           <Icon name="cart" className={large ? "size-6" : "size-4"} />
           {pending ? "Agregando…" : large ? "Agregar al carrito" : <span>Agregar<span className="sr-only"> al carrito</span></span>}
         </button>
@@ -57,7 +52,7 @@ export function AddToCartForm({ variantId, max, large = false }: { variantId: st
         </p>
       )}
       {state.message && (
-        <p role="status" className={`mt-2 flex flex-wrap items-center gap-x-2 font-medium text-leaf-dark ${large ? "text-sm" : "text-xs"}`}>
+        <p role="status" className={`mt-2 flex animate-drop-in flex-wrap items-center gap-x-2 font-medium text-leaf-dark ${large ? "text-sm" : "text-xs"}`}>
           <span className="flex items-center gap-1">
             <Icon name="check" className="size-4" />
             {state.message}
@@ -77,17 +72,17 @@ export function AddToCartForm({ variantId, max, large = false }: { variantId: st
  */
 export function CartLineControls({ variantId, name, quantity, canIncrease, fixTo }: { variantId: string; name: string; quantity: number; canIncrease: boolean; fixTo?: number }) {
   const [state, action, pending] = useActionState(setCartItemAction, {});
-  const step = "grid w-8 place-items-center py-1.5 text-lg hover:bg-mist hover:text-leaf disabled:cursor-not-allowed disabled:text-line disabled:hover:bg-transparent";
+  const step = "grid w-9 place-items-center py-1.5 text-lg transition-colors hover:bg-mist hover:text-leaf-dark disabled:cursor-not-allowed disabled:text-line disabled:hover:bg-transparent";
   return (
     <form action={action} className="flex flex-col items-start gap-1.5 sm:items-end">
       <input type="hidden" name="variantId" value={variantId} />
       <fieldset disabled={pending} className="flex flex-wrap items-center gap-3">
         <legend className="sr-only">Cantidad de {name}</legend>
-        <div className="flex items-center rounded-md border border-line">
+        <div className="flex items-center overflow-hidden rounded-full border-[1.5px] border-ink/15 bg-white">
           <button name="quantity" value={quantity - 1} disabled={quantity <= 1} aria-label={`Quitar una unidad de ${name}`} className={step}>
             −
           </button>
-          <output aria-live="polite" className="w-9 border-x border-line py-1.5 text-center font-semibold">
+          <output aria-live="polite" className="w-9 py-1.5 text-center font-bold">
             {quantity}
           </output>
           <button name="quantity" value={quantity + 1} disabled={!canIncrease} aria-label={`Agregar una unidad de ${name}`} className={step}>

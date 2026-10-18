@@ -10,7 +10,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   const [{ roots }, cartCount] = await Promise.all([loadCategories(), currentCartId().then(cartItemCount)]);
   return (
     <>
-      <a href="#contenido" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-2">
+      <a href="#contenido" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:font-semibold focus:text-white">
         Saltar al contenido
       </a>
       <StoreHeader roots={roots} cartCount={cartCount} />

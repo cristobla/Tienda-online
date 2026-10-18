@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons";
 import { NavLink } from "@/components/admin/nav-link";
+import { BrandMark } from "@/components/store/shell";
 import { SITE } from "@/lib/site";
 import { can, isStaff, type Permission } from "@/modules/auth/rbac";
 import { getCurrentUser } from "@/modules/auth/session";
@@ -42,9 +43,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       <aside className="bg-ink text-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
         <div className="flex items-center justify-between gap-4 px-4 py-4 lg:py-5">
           <Link href="/admin" className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-md bg-leaf">
-              <Icon name="drop" className="size-4" />
-            </span>
+            <BrandMark className="size-8" />
             <span className="text-xl font-extrabold [font-stretch:80%]">
               {SITE.name} <span className="text-sm font-semibold text-white/60 [font-stretch:100%]">panel</span>
             </span>

@@ -36,11 +36,11 @@ export function Breadcrumbs({ items }: { items: { name: string; href?: string }[
           <li key={i} className="flex items-center gap-1">
             {i > 0 && <Icon name="chevron" className="size-3.5 opacity-60" />}
             {it.href ? (
-              <Link href={it.href} className="hover:text-leaf hover:underline">
+              <Link href={it.href} className="transition-colors hover:text-leaf-dark hover:underline">
                 {it.name}
               </Link>
             ) : (
-              <span aria-current="page" className="font-medium text-ink">
+              <span aria-current="page" className="font-semibold text-ink">
                 {it.name}
               </span>
             )}
@@ -51,8 +51,10 @@ export function Breadcrumbs({ items }: { items: { name: string; href?: string }[
   );
 }
 
-const box = "size-4 shrink-0 accent-leaf";
-const group = "border-b border-line px-4 py-4 last:border-b-0";
+const box = "size-[1.1rem] shrink-0 accent-leaf";
+const group = "border-b border-line px-5 py-5 last:border-b-0";
+const legend = "etiqueta float-left mb-3 w-full text-ink";
+const pill = "grid size-10 place-items-center rounded-full";
 
 /** Páginas a mostrar: primera, última y vecinas de la actual, con huecos (null) entre medio. */
 function pageList(page: number, pages: number): (number | null)[] {
@@ -106,7 +108,7 @@ export async function CatalogView({
   return (
     <>
       {header}
-      <div className="mt-6 grid grid-cols-1 items-start gap-x-8 lg:grid-cols-[16rem_1fr]">
+      <div className="mt-8 grid grid-cols-1 items-start gap-x-10 lg:grid-cols-[17rem_1fr]">
         {/* El formulario envuelve solo los filtros: la grilla tiene sus propios formularios (agregar al carrito)
             y un <form> no puede ir dentro de otro. "Ordenar por" se asocia con el atributo form="filtros". */}
         <AutoSubmitForm id="filtros" action={path} className="lg:sticky lg:top-4">
@@ -116,19 +118,19 @@ export async function CatalogView({
           <input id="ver-filtros" type="checkbox" className="peer sr-only" />
           <label
             htmlFor="ver-filtros"
-            className="mb-4 inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-4 py-2.5 font-semibold peer-focus-visible:outline-3 peer-focus-visible:outline-leaf lg:hidden"
+            className="btn-line mb-4 w-fit cursor-pointer px-4 py-2.5 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-3 peer-focus-visible:outline-leaf lg:hidden"
           >
             <Icon name="sliders" />
             Filtrar{chips.length > 0 && ` (${chips.length})`}
           </label>
 
-          <aside aria-label="Filtros" className="mb-6 hidden rounded-md border border-line bg-white text-sm peer-checked:block lg:mb-0 lg:block">
-            <p className="flex items-center gap-2 border-b border-line px-4 py-3 font-bold">
-              <Icon name="sliders" className="size-4" />
+          <aside aria-label="Filtros" className="mb-6 hidden animate-drop-in overflow-hidden rounded-[1.25rem] bg-white text-sm ring-1 ring-line peer-checked:block lg:mb-0 lg:block lg:animate-none">
+            <p className="flex items-center gap-2 border-b border-line bg-paper px-5 py-3.5 font-bold">
+              <Icon name="sliders" className="size-4 text-leaf" />
               Filtros
             </p>
             <div className={group}>
-              <label className="flex items-center gap-2 font-semibold">
+              <label className="flex items-center gap-2.5 font-semibold">
                 <input type="checkbox" name="disponible" value="1" defaultChecked={params.inStock} className={box} />
                 Solo productos con stock
               </label>
@@ -136,14 +138,14 @@ export async function CatalogView({
 
             {!scope.brandId && facets.brands.length > 0 && (
               <fieldset className={group}>
-                <legend className="float-left mb-2 w-full font-bold">Marca</legend>
-                <ul className="clear-both space-y-2">
+                <legend className={legend}>Marca</legend>
+                <ul className="clear-both space-y-2.5">
                   {facets.brands.map((b) => (
                     <li key={b.id}>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2.5">
                         <input type="checkbox" name="marca" value={b.slug} defaultChecked={checked("marca", b.slug)} className={box} />
                         <span className="flex-1">{b.name}</span>
-                        <span className="text-xs text-muted">{b.count}</span>
+                        <span className="rounded-full bg-mist px-2 text-xs text-muted">{b.count}</span>
                       </label>
                     </li>
                   ))}
@@ -153,7 +155,7 @@ export async function CatalogView({
 
             {facets.price && facets.price.max > facets.price.min && (
               <fieldset className={group}>
-                <legend className="float-left mb-2 w-full font-bold">Precio</legend>
+                <legend className={legend}>Precio</legend>
                 <div className="clear-both flex items-center gap-2">
                   {(["precio_min", "precio_max"] as const).map((name, i) => (
                     <label key={name} className="min-w-0 flex-1">
@@ -166,7 +168,7 @@ export async function CatalogView({
                         inputMode="numeric"
                         defaultValue={i ? params.maxPrice : params.minPrice}
                         placeholder={formatCLP(i ? facets.price!.max : facets.price!.min)}
-                        className="w-full rounded-md border border-line px-2 py-1.5"
+                        className="w-full rounded-full border-[1.5px] border-line px-3 py-1.5 transition-colors hover:border-muted/50 focus:border-leaf"
                       />
                     </label>
                   ))}
@@ -176,11 +178,11 @@ export async function CatalogView({
 
             {facets.attributes.map(({ def, values }) => (
               <fieldset key={def.code} className={group}>
-                <legend className="float-left mb-2 w-full font-bold">{def.label}</legend>
-                <ul className="clear-both space-y-2">
+                <legend className={legend}>{def.label}</legend>
+                <ul className="clear-both space-y-2.5">
                   {values.map((v) => (
                     <li key={v.value}>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2.5">
                         <input
                           type="checkbox"
                           name={ATTR_PREFIX + def.code}
@@ -192,7 +194,7 @@ export async function CatalogView({
                           {def.type === "BOOLEAN" ? (v.value === "true" ? "Sí" : "No") : v.value}
                           {def.unit && ` ${def.unit}`}
                         </span>
-                        <span className="text-xs text-muted">{v.count}</span>
+                        <span className="rounded-full bg-mist px-2 text-xs text-muted">{v.count}</span>
                       </label>
                     </li>
                   ))}
@@ -200,10 +202,10 @@ export async function CatalogView({
               </fieldset>
             ))}
 
-            <div className="flex items-center gap-4 px-4 py-4">
-              <button className="rounded-md bg-leaf px-4 py-2 font-semibold text-white hover:bg-leaf-dark">Aplicar</button>
+            <div className="flex items-center gap-4 px-5 py-4">
+              <button className="btn-ink px-5 py-2">Aplicar</button>
               {chips.length > 0 && (
-                <Link href={clearHref} className="font-medium text-leaf underline">
+                <Link href={clearHref} className="font-semibold text-leaf-dark underline-offset-2 hover:underline">
                   Quitar filtros
                 </Link>
               )}
@@ -212,13 +214,19 @@ export async function CatalogView({
         </AutoSubmitForm>
 
         <section aria-label="Resultados" className="min-w-0">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-paper px-4 py-2.5">
-            <p className="text-sm font-semibold" aria-live="polite">
-              {result.total === 1 ? "1 producto" : `${result.total} productos`}
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
+            <p className="text-sm text-muted" aria-live="polite">
+              <span className="rotulo mr-1.5 text-3xl leading-none text-ink">{result.total}</span>
+              {result.total === 1 ? "producto" : "productos"}
             </p>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted">Ordenar por</span>
-              <select name="orden" form="filtros" defaultValue={sort} className="rounded-md border border-line bg-white px-2 py-1.5 font-medium">
+              <select
+                name="orden"
+                form="filtros"
+                defaultValue={sort}
+                className="rounded-full border-[1.5px] border-line bg-white py-1.5 pl-3 pr-2 font-semibold transition-colors hover:border-ink"
+              >
                 {Object.entries(SORTS)
                   .filter(([k]) => k !== "relevancia" || params.q)
                   .map(([k, label]) => (
@@ -231,10 +239,13 @@ export async function CatalogView({
           </div>
 
           {chips.length > 0 && (
-            <ul aria-label="Filtros activos" className="mb-5 flex flex-wrap items-center gap-2">
+            <ul aria-label="Filtros activos" className="mb-6 flex flex-wrap items-center gap-2">
               {chips.map((c) => (
                 <li key={c.href + c.label}>
-                  <Link href={c.href} className="inline-flex items-center gap-1.5 rounded-sm bg-leaf-soft px-2.5 py-1 text-sm font-medium text-leaf-dark hover:bg-leaf hover:text-white">
+                  <Link
+                    href={c.href}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-leaf-soft px-3 py-1.5 text-sm font-semibold text-leaf-dark transition-colors hover:bg-ink hover:text-white"
+                  >
                     {c.label}
                     <Icon name="close" className="size-3.5" />
                     <span className="sr-only">(quitar)</span>
@@ -242,23 +253,19 @@ export async function CatalogView({
                 </li>
               ))}
               <li>
-                <Link href={clearHref} className="text-sm font-medium text-muted underline hover:text-leaf">
+                <Link href={clearHref} className="ml-1 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink">
                   Limpiar todo
                 </Link>
               </li>
             </ul>
           )}
 
-          {result.items.length ? (
-            <ProductGrid products={result.items} />
-          ) : (
-            <EmptyResults q={params.q} />
-          )}
+          {result.items.length ? <ProductGrid products={result.items} /> : <EmptyResults q={params.q} />}
 
           {pages > 1 && (
-            <nav aria-label="Páginas" className="mt-10 flex flex-wrap items-center justify-center gap-1.5 text-sm">
+            <nav aria-label="Páginas" className="mt-12 flex flex-wrap items-center justify-center gap-2 text-sm">
               {result.page > 1 && (
-                <Link href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" className="rounded-md border border-line bg-white px-3 py-2 font-semibold hover:border-leaf">
+                <Link href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" className="btn-line px-4 py-2">
                   Anterior
                 </Link>
               )}
@@ -268,18 +275,18 @@ export async function CatalogView({
                     …
                   </span>
                 ) : n === result.page ? (
-                  <span key={n} aria-current="page" className="grid size-9 place-items-center rounded-md bg-leaf font-bold text-white">
+                  <span key={n} aria-current="page" className={`${pill} bg-ink font-bold text-white`}>
                     {n}
                   </span>
                 ) : (
-                  <Link key={n} href={hrefWith(path, searchParams, { pagina: String(n) })} className="grid size-9 place-items-center rounded-md border border-line bg-white hover:border-leaf">
+                  <Link key={n} href={hrefWith(path, searchParams, { pagina: String(n) })} className={`${pill} bg-white font-semibold ring-1 ring-line transition-shadow hover:ring-ink`}>
                     <span className="sr-only">Página </span>
                     {n}
                   </Link>
                 ),
               )}
               {result.page < pages && (
-                <Link href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" className="rounded-md border border-line bg-white px-3 py-2 font-semibold hover:border-leaf">
+                <Link href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" className="btn-line px-4 py-2">
                   Siguiente
                 </Link>
               )}
@@ -293,20 +300,21 @@ export async function CatalogView({
 
 function EmptyResults({ q }: { q?: string }) {
   return (
-    <div className="grid place-items-center rounded-md border border-dashed border-line bg-paper px-6 py-14 text-center">
-      <span className="grid size-14 place-items-center rounded-full bg-white text-muted">
+    <div className="relative grid place-items-center overflow-hidden rounded-[1.5rem] bg-paper px-6 py-16 text-center">
+      <div aria-hidden className="ondas absolute inset-0 [--ondas-x:50%] [--ondas-y:30%]" />
+      <span className="relative grid size-16 place-items-center rounded-full bg-white text-leaf ring-1 ring-line">
         <Icon name="search" className="size-7" />
       </span>
-      <p className="mt-4 text-lg font-bold">{q ? `No encontramos productos para «${q}».` : "No hay productos con estos filtros."}</p>
-      <p className="mt-1 max-w-sm text-muted">{q ? "Revisa la ortografía o prueba con una palabra más general." : "Quita algún filtro para ver más resultados."}</p>
-      <Link href="/productos" className="mt-5 rounded-md bg-leaf px-4 py-2 font-semibold text-white hover:bg-leaf-dark">
+      <p className="rotulo relative mt-5 text-title">{q ? `No encontramos productos para «${q}»` : "Este pasillo quedó vacío"}</p>
+      <p className="relative mt-2 max-w-sm text-muted">{q ? "Revisa la ortografía o prueba con una palabra más general." : "No hay productos con estos filtros: quita alguno para ver más resultados."}</p>
+      <Link href="/productos" className="btn-ink relative mt-6 px-5 py-2.5">
         Ver todo el catálogo
       </Link>
     </div>
   );
 }
 
-/** Encabezado común de las páginas de listado. */
+/** Encabezado común de las páginas de listado: banda de "espuma" con ondas, como el héroe del inicio. */
 export function CatalogTitle({
   crumbs,
   title,
@@ -319,11 +327,14 @@ export function CatalogTitle({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="bleed -mt-8 border-b border-line bg-paper py-6">
-      <Breadcrumbs items={crumbs} />
-      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>
-      {description && <p className="mt-2 max-w-prose text-muted">{description}</p>}
-      {children}
+    <div className="bleed relative -mt-8 overflow-hidden border-b border-line bg-paper py-8 sm:py-10">
+      <div aria-hidden className="ondas absolute inset-0 [--ondas-x:90%] [--ondas-y:55%]" />
+      <div className="relative">
+        <Breadcrumbs items={crumbs} />
+        <h1 className="rotulo text-display">{title}</h1>
+        {description && <p className="mt-3 max-w-prose text-muted">{description}</p>}
+        {children}
+      </div>
     </div>
   );
 }
@@ -332,10 +343,10 @@ export function CatalogTitle({
 export function SubcategoryLinks({ items }: { items: { id: string; slug: string; name: string }[] }) {
   if (!items.length) return null;
   return (
-    <ul className="mt-5 flex flex-wrap gap-2">
+    <ul className="mt-6 flex flex-wrap gap-2">
       {items.map((c) => (
         <li key={c.id}>
-          <Link href={`/categoria/${c.slug}`} className="inline-block rounded-sm border border-line bg-white px-3 py-1.5 text-sm font-medium hover:border-leaf hover:text-leaf">
+          <Link href={`/categoria/${c.slug}`} className="inline-block rounded-full border-[1.5px] border-ink/15 bg-white px-3.5 py-1.5 text-sm font-semibold transition-colors hover:border-ink">
             {c.name}
           </Link>
         </li>

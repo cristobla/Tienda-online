@@ -11,13 +11,14 @@ export default function AccountPage() {
   return (
     <>
       <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: "Mi cuenta" }]} />
-      <div className="mx-auto mt-6 max-w-md rounded-md border border-line bg-white p-8 text-center">
-        <span className="mx-auto grid size-14 place-items-center rounded-full bg-leaf-soft text-leaf-dark">
-          <Icon name="user" className="size-7" />
+      <div className="relative mx-auto mt-6 max-w-lg overflow-hidden rounded-[1.75rem] bg-paper px-8 py-12 text-center ring-1 ring-line">
+        <div aria-hidden className="ondas absolute inset-0 [--ondas-x:50%] [--ondas-y:26%]" />
+        <span className="relative mx-auto grid size-16 place-items-center rounded-full bg-white text-leaf-dark ring-1 ring-line">
+          <Icon name="user" className="size-8" />
         </span>
-        <h1 className="mt-4 text-2xl font-extrabold">Mi cuenta</h1>
-        <p className="mt-2 text-muted">Pronto podrás crear tu cuenta para guardar direcciones y revisar tus pedidos.</p>
-        <Link href="/productos" className="mt-6 inline-block rounded-md bg-leaf px-5 py-2.5 font-semibold text-white hover:bg-leaf-dark">
+        <h1 className="rotulo relative mt-5 text-title">Mi cuenta</h1>
+        <p className="relative mt-2 text-muted">Pronto podrás crear tu cuenta para guardar direcciones y revisar tus pedidos.</p>
+        <Link href="/productos" className="btn-buy relative mt-7 px-6 py-3">
           Ver productos
         </Link>
       </div>
