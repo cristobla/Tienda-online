@@ -20,6 +20,8 @@ export type StoreSettings = {
   storeRegion: string | null;
   /** Ficha del local en Google Maps (Perfil de Empresa). */
   mapsUrl: string | null;
+  /** Enlace «Pedir reseñas» del Perfil de Empresa en Google. */
+  reviewUrl: string | null;
   /** Ofrecer retiro en el local en el checkout. */
   pickupEnabled: boolean;
   /** Despacho gratis desde este monto de productos (con descuento); se edita en Promociones. */
@@ -41,6 +43,7 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   storeCommune: null,
   storeRegion: null,
   mapsUrl: null,
+  reviewUrl: null,
   pickupEnabled: false,
   freeShippingFrom: null,
 };

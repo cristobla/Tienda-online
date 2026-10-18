@@ -40,6 +40,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader title="Productos">
+        {/* Descarga directa (no es una página): <a> y no Link. */}
+        <a href="/admin/productos/productos.csv" className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold hover:border-leaf hover:text-leaf">
+          Exportar CSV
+        </a>
         {canWrite && (
           <>
             <ButtonLink href="/admin/productos/importar" variant="plain">

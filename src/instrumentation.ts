@@ -6,6 +6,15 @@
  * ponytail: temporizador dentro del proceso (cómodo en desarrollo y en un servidor de larga duración; idempotente
  * con varias instancias). En serverless o al escalar, solo el cron.
  */
+import type { Instrumentation } from "next";
+
+/** Error no controlado en una página, acción o ruta: queda en /admin/errores (por patrón de ruta, sin ids ni parámetros). */
+export const onRequestError: Instrumentation.onRequestError = async (err, request, context) => {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { recordError } = await import("@/modules/errors");
+  await recordError(err, { route: context.routePath, method: request.method });
+};
+
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NEXT_PHASE === "phase-production-build") return;
   const { runPaymentJobs } = await import("@/modules/payments");
@@ -15,8 +24,12 @@ export async function register() {
   const g = globalThis as unknown as { orderExpiryTimer?: NodeJS.Timeout };
   // En desarrollo Next recarga módulos: un solo temporizador por proceso, que no impide que el proceso termine.
   // Sin base de datos basta una línea por minuto (no un stack trace); cualquier otro error se muestra completo.
-  const report = (e: { code?: string; cause?: { code?: string } }) =>
-    console.error("Error en las tareas de pedidos y pagos:", (e?.cause ?? e)?.code === "ECONNREFUSED" ? "la base de datos no responde (ECONNREFUSED)." : e);
+  const { recordError } = await import("@/modules/errors");
+  const report = (e: { code?: string; cause?: { code?: string } }) => {
+    const down = (e?.cause ?? e)?.code === "ECONNREFUSED";
+    console.error("Error en las tareas de pedidos y pagos:", down ? "la base de datos no responde (ECONNREFUSED)." : e);
+    if (!down) void recordError(e, { route: "tareas" });
+  };
   g.orderExpiryTimer ??= setInterval(
     () =>
       runPaymentJobs()

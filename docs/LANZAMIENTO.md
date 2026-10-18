@@ -37,6 +37,7 @@ Con la dirección cargada, la tienda muestra sola: la franja «Visítanos» en l
    - Dirección exacta y pin bien ubicado, horario (y horarios especiales en feriados), teléfono, sitio web = el dominio de la tienda.
    - **Verificación**: Google pide un video del local (fachada, letrero, interior y algo que pruebe que es tuyo) o una carta. Tenerlo listo.
    - Fotos: fachada de día, interior, góndolas, logo y portada. Subir fotos nuevas cada mes.
+   - Copiar el enlace **«Pedir reseñas»** del perfil y pegarlo en `/admin/tienda` → Local físico: la tienda lo envía sola a cada cliente cuando su pedido se marca como entregado o retirado.
    - Productos destacados y publicaciones semanales (ofertas, novedades).
 2. [ ] **Reseñas**: pedirlas a los primeros clientes. Imprimir un QR con el enlace «Pedir reseñas» del perfil y ponerlo en caja. Responder todas, también las malas, con calma.
 3. [ ] **Google Search Console**: verificar el dominio y enviar `https://tu-dominio.cl/sitemap.xml`.

@@ -53,6 +53,16 @@ export default async function StoreSettingsPage() {
               className="sm:col-span-2"
               hint="En Google Maps: tu local → Compartir → Copiar vínculo. Vacío = se busca la dirección."
             />
+            <Text
+              name="reviewUrl"
+              label="Enlace para pedir reseñas en Google"
+              type="url"
+              initial={st.reviewUrl}
+              maxLength={300}
+              placeholder="https://g.page/r/…/review"
+              className="sm:col-span-2"
+              hint="Perfil de Empresa en Google → «Pedir reseñas» → copiar. Se envía al cliente cuando su pedido se entrega o retira."
+            />
             <div className="sm:col-span-2">
               <Check name="pickupEnabled" label="Ofrecer retiro en el local" initial={st.pickupEnabled} hint="Opción gratis en el checkout. Se avisa al cliente por correo al marcar el pedido «Listo para retiro»." />
             </div>

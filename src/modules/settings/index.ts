@@ -37,6 +37,9 @@ const profile = (host: RegExp, site: string) =>
     return u?.protocol === "https:" && host.test(u.hostname);
   }, `Debe ser el enlace https de tu perfil en ${site}`);
 
+// google.com/maps, maps.google.com, maps.app.goo.gl (botón "Compartir" de Maps) o g.page (enlaces del perfil).
+const GOOGLE = /(^|\.)(google\.(com|cl)|goo\.gl|g\.page)$/;
+
 export const settingsSchema = z.object({
   name: field.text(60),
   description: field.text(200),
@@ -55,8 +58,9 @@ export const settingsSchema = z.object({
   storeAddress: field.optText(120),
   storeCommune: field.optText(60),
   storeRegion: field.optText(60),
-  // google.com/maps, maps.google.com, maps.app.goo.gl (botón "Compartir" de Maps) o g.page (enlaces antiguos del perfil).
-  mapsUrl: profile(/(^|\.)(google\.(com|cl)|goo\.gl|g\.page)$/, "Google Maps"),
+  mapsUrl: profile(GOOGLE, "Google Maps"),
+  // Perfil de Empresa → «Pedir reseñas» (g.page/r/…) o el enlace de reseñas de Maps.
+  reviewUrl: profile(GOOGLE, "Google"),
   pickupEnabled: field.bool(),
 })
   .refine((d) => !d.pickupEnabled || d.storeAddress, { path: ["storeAddress"], message: "Para ofrecer retiro, completa la dirección del local" }) satisfies z.ZodType<EditableSettings>;

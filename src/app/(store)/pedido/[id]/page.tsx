@@ -50,7 +50,8 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
   const reversed = cancelled && !!o.paidAt;
   const a = o.shippingAddress;
   const pickup = o.fulfillment === "PICKUP";
-  const st = pickup ? await getSettings() : null;
+  const settings = await getSettings();
+  const st = pickup ? settings : null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -88,7 +89,15 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
             Recibimos un pago que no pudimos aplicar automáticamente (monto distinto o fuera de plazo). Lo estamos revisando y te contactaremos.
           </p>
         )}
-        <p className="relative mt-3 text-sm text-muted">Guarda este enlace para revisar el estado de tu pedido.</p>
+        {o.status === "DELIVERED" && settings.reviewUrl ? (
+          <p className="relative mt-5">
+            <a href={settings.reviewUrl} target="_blank" rel="noopener" className="btn-buy px-6 py-3">
+              ¿Te gustó? Déjanos una reseña en Google
+            </a>
+          </p>
+        ) : (
+          <p className="relative mt-3 text-sm text-muted">Guarda este enlace para revisar el estado de tu pedido.</p>
+        )}
       </div>
 
       {pending && o.paymentStatus !== "REVIEW" && (

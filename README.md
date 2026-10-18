@@ -82,7 +82,7 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 | `/admin/pagos`, `/admin/pagos/[id]` | Intentos de pago: búsqueda, filtros, eventos; confirmar transferencias (tras verlas en la cuenta) y cerrar incidencias | `orders:read` / confirmar: `payments:manage` |
 | `/admin/pagos/configuracion` | Medios de pago (implementado / configurado / habilitado) y cuenta para transferencias (datos no secretos) | `payments:manage` |
 | `/admin/pedidos`, `/admin/pedidos/[id]` | Pedidos con búsqueda y filtro por estado; detalle con productos (copia al momento de la compra), totales, stock reservado e historial; cancelar antes del pago y avanzar preparación/despacho/entrega | `orders:read` / cambiar estado: `orders:manage` |
-| `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros | `catalog:read` |
+| `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros; «Exportar CSV» (una fila por SKU con precios, stock, fotos y enlace) | `catalog:read` |
 | `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes (con «Hacer principal»), SEO | `catalog:write` |
 | `/admin/productos/importar` | Importar el catálogo desde Excel (.xlsx): vista previa por fila, opciones y confirmación | `catalog:write` |
 | `/admin/imprimir/pedido/[id]` | Hoja A4 del pedido para preparar y entregar (casillas por producto, despacho o retiro, firma); botón «Imprimir hoja» en la ficha del pedido | `orders:read` |
@@ -94,6 +94,7 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 | `/admin/usuarios` | Usuarios del staff, roles, contraseñas; quitar la verificación en dos pasos (celular perdido) | `users:manage` (Super Admin) |
 | `/admin/cuenta` | Cambiar la propia contraseña y activar la verificación en dos pasos (app de códigos) | todo el personal |
 | `/admin/auditoria` | Quién cambió qué y cuándo | `audit:read` |
+| `/admin/errores` | Errores inesperados del servidor agrupados (ruta, mensaje, veces); el inicio avisa si hubo en las últimas 24 h | `audit:read` |
 
 - El stock nunca se edita directo: cada cambio (stock inicial, ingreso, merma, conteo) es un movimiento de inventario con usuario y motivo; el historial no se puede editar ni borrar.
 - Descripciones con formato básico: `**negrita**`, `*cursiva*`, listas `- ` / `1. ` y títulos `## `.

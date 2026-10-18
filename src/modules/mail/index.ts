@@ -14,12 +14,13 @@ import { getProvider } from "@/modules/payments/providers";
 import { readSettings } from "@/modules/settings";
 
 /** order.*: al cliente. store.*: al encargado de la tienda (correo de avisos en «Datos de la tienda»). */
-export type EmailKind = "order.received" | "order.paid" | "order.shipped" | "store.order_new" | "store.order_paid";
+export type EmailKind = "order.received" | "order.paid" | "order.shipped" | "order.delivered" | "store.order_new" | "store.order_paid";
 
 export const EMAIL_LABELS: Record<string, string> = {
   "order.received": "Pedido recibido",
   "order.paid": "Pago confirmado",
   "order.shipped": "Pedido despachado",
+  "order.delivered": "Entregado: pedir reseña",
   "store.order_new": "Aviso a la tienda: pedido nuevo",
   "store.order_paid": "Aviso a la tienda: pedido pagado",
 };
@@ -146,6 +147,24 @@ export async function renderEmail(tx: Tx, kind: string, orderId: string): Promis
     return {
       subject: `Tu pedido ${o.orderNumber} va en camino`,
       text: [`Hola ${o.customerName}:`, "", `Despachamos tu pedido ${o.orderNumber}${a ? ` a ${a.commune}, ${a.region}` : ""}.`, footer].join("\n"),
+    };
+  }
+  // Pedido entregado o retirado: gracias + reseña en Google (solo si la tienda tiene el enlace).
+  if (kind === "order.delivered") {
+    if (o.status !== "DELIVERED" || !st.reviewUrl) return null;
+    return {
+      subject: `¿Cómo te fue con tu pedido ${o.orderNumber}?`,
+      text: [
+        `Hola ${o.customerName}:`,
+        "",
+        `Gracias por comprar en ${st.name}. ${pickup ? "Esperamos que el retiro haya sido rápido" : "Esperamos que tu pedido haya llegado bien"}.`,
+        "",
+        "Si te gustó, nos ayudaría mucho una reseña en Google (toma un minuto):",
+        st.reviewUrl,
+        "",
+        "Si algo no salió bien, responde este correo y lo solucionamos.",
+        footer,
+      ].join("\n"),
     };
   }
   return null;
