@@ -381,6 +381,26 @@ export async function orderStats() {
   return r!;
 }
 
+/** "1003", "001003", "ord 1003" u "ORD-001003" → "ORD-001003"; null si no parece un número de pedido. */
+export function normalizeOrderNumber(v: string): string | null {
+  const m = v.trim().toUpperCase().match(/^(?:ORD[-\s]?)?0*(\d{1,9})$/);
+  return m ? `ORD-${m[1]!.padStart(6, "0")}` : null;
+}
+
+/**
+ * Seguimiento sin cuenta: número y email del pedido → su id (el enlace secreto del comprobante). Tienen que
+ * coincidir los dos; el número solo no basta (es correlativo).
+ */
+export async function findOrderId(number: string, email: string) {
+  const n = normalizeOrderNumber(number);
+  if (!n) return null;
+  const [o] = await db
+    .select({ id: s.orders.id })
+    .from(s.orders)
+    .where(and(eq(s.orders.orderNumber, n), eq(s.orders.email, email.trim().toLowerCase())));
+  return o?.id ?? null;
+}
+
 export async function getOrder(id: string) {
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, id));
   if (!order) return null;

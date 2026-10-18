@@ -14,7 +14,8 @@ type AttrDef = typeof s.attributeDefinitions.$inferSelect;
 type AttrValue = string | number | boolean;
 
 /** Qué se está mirando: categoría (o todo lo visible), marca y texto buscado. Las facetas se calculan sobre esto. */
-export type Scope = { categoryIds: string[]; brandId?: string; q?: string };
+/** `onSale`: solo productos cuya variante mostrada tiene precio anterior mayor (página /ofertas). */
+export type Scope = { categoryIds: string[]; brandId?: string; q?: string; onSale?: boolean };
 /** Lo que el cliente va acotando dentro del alcance. */
 export type Filters = {
   brandIds?: string[];
@@ -73,6 +74,7 @@ const likeEscape = (q: string) => q.replace(/[\\%_]/g, "\\$&");
 function scopeConditions(scope: Scope): SQL[] {
   const c: SQL[] = [sql`p.active`, sql`p.category_id = ANY(${uuids(scope.categoryIds)})`];
   if (scope.brandId) c.push(sql`p.brand_id = ${scope.brandId}`);
+  if (scope.onSale) c.push(sql`v.compare_at_price > v.price`);
   if (scope.q) {
     const q = scope.q;
     const contains = sql`'%' || f_unaccent(lower(${likeEscape(q)})) || '%'`;

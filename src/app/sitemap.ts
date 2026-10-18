@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: u("/"), changeFrequency: "daily", priority: 1 },
     { url: u("/productos"), changeFrequency: "daily" },
+    { url: u("/ofertas"), changeFrequency: "daily" },
     ...[...bySlug.values()].map((c) => ({ url: u(`/categoria/${c.slug}`), lastModified: c.updatedAt })),
     ...brands.map((b) => ({ url: u(`/marca/${b.slug}`), lastModified: b.updatedAt })),
     ...products.map((p) => ({ url: u(`/producto/${p.slug}`), lastModified: p.updatedAt })),
