@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminForm, Submit, Text } from "@/components/admin/form";
 import { BrandMark } from "@/components/store/shell";
-import { SITE } from "@/lib/site";
 import { isStaff } from "@/modules/auth/rbac";
 import { getCurrentUser } from "@/modules/auth/session";
+import { getSettings } from "@/modules/settings";
 import { login } from "../auth-actions";
 
 export const metadata: Metadata = { title: "Ingresar al panel", robots: { index: false, follow: false } };
@@ -12,12 +12,13 @@ export const metadata: Metadata = { title: "Ingresar al panel", robots: { index:
 export default async function LoginPage() {
   const user = await getCurrentUser();
   if (user && isStaff(user.role)) redirect("/admin");
+  const { name } = await getSettings();
   return (
     <main className="grid min-h-dvh place-items-center bg-ink px-4">
       <div className="w-full max-w-sm rounded-md bg-white p-7">
         <p className="flex items-center gap-2 text-xl font-extrabold [font-stretch:80%]">
           <BrandMark className="size-8" />
-          {SITE.name}
+          {name}
         </p>
         <h1 className="mb-5 mt-4 text-xl font-bold">Panel de administración</h1>
         <AdminForm action={login} className="space-y-4">

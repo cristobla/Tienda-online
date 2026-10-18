@@ -30,6 +30,12 @@ const LABELS: Record<string, string> = {
   "payment.resolve": "cerró una incidencia de pago (devuelto)",
   "payment.settings": "cambió la cuenta para transferencias",
   "payment.method": "habilitó o deshabilitó un medio de pago",
+  "order.cancel_paid": "anuló un pedido pagado",
+  "order.return": "registró la devolución de un pedido",
+  "user.password_change": "cambió su propia contraseña",
+  "settings.update": "cambió los datos de la tienda",
+  "page.update": "editó una página informativa",
+  "report.export": "descargó pedidos en CSV",
 };
 
 export const actionLabel = (action: string) => LABELS[action] ?? action;
@@ -40,5 +46,7 @@ export function entityHref(type: string, id: string): string | null {
   if (type === "shipping") return "/admin/despacho";
   if (type === "payment") return `/admin/pagos/${id}`;
   if (type === "payment_method") return "/admin/pagos/configuracion";
+  if (type === "settings") return "/admin/tienda";
+  if (type === "page") return `/admin/paginas/${id}`;
   return base ? `/admin/${base}/${id}` : null;
 }

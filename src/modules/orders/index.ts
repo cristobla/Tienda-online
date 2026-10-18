@@ -2,7 +2,7 @@
  * Pedidos: creación desde el carrito (con reserva de stock), máquina de estados y consultas del panel.
  * Un pedido nace PENDING_PAYMENT con sus reservas; solo el módulo de pagos (markOrderPaid) lo pasa a PAID.
  */
-import { and, asc, desc, eq, ilike, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, lte, or, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
 import * as s from "@/db/schema";
@@ -25,7 +25,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   SHIPPED: "Despachado",
   DELIVERED: "Entregado",
   CANCELLED: "Cancelado",
-  REFUNDED: "Reembolsado",
+  REFUNDED: "Devuelto",
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -41,12 +41,15 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   REVIEW: "En revisión",
 };
 
+/** Pedidos vendidos: el pago se verificó y no se anuló ni devolvió. */
+export const SOLD_STATUSES = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"] as const satisfies readonly OrderStatus[];
+
 /** Transiciones permitidas. Agregar un estado = enum + una línea aquí. */
 export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING_PAYMENT: ["PAID", "CANCELLED"],
   PAID: ["PROCESSING", "CANCELLED"],
   PROCESSING: ["SHIPPED", "CANCELLED"],
-  SHIPPED: ["DELIVERED"],
+  SHIPPED: ["DELIVERED", "REFUNDED"],
   DELIVERED: ["REFUNDED"],
   CANCELLED: [],
   REFUNDED: [],
@@ -272,6 +275,22 @@ export async function markOrderPaid(tx: Transaction, o: Order, opts: { method: s
   return row!;
 }
 
+/**
+ * Un pedido pagado se anula (pagado o en preparación → CANCELLED) o se devuelve (despachado o entregado → REFUNDED).
+ * El dinero queda por devolver (REVIEW) hasta que se registre el reembolso. Lo llama solo el módulo de pagos, con el
+ * pedido bloqueado; el stock lo devuelve quien llama.
+ */
+export async function reversePaidOrder(tx: Transaction, o: Order, opts: { userId: string; note: string }) {
+  const to: OrderStatus = o.status === "SHIPPED" || o.status === "DELIVERED" ? "REFUNDED" : "CANCELLED";
+  if (!(SOLD_STATUSES as readonly OrderStatus[]).includes(o.status) || !TRANSITIONS[o.status].includes(to))
+    throw new UserError(`Un pedido "${ORDER_STATUS_LABELS[o.status]}" no se puede anular ni devolver.`);
+  // Otra solicitud de pago que quedó abierta (otro medio que el cliente alcanzó a iniciar) ya no corresponde.
+  await tx.update(s.payments).set({ status: "CANCELLED" }).where(and(eq(s.payments.orderId, o.id), eq(s.payments.status, "PENDING")));
+  const [row] = await tx.update(s.orders).set({ status: to, paymentStatus: "REVIEW", cancelledAt: new Date() }).where(eq(s.orders.id, o.id)).returning();
+  await tx.insert(s.orderStatusHistory).values({ orderId: o.id, fromStatus: o.status, toStatus: to, changedBy: opts.userId, note: opts.note });
+  return row!;
+}
+
 /** Resumen de dinero del pedido (p. ej. REVIEW: hay un pago recibido por resolver). No cambia su estado operativo. */
 export async function setOrderPaymentStatus(tx: Transaction, o: Order, paymentStatus: PaymentStatus) {
   await tx.update(s.orders).set({ paymentStatus }).where(eq(s.orders.id, o.id));
@@ -330,7 +349,7 @@ export async function orderStats() {
 export async function getOrder(id: string) {
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, id));
   if (!order) return null;
-  const [items, history, reservations, customer] = await Promise.all([
+  const [items, history, reservations, customer, [returned]] = await Promise.all([
     db.select().from(s.orderItems).where(eq(s.orderItems.orderId, id)).orderBy(asc(s.orderItems.productName), asc(s.orderItems.sku)),
     db
       .select({ entry: s.orderStatusHistory, email: s.users.email })
@@ -340,6 +359,17 @@ export async function getOrder(id: string) {
       .orderBy(asc(s.orderStatusHistory.createdAt), asc(s.orderStatusHistory.id)),
     db.select().from(s.stockReservations).where(eq(s.stockReservations.orderId, id)),
     db.select({ userId: s.customers.userId }).from(s.customers).where(eq(s.customers.id, order.customerId)),
+    // Unidades que volvieron al stock al anular o devolver el pedido.
+    db
+      .select({ units: sql<number>`coalesce(sum(${s.inventoryMovements.quantity}), 0)::int` })
+      .from(s.inventoryMovements)
+      .where(
+        and(
+          eq(s.inventoryMovements.referenceType, "ORDER"),
+          eq(s.inventoryMovements.referenceId, id),
+          inArray(s.inventoryMovements.type, ["SALE_CANCELLED", "RETURN"]),
+        ),
+      ),
   ]);
-  return { order, items, history, reservations, hasAccount: !!customer[0]?.userId };
+  return { order, items, history, reservations, hasAccount: !!customer[0]?.userId, returnedUnits: returned!.units };
 }

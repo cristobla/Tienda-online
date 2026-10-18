@@ -44,7 +44,9 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
   const methods = live && !verifying ? await checkoutMethods() : [];
   const waiting = pending && (current?.status === "PENDING" || current?.status === "UNCERTAIN" || current?.status === "AUTHORIZED");
   const paid = PAID.includes(o.status);
-  const cancelled = o.status === "CANCELLED";
+  const cancelled = o.status === "CANCELLED" || o.status === "REFUNDED";
+  // Anulado o devuelto después de pagar: el dinero se devuelve aparte (REVIEW = pendiente, REFUNDED = hecho).
+  const reversed = cancelled && !!o.paidAt;
   const a = o.shippingAddress;
 
   return (
@@ -55,7 +57,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
           <Icon name={cancelled ? "alert" : "check"} className="size-8" />
         </span>
         <h1 className="rotulo relative mt-5 text-display">
-          {cancelled ? "Este pedido fue cancelado" : paid ? "¡Pago confirmado!" : "¡Recibimos tu pedido!"}
+          {o.status === "REFUNDED" ? "Este pedido fue devuelto" : cancelled ? "Este pedido fue cancelado" : paid ? "¡Pago confirmado!" : "¡Recibimos tu pedido!"}
         </h1>
         <p className="relative mt-3">
           Pedido <strong className="font-mono">{o.orderNumber}</strong> · {ORDER_STATUS_LABELS[o.status]}
@@ -66,7 +68,12 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
             {o.paymentMethod && <> · {getProvider(o.paymentMethod)?.label ?? o.paymentMethod}</>}. Te avisaremos cuando despachemos tu pedido.
           </p>
         )}
-        {o.paymentStatus === "REVIEW" && (
+        {reversed && (
+          <p className="relative mx-auto mt-3 max-w-md text-sm font-medium">
+            {o.paymentStatus === "REFUNDED" ? "Ya te devolvimos el dinero de este pedido." : "Te devolveremos el dinero que pagaste y te contactaremos para coordinarlo."}
+          </p>
+        )}
+        {o.paymentStatus === "REVIEW" && !reversed && (
           <p className="relative mx-auto mt-3 max-w-md text-sm font-medium text-oferta">
             Recibimos un pago que no pudimos aplicar automáticamente (monto distinto o fuera de plazo). Lo estamos revisando y te contactaremos.
           </p>
@@ -188,6 +195,18 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
 /** La acción que el proveedor entregó al emitir el intento: instrucciones, ir a la pasarela (GET o POST) o esperar. */
 function PaymentActionView({ action }: { action: PaymentAction }) {
   if (action.kind === "wait") return <p className="mt-3 text-sm">{action.message}</p>;
+  // GET: un enlace (con sus campos en la URL), no un formulario: la CSP solo permite enviar formularios a la tienda.
+  if (action.kind === "redirect" && action.method === "GET") {
+    const url = new URL(action.url);
+    for (const [k, v] of Object.entries(action.fields)) url.searchParams.set(k, v);
+    return (
+      <p className="mt-4">
+        <a href={url.toString()} className="btn-buy px-7 py-3 text-lg">
+          Ir a pagar
+        </a>
+      </p>
+    );
+  }
   if (action.kind === "redirect")
     return (
       <form action={action.url} method={action.method} className="mt-4">

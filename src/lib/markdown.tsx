@@ -56,3 +56,7 @@ function inline(s: string): ReactNode[] {
       ),
     );
 }
+
+/** Estilos del texto que produce <Markdown> (ficha de producto, páginas informativas y su vista previa en el panel). */
+export const MARKDOWN_CLASS =
+  "max-w-prose space-y-3 leading-relaxed [&_h3]:pt-2 [&_h3]:text-lg [&_h3]:font-bold [&_h4]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5";

@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { AdminForm, Submit, TextArea } from "@/components/admin/form";
+import { AdminForm, Check, Submit, TextArea } from "@/components/admin/form";
 import { Badge, PageHeader, Section, Table } from "@/components/admin/ui";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { formatCLP, formatDateTime } from "@/modules/chile";
-import { getOrder, manualTransitions, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/modules/orders";
+import { getOrder, manualTransitions, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, SOLD_STATUSES } from "@/modules/orders";
 import { EMAIL_LABELS, orderEmails } from "@/modules/mail";
 import { getProvider, orderPayments } from "@/modules/payments";
-import { changeStatusAction } from "../actions";
+import { changeStatusAction, reverseOrderAction } from "../actions";
 import { ORDER_TONE, PAYMENT_TONE } from "../labels";
 
 export const metadata: Metadata = { title: "Pedido" };
@@ -20,15 +20,23 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const data = z.uuid().safeParse(id).success ? await getOrder(id) : null;
   if (!data) notFound();
-  const { order: o, items, history, reservations, hasAccount } = data;
+  const { order: o, items, history, reservations, hasAccount, returnedUnits } = data;
   const [payments, emails] = await Promise.all([orderPayments(o.id), orderEmails(o.id)]);
   const transitions = can(user.role, "orders:manage") ? manualTransitions(o) : [];
+  const reversible = can(user.role, "payments:manage") && (SOLD_STATUSES as readonly string[]).includes(o.status);
+  const shipped = o.status === "SHIPPED" || o.status === "DELIVERED";
+  // Pagos que se reembolsan solos por la API del proveedor (los demás, p. ej. transferencias, se devuelven a mano).
+  const autoRefund = payments.filter((p) => p.status === "PAID" && getProvider(p.provider)?.implemented && getProvider(p.provider)?.capabilities.refund);
   const active = reservations.filter((r) => r.status === "ACTIVE");
   const stock = active.length
     ? `Reservado hasta ${formatDateTime(new Date(Math.min(...active.map((r) => r.expiresAt.getTime()))))}` // la hora ya termina en "m."
-    : reservations.some((r) => r.status === "CONSUMED")
-      ? "Descontado del stock al confirmarse el pago."
-      : reservations.length
+    : returnedUnits > 0
+      ? `Vendido y devuelto al stock al ${o.status === "REFUNDED" ? "registrar la devolución" : "anular el pedido"} (${returnedUnits} ${returnedUnits === 1 ? "unidad" : "unidades"}).`
+      : reservations.some((r) => r.status === "CONSUMED")
+        ? o.status === "REFUNDED"
+          ? "Vendido; los productos devueltos no volvieron al stock."
+          : "Descontado del stock al confirmarse el pago."
+        : reservations.length
         ? "Reserva liberada: el stock volvió a estar disponible."
         : "Sin reservas.";
   const address = o.shippingAddress;
@@ -103,7 +111,16 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="grid gap-6">
-          <Section title="Cliente">
+          <Section
+            title="Cliente"
+            actions={
+              can(user.role, "customers:read") && (
+                <Link href={`/admin/clientes/${o.customerId}`} className="text-sm font-medium text-leaf hover:underline">
+                  Ver ficha
+                </Link>
+              )
+            }
+          >
             <dl className="space-y-2 text-sm">
               <div>
                 <dt className="text-muted">Nombre</dt>
@@ -159,7 +176,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             )}
           </Section>
 
-          <Section title="Correos al cliente">
+          <Section title="Correos">
             {emails.length ? (
               <ul className="space-y-2 text-sm">
                 {emails.map((m) => (
@@ -200,10 +217,33 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               </div>
             </Section>
           )}
+          {reversible && (
+            <Section title={shipped ? "Registrar devolución" : "Anular pedido pagado"}>
+              <AdminForm
+                action={reverseOrderAction.bind(null, o.id)}
+                confirm={
+                  shipped
+                    ? `¿Registrar la devolución del pedido ${o.orderNumber}${autoRefund.length ? " y reembolsar el pago" : ""}? No se puede deshacer.`
+                    : `¿Anular el pedido ${o.orderNumber}${autoRefund.length ? " y reembolsar el pago" : ""}? Los productos vuelven al stock. No se puede deshacer.`
+                }
+                className="space-y-3"
+              >
+                <p className="text-sm text-muted">
+                  {shipped ? "El cliente devolvió los productos." : "Los productos no han salido: vuelven al stock disponible."}{" "}
+                  {autoRefund.length
+                    ? `El dinero se devuelve solo por ${getProvider(autoRefund[0]!.provider)!.label}, por el mismo medio con que pagó el cliente.`
+                    : "El pago queda «En revisión» hasta que devuelvas el dinero (p. ej. por transferencia) y lo registres en el pago."}
+                </p>
+                <TextArea name="note" label="Motivo" rows={2} maxLength={500} required />
+                {shipped && <Check name="restock" label="Volvieron en buen estado: reingresarlos al stock" hint="Si no, quedan fuera del inventario (por ejemplo, dañados)." />}
+                <Submit variant="danger">{shipped ? "Registrar devolución" : "Anular pedido"}</Submit>
+              </AdminForm>
+            </Section>
+          )}
           {o.status !== "CANCELLED" && o.status !== "REFUNDED" && (
             <p className="text-xs text-muted">
-              El pago se registra en Pagos (transferencia comprobada en la cuenta o verificación del proveedor), nunca cambiando el estado a mano. Anular un pedido pagado
-              y reembolsar todavía se gestionan fuera del sistema.
+              El pago se registra en Pagos (transferencia comprobada en la cuenta o verificación del proveedor), nunca cambiando el estado a mano. La devolución del
+              dinero de un pedido anulado o devuelto se registra en su pago, cuando se hace.
             </p>
           )}
         </div>

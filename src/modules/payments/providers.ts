@@ -1,81 +1,17 @@
 /**
- * Contrato de proveedores de pago y registro. Un adaptador habla con SU proveedor y normaliza lo que responde;
- * nunca escribe el pedido, el pago ni el stock: eso lo hace el servicio (./index.ts) con las reglas del dominio.
- * Agregar un proveedor = su adaptador aquí + configuración + verificación + pruebas (ver docs/PAGOS.md).
+ * Registro de proveedores de pago (el contrato está en ./contract.ts). Un adaptador habla con SU proveedor y
+ * normaliza lo que responde; nunca escribe el pedido, el pago ni el stock: eso lo hace el servicio (./index.ts).
+ * Agregar un proveedor = su adaptador + configuración + verificación + pruebas (ver docs/PAGOS.md).
  */
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import type { PaymentAction } from "@/db/schema";
 import { type AppEnv, env } from "@/lib/env";
 import { field } from "@/lib/form";
 import { formatCLP, formatRut, normalizeRut } from "@/modules/chile";
+import { type Capabilities, type PaymentProvider, type ProviderId, ProviderTimeoutError } from "./contract";
+import { mercadoPago } from "./mercadopago";
 
-export type ProviderId = "transferencia" | "simulado" | "webpay" | "mercadopago" | "khipu";
-
-/** El intento tal como el servicio lo persistió ANTES de llamar al proveedor. */
-export type AttemptInfo = {
-  reference: string;
-  orderNumber: string;
-  amount: number;
-  currency: string;
-  externalId: string | null;
-  expiresAt: Date | null;
-};
-
-/** Contexto ya resuelto del proveedor: ambiente, cuenta/comercio receptor y su configuración. */
-export type ProviderContext = { environment: string; account: string; settings: unknown; example?: boolean };
-
-/** Resultado de una consulta autorizada al proveedor, normalizado. Nunca sale de datos que trajo el navegador. */
-export type ProviderResult = {
-  status: "PENDING" | "AUTHORIZED" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED";
-  amount?: number;
-  currency?: string;
-  environment?: string;
-  account?: string;
-  externalId?: string | null;
-  receivedAt?: Date;
-  /** Lo que respondió el proveedor (se guarda sin secretos): explica la transición. */
-  raw: unknown;
-};
-
-/** Sin respuesta confiable (timeout, red): resultado INCIERTO. No es un rechazo y no se reintenta un cobro a ciegas. */
-export class ProviderTimeoutError extends Error {}
-
-export type Capabilities = {
-  /** Consulta servidor a servidor del estado real. */
-  verify: boolean;
-  /** El comprador vuelve desde el proveedor a /api/payments/[id]/return. */
-  browserReturn: boolean;
-  /** El proveedor notifica a /api/payments/[id]/webhook. */
-  webhook: boolean;
-  /** Un usuario autorizado comprueba la recepción (transferencia). */
-  manualConfirmation: boolean;
-  refund: boolean;
-  remoteCancel: boolean;
-};
-
-export interface PaymentProvider {
-  id: ProviderId;
-  label: string;
-  description: string;
-  /** Hay código real. Un pendiente no se vuelve operativo con un interruptor ni con credenciales. */
-  implemented: boolean;
-  /** Solo pruebas: nunca disponible fuera de APP_ENV local/test. */
-  testOnly?: boolean;
-  capabilities: Capabilities;
-  /** Minutos que se reserva el stock de un pedido pagado con este método. */
-  reservationMinutes(): number;
-  /** Configuración efectiva (de la base: datos no secretos; del entorno: credenciales) o por qué no está lista. */
-  configure(settings: unknown, appEnv: AppEnv): { ok: true; ctx: ProviderContext } | { ok: false; reason: string };
-  /** Inicia el intento ya persistido. Repetible con la misma referencia. */
-  start(a: AttemptInfo, ctx: ProviderContext): Promise<{ action: PaymentAction; externalId?: string | null; raw?: unknown }>;
-  /** Estado real del intento. Lanza ProviderTimeoutError si no hay respuesta confiable. */
-  verify?(a: AttemptInfo, ctx: ProviderContext): Promise<ProviderResult>;
-  /** Del retorno del navegador saca SOLO lo que identifica el intento (un valor no adivinable); no decide el resultado. */
-  parseReturn?(req: Request): Promise<{ externalId: string; payload: unknown }>;
-  /** Valida autenticidad y forma de una notificación según el protocolo del proveedor; extrae su id y el intento. */
-  parseWebhook?(req: Request, ctx: ProviderContext): Promise<{ eventId: string | null; externalId: string; payload: unknown }>;
-}
+export * from "./contract";
 
 const testEnv = (appEnv: AppEnv) => appEnv === "local" || appEnv === "test";
 
@@ -142,7 +78,16 @@ const transferencia: PaymentProvider = {
 
 // ───────────── Simulado (solo local/test) ─────────────
 
-type SimState = { status: "PENDING" | "PAID" | "FAILED" | "CANCELLED"; amount: number; reference: string; orderNumber: string; paidAmount?: number; timeouts?: number };
+type SimState = {
+  status: "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "REFUNDED";
+  amount: number;
+  reference: string;
+  orderNumber: string;
+  paidAmount?: number;
+  timeouts?: number;
+  /** Claves de reembolso ya atendidas (idempotencia, como la pasarela real). */
+  refunds?: string[];
+};
 /** "Lado del proveedor" del simulador: en memoria del proceso (como una pasarela externa, se pierde si el servidor se reinicia). */
 const sim = ((globalThis as { __simuladorPagos?: Map<string, SimState> }).__simuladorPagos ??= new Map());
 const SIM_TOKEN = /^sim_[0-9a-f]{32}$/;
@@ -170,7 +115,7 @@ const simulado: PaymentProvider = {
   description: "Pasarela de mentira para probar el flujo en local. Nunca mueve dinero.",
   implemented: true,
   testOnly: true,
-  capabilities: { verify: true, browserReturn: true, webhook: true, manualConfirmation: false, refund: false, remoteCancel: false },
+  capabilities: { verify: true, browserReturn: true, webhook: true, manualConfirmation: false, refund: true, remoteCancel: false },
   reservationMinutes: () => env.RESERVATION_TTL_MINUTES,
   configure(_settings, appEnv) {
     if (!testEnv(appEnv)) return { ok: false, reason: "Solo existe con APP_ENV local o test." };
@@ -190,7 +135,21 @@ const simulado: PaymentProvider = {
       s.timeouts--;
       throw new ProviderTimeoutError("El simulador no respondió.");
     }
-    return { status: s.status, amount: s.paidAmount ?? s.amount, currency: "CLP", environment: ctx.environment, account: "SIMULADOR", externalId: a.externalId, raw: { ...s } };
+    // Devuelto: ya no hay dinero que confirme el pedido (como un pago reembolsado en una pasarela real).
+    const status = s.status === "REFUNDED" ? "CANCELLED" : s.status;
+    return { status, amount: s.paidAmount ?? s.amount, currency: "CLP", environment: ctx.environment, account: "SIMULADOR", externalId: a.externalId, raw: { ...s } };
+  },
+  async refund(a, _ctx, key) {
+    const s = a.externalId ? sim.get(a.externalId) : undefined;
+    if (!s) throw new ProviderTimeoutError("El simulador no tiene esa transacción en este proceso.");
+    if (s.timeouts) {
+      s.timeouts--;
+      throw new ProviderTimeoutError("El simulador no respondió.");
+    }
+    if (s.status === "REFUNDED" && s.refunds?.includes(key)) return { status: "REFUNDED", externalId: `ref_${key}`, raw: { ...s } };
+    if (s.status !== "PAID") throw new Error(`El simulador no puede reembolsar un pago ${s.status}.`);
+    Object.assign(s, { status: "REFUNDED", refunds: [...(s.refunds ?? []), key] });
+    return { status: "REFUNDED", externalId: `ref_${key}`, raw: { ...s } };
   },
   async parseReturn(req) {
     const token = new URL(req.url).searchParams.get("token") ?? "";
@@ -234,15 +193,11 @@ export const PROVIDERS: Record<ProviderId, PaymentProvider> = {
     refund: true,
     remoteCancel: false,
   }),
-  // Mercado Pago (Checkout Pro): preferencia → redirección → notificación firmada + consulta del pago real.
-  mercadopago: pending("mercadopago", "Mercado Pago", "Tarjetas y saldo Mercado Pago.", {
-    verify: true,
-    browserReturn: true,
-    webhook: true,
-    manualConfirmation: false,
-    refund: true,
-    remoteCancel: false,
-  }),
+  // Mercado Pago (Checkout Pro): preferencia → redirección → notificación firmada + consulta del pago real (./mercadopago.ts).
+  // Sin credenciales en el entorno queda "sin configurar": no se ofrece ni responde a retornos o notificaciones.
+  mercadopago: mercadoPago(() =>
+    env.MERCADOPAGO_ACCESS_TOKEN && env.MERCADOPAGO_WEBHOOK_SECRET ? { accessToken: env.MERCADOPAGO_ACCESS_TOKEN, webhookSecret: env.MERCADOPAGO_WEBHOOK_SECRET } : null,
+  ),
   // Khipu: cobro → redirección → notificación + consulta del pago.
   khipu: pending("khipu", "Khipu", "Transferencia simplificada desde el banco del cliente.", {
     verify: true,

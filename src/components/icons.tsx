@@ -23,6 +23,11 @@ const PATHS = {
   external: "M14 4h6v6M20 4l-9 9M18 14v6H4V6h6",
   chevron: "m9 6 6 6-6 6",
   arrow: "M5 12h14m-6-6 6 6-6 6",
+  store: "M4 4h16l1 5a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0l1-5ZM5 12v8h14v-8M10 20v-5h4v5",
+  file: "M14 3H6v18h12V7l-4-4Zm0 0v4h4M9 12h6M9 16h6",
+  trend: "m3 17 6-6 4 4 8-8m-6 0h6v6",
+  undo: "M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3",
+  download: "M12 4v11m-5-5 5 5 5-5M5 20h14",
   alert: "M12 3 2 21h20L12 3Zm0 7v5m0 3h.01",
   check: "m5 12 5 5L20 7",
 } as const;

@@ -4,16 +4,16 @@
  * llegan ahí con un resultado VERIFICADO. Los adaptadores (./providers.ts) solo hablan con su proveedor.
  * Estados, transiciones y flujos: docs/PAGOS.md.
  */
-import { and, asc, desc, eq, gt, ilike, inArray, isNull, lt, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, lt, ne, or, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction, type Tx } from "@/db";
 import * as s from "@/db/schema";
 import { env } from "@/lib/env";
 import { field, UserError } from "@/lib/form";
 import { audit } from "@/modules/audit";
-import { enqueueEmail } from "@/modules/mail";
+import { enqueueEmail, notifyStore } from "@/modules/mail";
 import { formatCLP } from "@/modules/chile";
-import { consumeOrderReservations, InsufficientStockError, releaseOrderReservations, reservationState, reserveStock } from "@/modules/inventory";
+import { applyMovement, consumeOrderReservations, InsufficientStockError, releaseOrderReservations, reservationState, reserveStock } from "@/modules/inventory";
 import {
   cancelExpiredWithPayment,
   createOrderFromCart,
@@ -23,7 +23,9 @@ import {
   type OrderInput,
   type PaymentStatus,
   recoverable,
+  reversePaidOrder as reverseOrderStatus,
   setOrderPaymentStatus,
+  SOLD_STATUSES,
 } from "@/modules/orders";
 import {
   type AttemptInfo,
@@ -33,10 +35,11 @@ import {
   PROVIDERS,
   type ProviderResult,
   ProviderTimeoutError,
+  type RefundResult,
   type TransferSettings,
 } from "./providers";
 
-export { ACCOUNT_TYPES, getProvider, PROVIDERS, type ProviderId, simulator, transferSettingsSchema } from "./providers";
+export { ACCOUNT_TYPES, getProvider, PROVIDERS, type ProviderId, ProviderTimeoutError, simulator, transferSettingsSchema } from "./providers";
 
 type Payment = typeof s.payments.$inferSelect;
 
@@ -54,7 +57,8 @@ export const ATTEMPT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   FAILED: ["PAID", "REVIEW"],
   CANCELLED: ["PAID", "REVIEW"],
   EXPIRED: ["PAID", "REVIEW"],
-  PAID: ["REFUNDED", "PARTIALLY_REFUNDED"],
+  // REVIEW: el pedido se anuló o devolvió después de pagar y el dinero está por devolver (reversePaidOrder).
+  PAID: ["REFUNDED", "PARTIALLY_REFUNDED", "REVIEW"],
   REVIEW: ["REFUNDED"],
   PARTIALLY_REFUNDED: ["REFUNDED"],
   REFUNDED: [],
@@ -217,6 +221,7 @@ export async function placeOrder(cartId: string, input: OrderInput, providerId: 
     within: async (tx, o, until) => {
       paymentId = (await openAttempt(tx, o, providerId, until)).id;
       await enqueueEmail(tx, "order.received", o); // el texto (con las instrucciones de pago) se arma al enviar
+      await notifyStore(tx, "store.order_new", o);
     },
   });
   await beginAttempt(paymentId);
@@ -351,6 +356,8 @@ export async function applyResult(tx: Transaction, paymentId: string, r: Verifie
       outcome = "review";
       if (!PAID_ORDER.includes(order.status)) await setOrderPaymentStatus(tx, order, "REVIEW");
     }
+    // Una pasarela confirmó sola (sin pasar por el panel): la tienda se entera para preparar el pedido.
+    if ((outcome === "confirmed" || outcome === "late_confirmed") && actor.source !== "admin") await notifyStore(tx, "store.order_paid", order);
   } else {
     if (p!.status === to) return keep("unchanged");
     if (MONEY.includes(p!.status) || !ATTEMPT_TRANSITIONS[p!.status].includes(to))
@@ -443,11 +450,16 @@ export async function processEvent(eventRowId: string) {
  * Retorno del navegador o webhook: se GUARDA primero (durable) y después se verifica y aplica. Un duplicado ya
  * resuelto no hace nada; uno que falló se vuelve a procesar (la deduplicación no bloquea el reintento).
  */
-export async function receiveProviderInput(providerId: ProviderId, source: "return" | "webhook", input: { eventId: string | null; externalId: string; payload: unknown }) {
+export async function receiveProviderInput(
+  providerId: ProviderId,
+  source: "return" | "webhook",
+  input: { eventId: string | null; externalId: string; reference?: string; payload: unknown },
+) {
+  // El intento se reconoce por lo que se guardó al iniciarlo o, si el proveedor solo la conoce, por su referencia interna.
   const [p] = await db
     .select({ id: s.payments.id, orderId: s.payments.orderId })
     .from(s.payments)
-    .where(and(eq(s.payments.provider, providerId), eq(s.payments.providerReference, input.externalId)));
+    .where(and(eq(s.payments.provider, providerId), input.reference ? eq(s.payments.reference, input.reference) : eq(s.payments.providerReference, input.externalId)));
   const values = { provider: providerId, source, eventId: input.eventId, paymentId: p?.id ?? null, reference: input.externalId, payload: redact(input.payload) ?? {} };
   let [ev] = await db.insert(s.paymentEvents).values(values).onConflictDoNothing({ target: [s.paymentEvents.provider, s.paymentEvents.eventId] }).returning();
   if (!ev) [ev] = await db.select().from(s.paymentEvents).where(and(eq(s.paymentEvents.provider, providerId), eq(s.paymentEvents.eventId, input.eventId!)));
@@ -464,7 +476,15 @@ export async function reconcilePayments({ olderThanSeconds = 60, limit = 50 } = 
   const events = await db
     .select({ id: s.paymentEvents.id })
     .from(s.paymentEvents)
-    .where(and(inArray(s.paymentEvents.status, ["RECEIVED", "FAILED"]), lt(s.paymentEvents.tries, MAX_TRIES), lt(s.paymentEvents.updatedAt, cutoff)))
+    // Solo entradas de proveedores: los comandos del panel (confirmar, reembolsar) se reintentan desde el panel.
+    .where(
+      and(
+        inArray(s.paymentEvents.status, ["RECEIVED", "FAILED"]),
+        ne(s.paymentEvents.source, "admin"),
+        lt(s.paymentEvents.tries, MAX_TRIES),
+        lt(s.paymentEvents.updatedAt, cutoff),
+      ),
+    )
     .orderBy(asc(s.paymentEvents.createdAt))
     .limit(limit);
   for (const e of events) await processEvent(e.id);
@@ -590,6 +610,133 @@ export async function resolveIncident(adminId: string, paymentId: string, note: 
     if (left!.n === 0 && order.paymentStatus === "REVIEW") await setOrderPaymentStatus(tx, order, "REFUNDED");
     await audit(tx, { userId: adminId, action: "payment.resolve", entityType: "payment", entityId: p!.id, before: { status: "REVIEW" }, after: { status: "REFUNDED", nota: note } });
     return row!;
+  });
+}
+
+export const refundSchema = z.object({ note: field.text(500), restock: field.bool() });
+
+export type RefundOutcome = { reference: string; provider: string; result: "REFUNDED" | "PENDING" | "MANUAL" | "FAILED"; message?: string };
+
+/**
+ * Anula un pedido pagado (pagado o en preparación: los productos no salieron y vuelven al stock con SALE_CANCELLED) o
+ * registra su devolución (despachado o entregado: vuelven con RETURN solo si `restock`, p. ej. llegaron en buen estado),
+ * y devuelve el dinero. Dos pasos, a propósito:
+ *   1. En UNA transacción: stock de vuelta, pedido CANCELLED o REFUNDED y cada pago PAID → REVIEW (reembolso pendiente).
+ *      Un doble envío no devuelve el stock dos veces (pedido bloqueado + índice único de la base).
+ *   2. Fuera de la transacción (la red nunca va con filas bloqueadas): refundPayment pide el reembolso a la API de cada
+ *      proveedor que lo permite, con clave de idempotencia. Si no responde, el pago sigue en REVIEW y se reintenta.
+ * Primero se anula y después se devuelve: nunca queda dinero devuelto sobre un pedido vigente. La transferencia no
+ * tiene reembolso por API: se devuelve desde el banco y se registra en el pago (resolveIncident).
+ */
+export async function refundOrder(adminId: string, orderId: string, input: { note: string; restock: boolean }) {
+  const { order, restocked, paymentIds } = await db.transaction(async (tx) => {
+    const order = await lockOrder(tx, orderId);
+    if (!(SOLD_STATUSES as readonly string[]).includes(order.status)) throw new UserError("Solo se anula o devuelve un pedido pagado.");
+    const paid = await tx
+      .select()
+      .from(s.payments)
+      .where(and(eq(s.payments.orderId, order.id), eq(s.payments.status, "PAID")))
+      .for("no key update");
+    if (!paid.length) throw new UserError("No se encontró el pago verificado de este pedido.");
+    const shipped = order.status === "SHIPPED" || order.status === "DELIVERED";
+    const restock = !shipped || input.restock;
+    if (restock) {
+      const sales = await tx
+        .select({ variantId: s.inventoryMovements.variantId, quantity: s.inventoryMovements.quantity })
+        .from(s.inventoryMovements)
+        .where(and(eq(s.inventoryMovements.type, "SALE"), eq(s.inventoryMovements.referenceType, "ORDER"), eq(s.inventoryMovements.referenceId, order.id)))
+        .orderBy(asc(s.inventoryMovements.variantId)); // mismo orden de bloqueo que las reservas: sin deadlocks
+      for (const m of sales)
+        await applyMovement(tx, {
+          variantId: m.variantId,
+          type: shipped ? "RETURN" : "SALE_CANCELLED",
+          quantity: -m.quantity,
+          reason: input.note,
+          referenceType: "ORDER",
+          referenceId: order.id,
+          userId: adminId,
+        });
+    }
+    const what = shipped ? "devuelto" : "anulado";
+    const row = await reverseOrderStatus(tx, order, { userId: adminId, note: `Pedido ${what} después del pago: ${input.note}` });
+    for (const p of paid)
+      await tx
+        .update(s.payments)
+        .set({ status: "REVIEW", incident: `Pedido ${what} después del pago: devolver ${formatCLP(p.receivedAmount ?? p.amount)} al cliente. Motivo: ${input.note}` })
+        .where(eq(s.payments.id, p.id));
+    await audit(tx, {
+      userId: adminId,
+      action: shipped ? "order.return" : "order.cancel_paid",
+      entityType: "order",
+      entityId: order.id,
+      before: { status: order.status, paymentStatus: order.paymentStatus },
+      after: { status: row.status, paymentStatus: row.paymentStatus, motivo: input.note, stockDevuelto: restock },
+    });
+    return { order: row, restocked: restock, paymentIds: paid.map((p) => p.id) };
+  });
+  const refunds: RefundOutcome[] = [];
+  for (const id of paymentIds) refunds.push(await refundPayment(adminId, id));
+  return { order, restocked, refunds };
+}
+
+/**
+ * Pide al proveedor el reembolso TOTAL de un pago con devolución pendiente (REVIEW: pedido anulado o devuelto, pago
+ * duplicado, tardío o con otro monto) y lo registra. La clave `refund-<referencia>` es la misma en cada reintento:
+ * un doble clic, dos administradores o un corte a mitad no devuelven dos veces. Cada pedido de reembolso queda en
+ * payment_events (origen "admin"). Sin reembolso por API (transferencia) devuelve MANUAL: se registra con resolveIncident.
+ */
+export async function refundPayment(adminId: string, paymentId: string): Promise<RefundOutcome> {
+  const [p] = await db.select().from(s.payments).where(eq(s.payments.id, paymentId));
+  if (!p) throw new UserError("El pago no existe.");
+  const out = (result: RefundOutcome["result"], message?: string): RefundOutcome => ({ reference: p.reference, provider: p.provider, result, message });
+  if (p.status === "REFUNDED") return out("REFUNDED");
+  if (p.status !== "REVIEW") throw new UserError("Solo se reembolsa un pago con devolución pendiente.");
+  const x = await providerSetup(db, p.provider);
+  if (!x?.provider.refund || !x.provider.capabilities.refund) return out("MANUAL");
+  if (!x.ctx) return out("FAILED", x.reason ?? "El medio de pago no está configurado.");
+  const key = `refund-${p.reference}`;
+  const amount = p.receivedAmount ?? p.amount;
+  // Registrado ANTES de llamar: si el proceso cae a mitad, queda constancia de que se pidió.
+  const [ev] = await db
+    .insert(s.paymentEvents)
+    .values({ provider: p.provider, source: "admin", paymentId: p.id, reference: key, payload: { accion: "reembolso", monto: amount }, tries: 1 })
+    .returning();
+  let r: RefundResult;
+  try {
+    r = await x.provider.refund(info(p), x.ctx, key);
+  } catch (e) {
+    const message =
+      e instanceof ProviderTimeoutError
+        ? `${x.provider.label} no respondió: no se sabe si devolvió el dinero. Reintenta; no se devuelve dos veces.`
+        : safeMessage(e);
+    await db.update(s.paymentEvents).set({ status: "FAILED", lastError: message }).where(eq(s.paymentEvents.id, ev!.id));
+    return out("FAILED", message);
+  }
+  return db.transaction(async (tx) => {
+    // Mismo orden de bloqueo que todo flujo de pago: pedido y después intento.
+    const order = await lockOrder(tx, p.orderId);
+    const [cur] = await tx.select().from(s.payments).where(eq(s.payments.id, p.id)).for("no key update");
+    await tx
+      .update(s.paymentEvents)
+      .set({ status: "PROCESSED", processedAt: new Date(), payload: redact({ accion: "reembolso", monto: amount, respuesta: r.raw }) ?? {} })
+      .where(eq(s.paymentEvents.id, ev!.id));
+    if (r.status === "PENDING") {
+      await tx
+        .update(s.payments)
+        .set({ incident: `${cur!.incident ?? ""} Reembolso en proceso en ${x.provider.label} (${r.externalId ?? "sin id"}): reintenta para confirmarlo.`.trim() })
+        .where(eq(s.payments.id, p.id));
+      await audit(tx, { userId: adminId, action: "payment.refund", entityType: "payment", entityId: p.id, before: { status: cur!.status }, after: { status: cur!.status, reembolso: "en proceso", id: r.externalId } });
+      return out("PENDING", "El proveedor aceptó el reembolso y lo está procesando.");
+    }
+    if (cur!.status !== "REVIEW") return out("REFUNDED"); // otro administrador ya lo cerró
+    await tx
+      .update(s.payments)
+      .set({ status: "REFUNDED", incident: `${cur!.incident ?? ""} Reembolsado por ${x.provider.label} (${r.externalId ?? "sin id"}).`.trim() })
+      .where(eq(s.payments.id, p.id));
+    const [left] = await tx.select({ n: sql<number>`count(*)::int` }).from(s.payments).where(and(eq(s.payments.orderId, order.id), eq(s.payments.status, "REVIEW")));
+    if (left!.n === 0 && order.paymentStatus === "REVIEW") await setOrderPaymentStatus(tx, order, "REFUNDED");
+    await audit(tx, { userId: adminId, action: "payment.refund", entityType: "payment", entityId: p.id, before: { status: "REVIEW" }, after: { status: "REFUNDED", monto: amount, id: r.externalId } });
+    return out("REFUNDED");
   });
 }
 

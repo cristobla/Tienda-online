@@ -8,6 +8,7 @@ import {
   confirmTransfer,
   incidentSchema,
   type Outcome,
+  refundPayment,
   resolveIncident,
   saveTransferSettings,
   setMethodEnabled,
@@ -44,6 +45,23 @@ export async function resolveIncidentAction(paymentId: string, prev: FormState, 
     await resolveIncident(user.id, z.uuid().parse(paymentId), input.data.note);
     revalidatePath("/admin", "layout");
     return done(prev, "Incidencia cerrada: el pago quedó como devuelto.");
+  } catch (e) {
+    revalidatePath("/admin", "layout");
+    return handleError(e, prev, fd);
+  }
+}
+
+/** Pedir (o reintentar) el reembolso por la API del proveedor de un pago con devolución pendiente. */
+export async function refundPaymentAction(paymentId: string, prev: FormState, fd: FormData): Promise<FormState> {
+  const user = await requirePermission("payments:manage");
+  try {
+    const r = await refundPayment(user.id, z.uuid().parse(paymentId));
+    revalidatePath("/admin", "layout");
+    if (r.result === "FAILED") return fail(prev, fd, r.message ?? "El reembolso no se completó.");
+    return done(
+      prev,
+      { REFUNDED: "Reembolso hecho: el pago quedó como devuelto.", PENDING: "El proveedor aceptó el reembolso y lo está procesando: reintenta en unos minutos para confirmarlo.", MANUAL: "Este medio no reembolsa por API: devuelve el dinero y regístralo abajo." }[r.result],
+    );
   } catch (e) {
     revalidatePath("/admin", "layout");
     return handleError(e, prev, fd);

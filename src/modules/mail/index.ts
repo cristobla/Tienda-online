@@ -1,5 +1,5 @@
 /**
- * Correos al cliente (cola durable). Encolar va en la transacción del hecho que se avisa; enviar lo hace el job
+ * Correos al cliente y avisos a la tienda (cola durable). Encolar va en la transacción del hecho que se avisa; enviar lo hace el job
  * (`npm run jobs`) con reintentos. Texto plano (sin HTML que sanitizar), armado al enviar con los datos vigentes.
  * Proveedor: Resend por HTTP si hay RESEND_API_KEY; en local/test, la consola. Otro proveedor = otra función `Deliver`.
  */
@@ -7,23 +7,33 @@ import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import { db, type Transaction, type Tx } from "@/db";
 import * as s from "@/db/schema";
 import { env } from "@/lib/env";
-import { SITE } from "@/lib/site";
 import { formatCLP, formatDateTime } from "@/modules/chile";
+import { getProvider } from "@/modules/payments/providers";
+import { readSettings } from "@/modules/settings";
 
-export type EmailKind = "order.received" | "order.paid" | "order.shipped";
+/** order.*: al cliente. store.*: al encargado de la tienda (correo de avisos en «Datos de la tienda»). */
+export type EmailKind = "order.received" | "order.paid" | "order.shipped" | "store.order_new" | "store.order_paid";
 
 export const EMAIL_LABELS: Record<string, string> = {
   "order.received": "Pedido recibido",
   "order.paid": "Pago confirmado",
   "order.shipped": "Pedido despachado",
+  "store.order_new": "Aviso a la tienda: pedido nuevo",
+  "store.order_paid": "Aviso a la tienda: pedido pagado",
 };
 
-/** Encola un aviso del pedido. Idempotente: el mismo aviso del mismo pedido existe una sola vez. */
-export async function enqueueEmail(tx: Transaction, kind: EmailKind, order: { id: string; email: string }) {
+/** Encola un aviso del pedido (al cliente, o a `to`). Idempotente: el mismo aviso del mismo pedido existe una sola vez. */
+export async function enqueueEmail(tx: Transaction, kind: EmailKind, order: { id: string; email: string }, to = order.email) {
   await tx
     .insert(s.emailOutbox)
-    .values({ key: `${kind}:${order.id}`, kind, orderId: order.id, to: order.email })
+    .values({ key: `${kind}:${order.id}`, kind, orderId: order.id, to })
     .onConflictDoNothing({ target: s.emailOutbox.key });
+}
+
+/** Aviso a la tienda, si hay un correo de avisos configurado. Va en la misma transacción que el hecho. */
+export async function notifyStore(tx: Transaction, kind: "store.order_new" | "store.order_paid", order: { id: string; email: string }) {
+  const { orderNotifyEmail } = await readSettings(tx);
+  if (orderNotifyEmail) await enqueueEmail(tx, kind, order, orderNotifyEmail);
 }
 
 type Message = { id: string; to: string; subject: string; text: string };
@@ -52,7 +62,35 @@ export async function renderEmail(tx: Tx, kind: string, orderId: string): Promis
   if (!o) return null;
   const link = new URL(`/pedido/${o.id}`, env.APP_URL).toString();
   const a = o.shippingAddress;
-  const footer = ["", `Revisa tu pedido en: ${link}`, "", "Este correo no es una boleta ni un comprobante de pago.", SITE.name].join("\n");
+  const st = await readSettings(tx);
+  const footer = ["", `Revisa tu pedido en: ${link}`, "", "Este correo no es una boleta ni un comprobante de pago.", st.name].join("\n");
+
+  if (kind === "store.order_new" || kind === "store.order_paid") {
+    const isNew = kind === "store.order_new";
+    // Un pedido que se canceló antes de enviar el aviso ya no necesita atención.
+    if (isNew ? o.status === "CANCELLED" : !PAID.includes(o.status)) return null;
+    const items = await tx.select().from(s.orderItems).where(eq(s.orderItems.orderId, o.id)).orderBy(asc(s.orderItems.productName));
+    const [p] = await tx.select({ provider: s.payments.provider }).from(s.payments).where(eq(s.payments.orderId, o.id)).orderBy(desc(s.payments.attempt)).limit(1);
+    const method = o.paymentMethod ?? p?.provider;
+    return {
+      subject: isNew ? `Nuevo pedido ${o.orderNumber} · ${formatCLP(o.total)}` : `Pedido ${o.orderNumber} pagado: listo para preparar`,
+      text: [
+        isNew ? `Llegó un pedido nuevo a ${st.name}.` : `Se confirmó el pago del pedido ${o.orderNumber}: ya puedes prepararlo.`,
+        "",
+        `Pedido: ${o.orderNumber} (${formatDateTime(o.createdAt)})`,
+        `Cliente: ${o.customerName} · ${o.email}${o.phone ? ` · ${o.phone}` : ""}`,
+        `Total: ${formatCLP(o.total)} (despacho ${o.shippingTotal ? formatCLP(o.shippingTotal) : "gratis"})`,
+        method ? `Medio de pago: ${getProvider(method)?.label ?? method}` : null,
+        "",
+        ...items.map((i) => `- ${i.quantity} × ${i.productName} (${i.variantName}, SKU ${i.sku}): ${formatCLP(i.lineTotal)}`),
+        a ? `\nDespacho a: ${a.street} ${a.number}${a.apartment ? `, ${a.apartment}` : ""}, ${a.commune}, ${a.region}${a.notes ? ` (${a.notes})` : ""}` : null,
+        "",
+        `Ver en el panel: ${new URL(`/admin/pedidos/${o.id}`, env.APP_URL).toString()}`,
+      ]
+        .filter((l) => typeof l === "string")
+        .join("\n"),
+    };
+  }
 
   if (kind === "order.received") {
     if (o.status !== "PENDING_PAYMENT") return null;

@@ -29,6 +29,12 @@ const schema = z
     MAIL_FROM: z.string().min(3).default("Tienda <pedidos@localhost>"),
     /** Clave de Resend (servidor). Sin ella: en local los correos se muestran en la consola; en producción esperan en cola. */
     RESEND_API_KEY: z.string().min(10).optional(),
+    /**
+     * Mercado Pago (Checkout Pro), solo en el servidor: access token y clave secreta de las notificaciones (Tus
+     * integraciones → Webhooks). Sin ambos, el método queda sin configurar. En producción no se aceptan tokens TEST-.
+     */
+    MERCADOPAGO_ACCESS_TOKEN: z.string().min(20).optional(),
+    MERCADOPAGO_WEBHOOK_SECRET: z.string().min(16).optional(),
   })
   .transform((e) => {
     const APP_ENV = e.APP_ENV ?? (e.NODE_ENV === "production" ? "production" : "local");

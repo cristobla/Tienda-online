@@ -20,7 +20,7 @@ modules/orders (markOrderPaid, cancelar)  ·  modules/inventory (consumir/reserv
 - **Los adaptadores solo hablan con su proveedor** y normalizan lo que responde. Nunca escriben el pedido, el pago ni el stock.
 - **No hay condiciones «si es Webpay»** en carrito, pedidos ni inventario. Agregar un proveedor es escribir su adaptador, su configuración, la verificación y las pruebas.
 
-### Contrato `PaymentProvider` (providers.ts)
+### Contrato `PaymentProvider` (contract.ts; registro en providers.ts)
 
 | Miembro | Para qué |
 |---|---|
@@ -30,9 +30,10 @@ modules/orders (markOrderPaid, cancelar)  ·  modules/inventory (consumir/reserv
 | `start(intento, ctx)` | Inicia el intento **ya persistido**. Devuelve una acción tipada: `instructions`, `redirect` (GET o POST con campos) o `wait`. Puede devolver `externalId` |
 | `verify?(intento, ctx)` | Consulta autorizada del estado real. Lanza `ProviderTimeoutError` si no hay respuesta confiable (resultado **incierto**) |
 | `parseReturn?(req)` | Del retorno del navegador saca **solo** un valor no adivinable que identifica el intento. No decide el resultado |
-| `parseWebhook?(req, ctx)` | Valida la autenticidad según el protocolo del proveedor y extrae el id del evento y del intento |
+| `parseWebhook?(req, ctx)` | Valida la autenticidad según el protocolo del proveedor y extrae el id del evento y del intento: `externalId` (lo guardado al iniciar) o `reference` (la referencia interna, si el proveedor solo la conoce así). Lanza `ProviderTimeoutError` si tuvo que consultar al proveedor y no respondió (la ruta responde 503 y el proveedor reenvía) |
+| `refund?(intento, ctx, clave)` | Reembolso **total** de lo cobrado en el intento, idempotente con la clave (`refund-<referencia>`). Devuelve `REFUNDED` o `PENDING` (en proceso); sin respuesta, `ProviderTimeoutError` |
 
-Reembolso y cancelación remota quedan como capacidades. La transferencia manual no finge tener una API bancaria.
+La cancelación remota queda como capacidad. La transferencia manual no finge tener una API bancaria: se devuelve desde el banco y se registra en el pago.
 
 ### Registro: implementado / configurado / habilitado
 
@@ -147,6 +148,8 @@ Transiciones del intento (`ATTEMPT_TRANSITIONS`):
 | `PAYMENT_SIMULATION` | `on` para probar | `off` | `off` (aunque esté `on`, no tiene efecto) |
 | `RESERVATION_TTL_MINUTES` | 30 | 30 | 30 (por omisión) |
 | `TRANSFER_RESERVATION_MINUTES` | opcional | opcional | opcional (5 a 4320; por omisión, el plazo general) |
+| `MERCADOPAGO_ACCESS_TOKEN` | opcional (sandbox) | credencial de prueba | credencial de producción (`APP_USR-…`; se rechaza `TEST-…`) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | con el token | clave del webhook de la app de prueba | clave del webhook de producción |
 
 - La cuenta para transferencias se configura en `/admin/pagos/configuracion` y es **no secreta**.
 - En local y test, mientras no se complete, se muestran **datos de ejemplo rotulados**. En integración y producción el método no se ofrece hasta tener una cuenta válida.
@@ -161,12 +164,17 @@ Transiciones del intento (`ATTEMPT_TRANSITIONS`):
 - **Vencimiento:** reserva vencida sin job; pedido vencido con y sin stock; confirmación frente a vencimiento concurrente; un fallo con otro intento vigente.
 - **Simulador:** el retorno no aprueba sin consulta; token falso; webhook duplicado y fuera de orden; timeout → incierto → reconciliado; falla entre la verificación y la escritura; reinicio antes de procesar; dos intentos aprobados; secretos redactados.
 
-Las pruebas de retorno y webhook son del **contrato** y del **simulador**: no prueban Webpay ni Mercado Pago reales.
+`tests/mercadopago.test.ts` (13) prueba el adaptador de Mercado Pago contra la API simulada con `fetch`: preferencia, reintento, URL ajena, consulta y estados, ambientes, timeouts, retorno, firma `x-signature`, notificaciones y reembolsos. Las respuestas siguen la **forma documentada** por Mercado Pago; **no son grabaciones del sandbox**.
+
+`tests/refunds.test.ts` (7) cubre `refundOrder` contra la base real: anular antes del despacho (stock de vuelta y reembolso por API con el simulado), devolución después del despacho con y sin reingreso, transferencia (reembolso manual), proveedor que no responde y reintento sin doble reembolso, doble envío, permisos y Mercado Pago sin credenciales (404).
+
+Las pruebas de retorno y webhook del servicio son del **contrato** y del **simulador**: ningún flujo se probó todavía contra el sandbox real de Mercado Pago ni de Webpay.
 
 ## 8. Límites actuales
 
-- No hay pasarelas online. Tampoco reembolsos automáticos, pagos parciales o combinados, subida de comprobantes, DTE ni conciliación contable.
-- La revisión o el reembolso es manual: se devuelve el dinero fuera del sistema y se cierra la incidencia con una nota.
+- Mercado Pago está implementado pero **sin probar contra su sandbox real** (ver §10). Webpay y Khipu siguen pendientes. No hay pagos parciales ni combinados, reembolsos parciales, subida de comprobantes, DTE ni conciliación contable.
+- Una transferencia se reembolsa a mano (desde el banco) y se registra en el pago. Un contracargo o reembolso hecho desde el panel de Mercado Pago sobre un pedido ya confirmado no se detecta solo: se ve en la consulta del pago y se registra a mano.
+- Un reembolso «en proceso» o sin respuesta se confirma reintentando desde el pago (la misma clave no devuelve dos veces); la reconciliación automática no reintenta reembolsos.
 - El simulador guarda su estado en la memoria del servidor. `npm run jobs` (otro proceso) o un reinicio no lo ven, y sus consultas quedan como inciertas.
 - El temporizador del servidor y el límite de webhooks por IP viven en memoria de un proceso (marcados con `ponytail:`).
 - Un intento abierto con más de 3 días sin resolver ya no se consulta solo: aparece en el filtro «Por verificar» del panel.
@@ -194,3 +202,62 @@ No basta con pegar una API key. Pasos:
 5. **Validar** concurrencia, recuperación (reinicio a mitad del flujo) y que un pendiente o deshabilitado siga respondiendo 404.
 6. **Permitir su dominio en la CSP** de `next.config.ts` (`form-action`, y `connect-src`/`script-src` si usa un script propio), porque hoy solo se permiten formularios hacia la propia tienda.
 7. **Recién entonces** marcar `implemented: true`, cargar las credenciales de producción en el servidor y habilitar el método desde el panel.
+
+## 10. Mercado Pago (Checkout Pro) — `src/modules/payments/mercadopago.ts`
+
+**Flujo.**
+1. `start` crea una preferencia: un ítem por el total en CLP, `external_reference` igual a la referencia del intento, `binary_mode` y sin efectivo ni cupones (no quedan pagos pendientes por días), con vencimiento igual al de la reserva. Redirige con un enlace GET al checkout; la URL se valida como https de `mercadopago.cl` o `.com`.
+2. El retorno trae `preference_id`: es el valor no adivinable que se guardó como `provider_reference`. `external_reference` sería adivinable y revelaría el enlace del pedido.
+3. La notificación se valida con `x-signature`, se consulta el pago para saber su `external_reference` y se guarda como evento.
+4. En todos los casos `verify` busca en la API los pagos de esa `external_reference`, y solo eso decide. Se valida monto, moneda (CLP), cuenta receptora (el id de usuario del token) y modo real o de prueba: un pago real en un ambiente de pruebas queda como «otro ambiente» y no confirma nada.
+
+**Reembolso.** `refund` busca el pago aprobado y pide `POST /v1/payments/{id}/refunds` con cuerpo vacío (total) y `X-Idempotency-Key`. Si el pago ya estaba devuelto, no lo pide de nuevo.
+
+**Probar en sandbox (local con una URL HTTPS pública).**
+1. En [Tus integraciones](https://www.mercadopago.cl/developers/panel/app), crea una aplicación de Checkout Pro y usuarios de prueba (vendedor y comprador). Copia el **Access Token de prueba** del vendedor.
+2. Expón la tienda con HTTPS. Elige uno de estos comandos y copia la URL `https://…` que imprime:
+
+   ```bash
+   ngrok http 3000
+   ```
+
+   ```bash
+   npx localtunnel --port 3000
+   ```
+3. En `.env` (local), con esa URL:
+
+   ```bash
+   APP_ENV=integration
+   APP_URL=https://xxxx.ngrok-free.app
+   MERCADOPAGO_ACCESS_TOKEN=TEST-…
+   MERCADOPAGO_WEBHOOK_SECRET=…
+   ```
+
+   Con `APP_ENV=integration` el pago simulado y los datos bancarios de ejemplo dejan de existir. Para volver a usarlos, deja `APP_ENV=local`: Mercado Pago funciona igual, pero el retorno automático exige https.
+4. En la aplicación, sección **Webhooks**, configura la URL `https://xxxx.ngrok-free.app/api/payments/mercadopago/webhook` con el evento **Pagos** y copia la **clave secreta** a `MERCADOPAGO_WEBHOOK_SECRET`. Reinicia `npm run dev`.
+5. Compra en la tienda eligiendo Mercado Pago y paga con el comprador de prueba y las [tarjetas de prueba](https://www.mercadopago.cl/developers/es/docs/checkout-pro/additional-content/your-integrations/test/cards). El nombre del titular decide el resultado (`APRO` aprobado, `OTHE` rechazado).
+6. Verifica en `/admin/pagos`:
+   - el evento «Notificación del proveedor» queda PROCESSED;
+   - el pedido pasa a pagado con el stock descontado;
+   - un rechazo deja el intento rechazado y permite reintentar.
+
+   Sin webhook, `npm run jobs` (o el temporizador del servidor) también consulta los intentos abiertos.
+7. Prueba el reembolso: en `/admin/pedidos/<id>`, «Anular pedido pagado». El pago debe quedar «Reembolsado» y el reembolso aparecer en el panel de Mercado Pago.
+8. Prueba también un retorno repetido (recarga), una notificación con firma alterada (400), la caída de la red al iniciar (el intento falla y el cliente reintenta) y el reinicio a mitad de flujo. Guarda respuestas reales del sandbox en `tests/` como pruebas grabadas.
+9. **Recién después** carga las credenciales de producción en el servidor (`APP_ENV=production`, token `APP_USR-…`, webhook de la app de producción) y revisa el método en `/admin/pagos/configuracion`.
+
+## 11. Anular un pedido pagado y reembolsar (`refundOrder`, `refundPayment`)
+
+Desde `/admin/pedidos/<id>` (permiso `payments:manage`: Administrador y Super administrador):
+
+1. **En una transacción:**
+   - El stock vuelve: `SALE_CANCELLED` si el pedido no se había despachado; `RETURN` si se despachó y el admin marca que los productos volvieron en buen estado. El índice `movements_one_reversal_per_order_line` impide devolverlo dos veces.
+   - El pedido pasa a **CANCELLED** (pagado o en preparación) o **REFUNDED** («Devuelto»: despachado o entregado), con `payment_status = REVIEW` (dinero por devolver).
+   - Cada pago PAID pasa a REVIEW con el motivo. Todo queda auditado (`order.cancel_paid` / `order.return`).
+2. **Fuera de la transacción:** `refundPayment` pide el reembolso a cada proveedor con `refund`.
+   - Antes de llamar, registra un evento `admin` en `payment_events`.
+   - Si se reembolsa, el pago pasa a REFUNDED y, sin otros pagos en revisión, el pedido queda con el dinero REFUNDED (`payment.refund`).
+   - Sin respuesta o con un error, el pago sigue en REVIEW y el evento queda FAILED. Se reintenta con «Reembolsar» en el pago, con la misma clave.
+3. **Medios sin reembolso por API** (transferencia): se devuelve el dinero desde el banco y se registra con «Registrar devolución hecha» (`resolveIncident`).
+
+Primero se anula y después se devuelve: nunca queda dinero devuelto sobre un pedido vigente. La llamada al proveedor no va dentro de la transacción, para no dejar el stock bloqueado esperando la red ni un estado incierto a medio escribir.
