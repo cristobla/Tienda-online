@@ -1,4 +1,4 @@
-import { asc } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/db";
 import { categories } from "@/db/schema";
@@ -33,7 +33,21 @@ export const loadCategories = cache(async () => {
     }
   };
   roots.forEach(walk);
-  return { roots, bySlug, byId, parentOf, visibleIds: [...byId.keys()] };
+
+  // Navegación (menú, pie, pasillos de la portada): solo categorías con algún producto publicado en su rama.
+  // Las vacías siguen existiendo (su página, el carrito y la validación no cambian); solo no se ofrecen.
+  const used = new Set(
+    (await db.execute<{ id: string }>(sql`SELECT DISTINCT "category_id" AS id FROM "products" WHERE "active" AND "category_id" IS NOT NULL`)).rows.map((r) => r.id),
+  );
+  const prune = (n: CategoryNode): CategoryNode | null => {
+    const children = n.children.map(prune).filter((c): c is CategoryNode => c !== null);
+    return used.has(n.id) || children.length ? { ...n, children } : null;
+  };
+  const nav = roots.map(prune).filter((c): c is CategoryNode => c !== null);
+  const navIds = new Set<string>();
+  const mark = (n: CategoryNode) => (navIds.add(n.id), n.children.forEach(mark));
+  nav.forEach(mark);
+  return { roots, nav, navIds, bySlug, byId, parentOf, visibleIds: [...byId.keys()] };
 });
 
 /** Ids de la categoría y todas sus descendientes visibles (un producto de una subcategoría aparece en la madre). */

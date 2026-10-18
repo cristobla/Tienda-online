@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CatalogTitle, CatalogView, type SP, SubcategoryLinks } from "@/components/store/catalog-view";
 import { redirectFromOldSlug } from "@/modules/catalog/redirects";
-import { getCategoryBySlug, subtreeIds } from "@/modules/categories/queries";
+import { getCategoryBySlug, loadCategories, subtreeIds } from "@/modules/categories/queries";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SP> };
 
@@ -21,6 +21,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const found = await getCategoryBySlug(slug);
   if (!found) return redirectFromOldSlug("category", "/categoria/", slug, await searchParams);
   const { category, path } = found;
+  const { navIds } = await loadCategories();
 
   return (
     <CatalogView
@@ -37,7 +38,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           title={category.name}
           description={category.description}
         >
-          <SubcategoryLinks items={category.children} />
+          <SubcategoryLinks items={category.children.filter((c) => navIds.has(c.id))} />
         </CatalogTitle>
       }
     />
