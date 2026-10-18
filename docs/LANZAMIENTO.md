@@ -46,6 +46,8 @@ Con la dirección cargada, la tienda muestra sola: la franja «Visítanos» en l
 
 ## 4. Presencia: redes sociales y WhatsApp
 
+Kit listo para copiar en `docs/borradores/redes.md`: biografías (Instagram, TikTok, Facebook, Google), calendario de 4 semanas, 15 publicaciones, 5 guiones de reels y las respuestas rápidas de WhatsApp Business. Completar los marcadores [NOMBRE TIENDA], [COMUNA], etc. antes de publicar. Textos de ayuda, despacho y cambios: `docs/borradores/` (se pegan en `/admin/paginas`).
+
 1. [ ] **Instagram** profesional (cuenta de empresa), mismo nombre de usuario en todas las redes si está libre. Biografía: qué vendes, «Despacho a todo Chile y retiro en [comuna]», enlace a la tienda.
 2. [ ] **Facebook**: página del negocio con la misma dirección y horario. Conectarla con Instagram en el **Meta Business Suite**.
 3. [ ] **Catálogo de Meta** (Commerce Manager): fuente de datos = la misma URL del feed. Permite etiquetar productos en publicaciones de Instagram y Facebook.

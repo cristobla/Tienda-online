@@ -120,3 +120,7 @@ Revisión de frontend, backend, base de datos y operación, comparada con lo que
 5. **Contenido y conversión:** fotos y catálogo real, cupones y envío gratis sobre un monto, packs, «volver a comprar», carrito abandonado, reseñas y avisos de stock.
 6. **Medición:** analítica, Search Console y Merchant Center, con consentimiento.
 7. **Escala:** caché del catálogo, almacenamiento S3 para fotos, CSP con nonce y pruebas E2E.
+
+## Segunda revisión (Codex, 2026-10-18)
+
+Auditoría independiente de solo lectura hecha por Codex (OpenAI) y verificada hallazgo por hallazgo por Claude. Corregidos: reconciliación que podía consultar siempre los mismos intentos, reembolsos o contracargos externos ignorados en pagos confirmados, intentos inciertos que no volvían a pendiente, cupón que dejaba el total en $0, renombrar cupones con usos, y el límite de pedidos pendientes con envíos simultáneos. Queda como decisión documentada: un pedido vencido que se recupera con un pago tardío no vuelve a validar su cupón.

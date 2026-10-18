@@ -14,6 +14,7 @@ import {
   applyResult,
   checkoutMethods,
   confirmTransfer,
+  MAX_PENDING_PER_EMAIL,
   customerPayments,
   methodStates,
   placeOrder,
@@ -535,5 +536,51 @@ describe("pasarela simulada (contrato de retorno, webhook y reconciliación)", (
     await webhook({ id: "ev-s", token });
     const [ev] = await db.select().from(s.paymentEvents);
     expect(ev!.payload).toEqual({ id: "ev-s", token: "[redactado]" });
+  });
+});
+
+describe("correcciones de la auditoría de Codex", () => {
+  it("un pago confirmado que el proveedor informa devuelto o contracargado queda en revisión (no se ignora)", async () => {
+    const v = await makeVariant(5);
+    const o = await order([[v.id, 1]]);
+    const [p] = await attempts(o.id);
+    const actor = { userId: null, source: "webhook" };
+    await db.transaction((tx) => applyResult(tx, p!.id, { status: "PAID", amount: p!.amount, raw: {} }, actor));
+    const r = await db.transaction((tx) => applyResult(tx, p!.id, { status: "REVERSED", raw: {} }, actor));
+    expect(r.outcome).toBe("review");
+    expect((await attempts(o.id))[0]).toMatchObject({ status: "REVIEW", incident: expect.stringContaining("contracargo") });
+    expect(await orderRow(o.id)).toMatchObject({ status: "PAID", paymentStatus: "REVIEW" });
+    // Sobre un intento que nunca se pagó es solo un cierre.
+    const o2 = await order([[v.id, 1]]);
+    const [p2] = await attempts(o2.id);
+    await db.transaction((tx) => applyResult(tx, p2!.id, { status: "REVERSED", raw: {} }, actor));
+    expect((await attempts(o2.id))[0]!.status).toBe("CANCELLED");
+  });
+
+  it("un intento incierto por timeout vuelve a pendiente si el proveedor dice que aún no se paga", async () => {
+    const v = await makeVariant(5);
+    const o = await order([[v.id, 1]]);
+    const [p] = await attempts(o.id);
+    const actor = { userId: null, source: "reconcile" };
+    await db.transaction((tx) => applyResult(tx, p!.id, { status: "UNCERTAIN", raw: {} }, actor));
+    await db.transaction((tx) => applyResult(tx, p!.id, { status: "PENDING", raw: {} }, actor));
+    expect((await attempts(o.id))[0]!.status).toBe("PENDING");
+  });
+
+  it("la reconciliación rota: un intento consultado sin cambios pasa al final de la fila", async () => {
+    const v = await makeVariant(5);
+    const { o } = await simOrder([[v.id, 1]]);
+    const before = (await attempts(o.id))[0]!.updatedAt;
+    await reconcileNow();
+    expect((await attempts(o.id))[0]!.updatedAt.getTime()).toBeGreaterThan(before.getTime());
+  });
+
+  it("varios checkouts simultáneos del mismo email no superan el máximo de pedidos pendientes", async () => {
+    // Productos distintos: si compartieran uno, la reserva de stock ya los pondría en fila y no habría carrera.
+    const vs = await Promise.all(Array.from({ length: 6 }, () => makeVariant(5)));
+    const carts = await Promise.all(vs.map((v) => cartWith([[v.id, 1]])));
+    const total = (await getCart(carts[0]!)).subtotal;
+    const results = await Promise.allSettled(carts.map((c) => placeOrder(c, { ...contact(), expectedTotal: total }, "transferencia")));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(MAX_PENDING_PER_EMAIL);
   });
 });

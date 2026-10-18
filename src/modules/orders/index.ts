@@ -160,6 +160,8 @@ export async function createOrderFromCart(
     const discountTotal = coupon?.discount ?? 0;
     const shippingTotal = ship ? shippingCost(ship.cost, subtotal - discountTotal, settings) : 0;
     const total = subtotal - discountTotal + shippingTotal;
+    // Todo pedido se paga por un medio de pago (no hay flujo de pedido gratis): un total $0 no se crea.
+    if (total <= 0) throw new UserError("Con este cupón el total queda en $0 y no se puede pagar así. Agrega otro producto o escríbenos.", "couponCode");
     if (total !== input.expectedTotal) throw new UserError("El total cambió (precios, despacho o descuento). Revisa el resumen antes de confirmar.");
 
     const [order] = await tx

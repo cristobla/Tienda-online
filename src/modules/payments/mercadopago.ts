@@ -44,9 +44,9 @@ const STATUS: Record<string, ProviderResult["status"]> = {
   in_mediation: "PENDING",
   rejected: "FAILED",
   cancelled: "CANCELLED",
-  // Devuelto o contracargado: no hay dinero que confirme el pedido (un pago ya confirmado no retrocede: ver applyResult).
-  refunded: "CANCELLED",
-  charged_back: "CANCELLED",
+  // Devuelto o contracargado: si el pedido ya estaba pagado queda en revisión (ver applyResult).
+  refunded: "REVERSED",
+  charged_back: "REVERSED",
 };
 
 /** La cuenta receptora (id de usuario) es el último tramo del access token: "APP_USR-…-123456789". */

@@ -23,7 +23,7 @@ export default async function CouponPage({ params }: { params: Promise<{ id: str
           <AdminForm action={saveCouponAction.bind(null, r.c.id)} className="space-y-4">
             <CouponFields c={r.c} startsOn={r.startsOn} endsOn={r.endsOn} />
             {r.uses > 0 && (
-              <p className="text-xs text-muted">Ya tiene usos: si cambias el código, los pedidos hechos con el anterior dejan de contar para este cupón.</p>
+              <p className="text-xs text-muted">Ya tiene usos: su código no se puede cambiar (pausa este y crea uno nuevo si necesitas otro código).</p>
             )}
             <Submit>Guardar</Submit>
           </AdminForm>

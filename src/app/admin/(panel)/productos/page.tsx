@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { z } from "zod";
+import { AdminForm, Select, Submit } from "@/components/admin/form";
 import { Badge, ButtonLink, PageHeader, Pagination, Table } from "@/components/admin/ui";
 import { hrefWith, type SP } from "@/components/store/catalog-view";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { listAllBrands } from "@/modules/brands/admin";
-import { ADMIN_PAGE_SIZE, ADMIN_SORTS, listAdminProducts } from "@/modules/catalog/admin";
+import { ADMIN_PAGE_SIZE, ADMIN_SORTS, BULK_ACTIONS, listAdminProducts } from "@/modules/catalog/admin";
 import { listCategoryTree } from "@/modules/categories/admin";
 import { formatCLP } from "@/modules/chile";
+import { bulkProductsAction } from "./actions";
+import { SelectAll } from "./select-all";
 
 export const metadata: Metadata = { title: "Productos" };
 
@@ -99,10 +102,46 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         <button className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
       </form>
 
+      {canWrite && items.length > 0 && (
+        // Las casillas de la tabla pertenecen a este formulario por su atributo form="masivo".
+        <AdminForm action={bulkProductsAction} id="masivo" className="mb-4 space-y-3 rounded-md border border-line bg-paper p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <Select
+              name="action"
+              label="Con los marcados"
+              empty="Elige una acción…"
+              options={Object.entries(BULK_ACTIONS).map(([value, label]) => ({ value, label }))}
+              className="min-w-56"
+            />
+            <Select
+              name="categoryId"
+              label="Categoría (para «Asignar categoría»)"
+              empty="—"
+              options={categories.map((c) => ({ value: c.id, label: "  ".repeat(c.depth) + c.name }))}
+              className="min-w-56"
+            />
+            <Select
+              name="brandId"
+              label="Marca (para «Asignar marca»)"
+              empty="—"
+              options={brands.map(({ brand }) => ({ value: brand.id, label: brand.name }))}
+              className="min-w-48"
+            />
+            <Submit>Aplicar</Submit>
+          </div>
+          <p className="text-xs text-muted">Marca productos en la tabla (la casilla del encabezado marca toda la página). Publicar exige categoría.</p>
+        </AdminForm>
+      )}
+
       <p className="mb-2 text-sm text-muted">{total === 1 ? "1 producto" : `${total} productos`}</p>
-      <Table head={["", "Producto", "SKU", "Categoría", "Variantes", "Precio", "Disponible", "Estado"]} empty="No hay productos con esos filtros.">
+      <Table head={[...(canWrite ? [<SelectAll key="todos" />] : []), "", "Producto", "SKU", "Categoría", "Variantes", "Precio", "Disponible", "Estado"]} empty="No hay productos con esos filtros.">
         {items.map((r) => (
           <tr key={r.id}>
+            {canWrite && (
+              <td className="w-8">
+                <input type="checkbox" name="ids" value={r.id} form="masivo" aria-label={`Marcar ${r.name}`} className="size-4 accent-leaf" />
+              </td>
+            )}
             <td className="w-12">
               <div className="relative size-10 overflow-hidden rounded-sm bg-mist">
                 {r.imageUrl && <Image src={r.imageUrl} alt="" fill sizes="40px" className="object-contain" />}

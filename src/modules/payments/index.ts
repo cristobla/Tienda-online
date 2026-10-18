@@ -53,7 +53,8 @@ type Payment = typeof s.payments.$inferSelect;
 export const ATTEMPT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   PENDING: ["AUTHORIZED", "PAID", "FAILED", "CANCELLED", "EXPIRED", "UNCERTAIN", "REVIEW"],
   AUTHORIZED: ["PAID", "FAILED", "CANCELLED", "EXPIRED", "UNCERTAIN", "REVIEW"],
-  UNCERTAIN: ["AUTHORIZED", "PAID", "FAILED", "CANCELLED", "EXPIRED", "REVIEW"],
+  // PENDING: la consulta que falló por timeout se recupera y el proveedor dice que aún no se paga (el cliente puede seguir).
+  UNCERTAIN: ["PENDING", "AUTHORIZED", "PAID", "FAILED", "CANCELLED", "EXPIRED", "REVIEW"],
   FAILED: ["PAID", "REVIEW"],
   CANCELLED: ["PAID", "REVIEW"],
   EXPIRED: ["PAID", "REVIEW"],
@@ -210,7 +211,7 @@ export const MAX_PENDING_PER_EMAIL = 3;
 export async function placeOrder(cartId: string, input: OrderInput, providerId: string, userId: string | null = null) {
   const x = await providerSetup(db, providerId);
   if (!x?.ctx || x.reason) throw new UserError("Elige un medio de pago disponible.");
-  // shortcut: sin bloqueo entre envíos simultáneos (dos pueden pasar a la vez); el límite por conexión acota el resto.
+  // Rechazo rápido sin bloqueo; el control exacto (con envíos simultáneos) va dentro de la transacción, abajo.
   const pending = await db.$count(s.orders, and(eq(s.orders.email, input.email), eq(s.orders.status, "PENDING_PAYMENT")));
   if (pending >= MAX_PENDING_PER_EMAIL)
     throw new UserError(`Ya tienes ${pending} pedidos esperando pago con este email. Págalos o espera a que venzan antes de crear otro.`);
@@ -218,6 +219,11 @@ export async function placeOrder(cartId: string, input: OrderInput, providerId: 
   const order = await createOrderFromCart(cartId, input, userId, {
     reservationMinutes: x.provider.reservationMinutes(),
     within: async (tx, o, until) => {
+      // Un pedido a la vez por email: con el bloqueo, el conteo ve los pedidos que otros envíos acaban de crear.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`pendientes:${input.email}`}))`);
+      const now = await tx.$count(s.orders, and(eq(s.orders.email, input.email), eq(s.orders.status, "PENDING_PAYMENT")));
+      if (now > MAX_PENDING_PER_EMAIL)
+        throw new UserError(`Ya tienes ${MAX_PENDING_PER_EMAIL} pedidos esperando pago con este email. Págalos o espera a que venzan antes de crear otro.`);
       paymentId = (await openAttempt(tx, o, providerId, until)).id;
       await enqueueEmail(tx, "order.received", o); // el texto (con las instrucciones de pago) se arma al enviar
       await notifyStore(tx, "store.order_new", o);
@@ -301,7 +307,9 @@ export async function applyResult(tx: Transaction, paymentId: string, r: Verifie
   if ("account" in r && r.account && r.account !== p!.account) return keep("ignored", "El resultado es de otra cuenta o comercio.");
   if ("currency" in r && r.currency && r.currency !== p!.currency) return keep("ignored", "El resultado es en otra moneda.");
 
-  let to: PaymentStatus = r.status;
+  // Dinero devuelto o desconocido en el proveedor: sobre un pago confirmado queda en revisión; si no, es un cierre más.
+  const reversed = r.status === "REVERSED";
+  let to: PaymentStatus = r.status === "REVERSED" ? (p!.status === "PAID" ? "REVIEW" : "CANCELLED") : r.status;
   let outcome: Outcome = "updated";
   const patch: Partial<typeof s.payments.$inferInsert> = {};
 
@@ -357,6 +365,10 @@ export async function applyResult(tx: Transaction, paymentId: string, r: Verifie
     }
     // Una pasarela confirmó sola (sin pasar por el panel): la tienda se entera para preparar el pedido.
     if ((outcome === "confirmed" || outcome === "late_confirmed") && actor.source !== "admin") await notifyStore(tx, "store.order_paid", order);
+  } else if (reversed && p!.status === "PAID") {
+    outcome = "review";
+    patch.incident = "El proveedor informa que este pago fue devuelto o desconocido por el cliente (contracargo): revisar antes de preparar o despachar el pedido.";
+    await setOrderPaymentStatus(tx, order, "REVIEW");
   } else {
     if (p!.status === to) return keep("unchanged");
     if (MONEY.includes(p!.status) || !ATTEMPT_TRANSITIONS[p!.status].includes(to))
@@ -508,7 +520,11 @@ export async function reconcilePayments({ olderThanSeconds = 60, limit = 50 } = 
     )
     .orderBy(asc(s.payments.updatedAt))
     .limit(limit);
-  for (const p of attempts) await verifyAndApply(p, "reconcile", null);
+  for (const p of attempts) {
+    await verifyAndApply(p, "reconcile", null);
+    // Consultado aunque no haya cambiado: pasa al final de la fila (si no, 50 intentos sin cambios taparían al resto).
+    await db.update(s.payments).set({ updatedAt: new Date() }).where(eq(s.payments.id, p.id));
+  }
   return { events: events.length, attempts: attempts.length };
 }
 
