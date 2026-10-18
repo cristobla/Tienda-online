@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { Icon } from "@/components/icons";
 import { ATTR_PREFIX, parseCatalogParams, SORTS, type Sort } from "@/modules/catalog/params";
 import { getFacets, listProducts, resolveFilters, type Scope } from "@/modules/catalog/queries";
@@ -238,60 +239,67 @@ export async function CatalogView({
             </label>
           </div>
 
-          {chips.length > 0 && (
-            <ul aria-label="Filtros activos" className="mb-6 flex flex-wrap items-center gap-2">
-              {chips.map((c) => (
-                <li key={c.href + c.label}>
-                  <Link
-                    href={c.href}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-leaf-soft px-3 py-1.5 text-sm font-semibold text-leaf-dark transition-colors hover:bg-ink hover:text-white"
-                  >
-                    {c.label}
-                    <Icon name="close" className="size-3.5" />
-                    <span className="sr-only">(quitar)</span>
-                  </Link>
-                </li>
-              ))}
-              <li>
-                <Link href={clearHref} className="ml-1 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink">
-                  Limpiar todo
-                </Link>
-              </li>
-            </ul>
-          )}
+          {/* Nivel 2: con otros filtros, orden o página solo se reemplazan los resultados (la grilla anterior se apaga y
+              las tarjetas nuevas entran escalonadas); título, filtros y encabezado se quedan. Ver globals.css. */}
+          <ViewTransition key={hrefWith(path, searchParams, {})} enter="grilla-entra" exit="grilla-sale" update="none" default="none">
+            <div>
+              {chips.length > 0 && (
+                <ul aria-label="Filtros activos" className="mb-6 flex flex-wrap items-center gap-2">
+                  {chips.map((c) => (
+                    <li key={c.href + c.label}>
+                      <Link
+                        href={c.href}
+                        scroll={false}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-leaf-soft px-3 py-1.5 text-sm font-semibold text-leaf-dark transition-colors hover:bg-ink hover:text-white"
+                      >
+                        {c.label}
+                        <Icon name="close" className="size-3.5" />
+                        <span className="sr-only">(quitar)</span>
+                      </Link>
+                    </li>
+                  ))}
+                  <li>
+                    <Link href={clearHref} scroll={false} className="ml-1 text-sm font-medium text-muted underline underline-offset-2 hover:text-ink">
+                      Limpiar todo
+                    </Link>
+                  </li>
+                </ul>
+              )}
 
-          {result.items.length ? <ProductGrid products={result.items} /> : <EmptyResults q={params.q} />}
+              {result.items.length ? <ProductGrid products={result.items} /> : <EmptyResults q={params.q} />}
 
-          {pages > 1 && (
-            <nav aria-label="Páginas" className="mt-12 flex flex-wrap items-center justify-center gap-2 text-sm">
-              {result.page > 1 && (
-                <Link href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" className="btn-line px-4 py-2">
-                  Anterior
-                </Link>
+              {pages > 1 && (
+                <nav aria-label="Páginas" className="mt-12 flex flex-wrap items-center justify-center gap-2 text-sm">
+                  {result.page > 1 && (
+                    <Link href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" className="btn-line px-4 py-2">
+                      Anterior
+                    </Link>
+                  )}
+                  {pageList(result.page, pages).map((n, i) =>
+                    n === null ? (
+                      <span key={`gap${i}`} className="px-1 text-muted">
+                        …
+                      </span>
+                    ) : n === result.page ? (
+                      <span key={n} aria-current="page" className={`${pill} bg-ink font-bold text-white`}>
+                        {n}
+                      </span>
+                    ) : (
+                      <Link key={n} href={hrefWith(path, searchParams, { pagina: String(n) })} className={`${pill} bg-white font-semibold ring-1 ring-line transition-shadow hover:ring-ink`}>
+                        <span className="sr-only">Página </span>
+                        {n}
+                      </Link>
+                    ),
+                  )}
+                  {result.page < pages && (
+                    <Link href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" className="btn-line px-4 py-2">
+                      Siguiente
+                    </Link>
+                  )}
+                </nav>
               )}
-              {pageList(result.page, pages).map((n, i) =>
-                n === null ? (
-                  <span key={`gap${i}`} className="px-1 text-muted">
-                    …
-                  </span>
-                ) : n === result.page ? (
-                  <span key={n} aria-current="page" className={`${pill} bg-ink font-bold text-white`}>
-                    {n}
-                  </span>
-                ) : (
-                  <Link key={n} href={hrefWith(path, searchParams, { pagina: String(n) })} className={`${pill} bg-white font-semibold ring-1 ring-line transition-shadow hover:ring-ink`}>
-                    <span className="sr-only">Página </span>
-                    {n}
-                  </Link>
-                ),
-              )}
-              {result.page < pages && (
-                <Link href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" className="btn-line px-4 py-2">
-                  Siguiente
-                </Link>
-              )}
-            </nav>
-          )}
+            </div>
+          </ViewTransition>
         </section>
       </div>
     </>
@@ -346,7 +354,8 @@ export function SubcategoryLinks({ items }: { items: { id: string; slug: string;
     <ul className="mt-6 flex flex-wrap gap-2">
       {items.map((c) => (
         <li key={c.id}>
-          <Link href={`/categoria/${c.slug}`} className="inline-block rounded-full border-[1.5px] border-ink/15 bg-white px-3.5 py-1.5 text-sm font-semibold transition-colors hover:border-ink">
+          {/* "filtro": cambiar de subcategoría dentro del pasillo es un fundido corto, no la entrada de una página nueva. */}
+          <Link href={`/categoria/${c.slug}`} transitionTypes={["filtro"]} className="inline-block rounded-full border-[1.5px] border-ink/15 bg-white px-3.5 py-1.5 text-sm font-semibold transition-colors hover:border-ink">
             {c.name}
           </Link>
         </li>

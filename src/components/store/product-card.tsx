@@ -63,7 +63,8 @@ export function ProductImage({
   const tint = TINTS[hash % TINTS.length];
   if (url)
     return (
-      <div className={`absolute inset-0 ${tint}`}>
+      // isolate: el multiply se calcula siempre contra el color del producto, aunque la tarjeta se esté animando.
+      <div className={`absolute inset-0 isolate ${tint}`}>
         {/* multiply: el fondo blanco de las fotos de proveedor se funde con el color del producto. */}
         <Image src={url} alt={alt} fill priority={priority} sizes={sizes} className={`object-contain mix-blend-multiply ${large ? "p-8" : thumb ? "p-1.5" : "p-4"}`} />
       </div>
@@ -153,11 +154,13 @@ function CardBuy({ p }: { p: Card }) {
  * Tarjeta como un tramo de góndola: el producto sobre su fondo, la repisa (franja tinta) y el fleje colgando de ella.
  * En el DOM el nombre va antes que el precio (orden de lectura); `order` solo cambia la vista.
  */
-export function ProductCard({ p }: { p: Card }) {
+export function ProductCard({ p, index = 0 }: { p: Card; index?: number }) {
   const off = discountPercent(p);
   return (
     <li className="revelar">
-      <article className="group relative flex h-full flex-col rounded-[1.25rem] bg-white p-2 ring-1 ring-line transition-[translate,box-shadow] duration-500 ease-out hover:-translate-y-1 hover:shadow-lift hover:ring-ink/15 sm:p-2.5">
+      <article
+        style={{ "--i": index } as React.CSSProperties}
+        className="escalonar group relative flex h-full flex-col rounded-[1.25rem] bg-white p-2 ring-1 ring-line transition-[translate,box-shadow] duration-500 ease-out hover:-translate-y-1 hover:shadow-lift hover:ring-ink/15 sm:p-2.5">
         <div className="relative order-1 aspect-square overflow-hidden rounded-t-[0.95rem]">
           <div className="absolute inset-0 transition-[scale] duration-700 ease-out group-hover:scale-[1.04]">
             <ProductImage url={p.imageUrl} alt="" brand={p.brandName} label={p.variantName} sizes="(min-width: 1280px) 22vw, (min-width: 640px) 30vw, 45vw" />
@@ -206,8 +209,8 @@ export function ProductCard({ p }: { p: Card }) {
 export function ProductGrid({ products, wide = false }: { products: Card[]; wide?: boolean }) {
   return (
     <ul className={`grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-5 sm:gap-y-7 ${wide ? "md:grid-cols-4" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
-      {products.map((p) => (
-        <ProductCard key={p.id} p={p} />
+      {products.map((p, i) => (
+        <ProductCard key={p.id} p={p} index={i} />
       ))}
     </ul>
   );
