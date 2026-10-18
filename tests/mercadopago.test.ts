@@ -133,8 +133,11 @@ describe("Mercado Pago: consulta del pago real", () => {
     expect((await mp.verify!(attempt(), ctx)).status).toBe("PENDING");
     api(json({ results: [payment({ status: "rejected" })] }));
     expect((await mp.verify!(attempt(), ctx)).status).toBe("FAILED");
+    // Devuelto o contracargado fuera de la tienda: REVERSED (applyResult lo deja en revisión si ya estaba pagado).
     api(json({ results: [payment({ status: "refunded" })] }));
-    expect((await mp.verify!(attempt(), ctx)).status).toBe("CANCELLED");
+    expect((await mp.verify!(attempt(), ctx)).status).toBe("REVERSED");
+    api(json({ results: [payment({ status: "charged_back" })] }));
+    expect((await mp.verify!(attempt(), ctx)).status).toBe("REVERSED");
     api(json({ results: [payment({ status: "in_process" })] }));
     expect((await mp.verify!(attempt(), ctx)).status).toBe("PENDING");
     // Un pago con dinero real en un ambiente de pruebas no se toma como de este ambiente (applyResult lo ignora).

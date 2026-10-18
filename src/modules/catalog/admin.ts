@@ -2,7 +2,7 @@
  * Administración del catálogo: productos, variantes e imágenes.
  * Toda escritura va en una transacción con su registro de auditoría; el stock solo cambia vía applyMovement.
  */
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
 import * as s from "@/db/schema";
@@ -309,6 +309,57 @@ export async function updateProduct(userId: string, id: string, data: ProductInp
     await rememberSlug(tx, "product", id, before.slug, row!.slug);
     await audit(tx, { userId, action: "product.update", entityType: "product", entityId: id, before, after: row });
     return row!;
+  });
+}
+
+// ───────────── Acciones masivas (lista de productos) ─────────────
+
+export const BULK_ACTIONS = {
+  publicar: "Publicar (visible en la tienda)",
+  ocultar: "Ocultar (borrador)",
+  categoria: "Asignar categoría",
+  marca: "Asignar marca",
+  destacar: "Marcar como destacado",
+  "no-destacar": "Quitar destacado",
+} as const;
+export type BulkAction = keyof typeof BULK_ACTIONS;
+
+export const bulkSchema = z
+  .object({
+    ids: z.array(z.uuid()).min(1, "Marca al menos un producto.").max(500, "Máximo 500 productos por vez."),
+    action: z.enum(Object.keys(BULK_ACTIONS) as [BulkAction, ...BulkAction[]], "Elige qué hacer"),
+    categoryId: field.optUuid(),
+    brandId: field.optUuid(),
+  })
+  .refine((d) => d.action !== "categoria" || d.categoryId, { path: ["categoryId"], message: "Elige la categoría" })
+  .refine((d) => d.action !== "marca" || d.brandId, { path: ["brandId"], message: "Elige la marca" });
+
+/**
+ * Cambia varios productos a la vez, en una transacción, con un registro de auditoría por producto (antes/después).
+ * Publicar respeta la regla de la base (publicado ⇒ con categoría): los que no tienen categoría se saltan y se informan.
+ */
+export async function bulkUpdateProducts(userId: string, input: z.infer<typeof bulkSchema>) {
+  return db.transaction(async (tx) => {
+    const { ids, action } = input;
+    if (action === "categoria" && !(await tx.$count(s.categories, eq(s.categories.id, input.categoryId!)))) throw new UserError("La categoría no existe.");
+    if (action === "marca" && !(await tx.$count(s.brands, eq(s.brands.id, input.brandId!)))) throw new UserError("La marca no existe.");
+    const set = {
+      publicar: { active: true },
+      ocultar: { active: false },
+      categoria: { categoryId: input.categoryId },
+      marca: { brandId: input.brandId },
+      destacar: { featured: true },
+      "no-destacar": { featured: false },
+    }[action];
+    const target = action === "publicar" ? and(inArray(s.products.id, ids), isNotNull(s.products.categoryId)) : inArray(s.products.id, ids);
+    const before = await tx.select().from(s.products).where(target).orderBy(asc(s.products.id)).for("update");
+    const after = before.length ? await tx.update(s.products).set({ ...set, updatedAt: new Date() }).where(target).returning() : [];
+    const pick = (p: (typeof before)[number]) => ({ active: p.active, featured: p.featured, categoryId: p.categoryId, brandId: p.brandId });
+    for (const b of before) {
+      const a = after.find((x) => x.id === b.id)!;
+      await audit(tx, { userId, action: "product.bulk", entityType: "product", entityId: b.id, before: pick(b), after: { ...pick(a), accion: action } });
+    }
+    return { updated: after.length, skipped: ids.length - after.length };
   });
 }
 

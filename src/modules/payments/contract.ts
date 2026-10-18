@@ -22,7 +22,8 @@ export type ProviderContext = { environment: string; account: string; settings: 
 
 /** Resultado de una consulta autorizada al proveedor, normalizado. Nunca sale de datos que trajo el navegador. */
 export type ProviderResult = {
-  status: "PENDING" | "AUTHORIZED" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED";
+  /** REVERSED: el proveedor devolvió el dinero o el cliente lo desconoció (contracargo), fuera de la tienda. */
+  status: "PENDING" | "AUTHORIZED" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED" | "REVERSED";
   amount?: number;
   currency?: string;
   environment?: string;

@@ -185,3 +185,28 @@ export async function deleteImageAction(imageId: string, prev: FormState, fd: Fo
   refresh();
   return done(prev, "Imagen eliminada.");
 }
+
+/** Acción masiva sobre los productos marcados en la lista (casillas asociadas al formulario "masivo"). */
+export async function bulkProductsAction(prev: FormState, fd: FormData): Promise<FormState> {
+  const user = await requirePermission("catalog:write");
+  const parsed = catalog.bulkSchema.safeParse({ ...formObject(fd), ids: fd.getAll("ids") });
+  if (!parsed.success) {
+    const errors = fieldErrors(parsed.error);
+    return fail(prev, fd, errors.ids, errors);
+  }
+  let r;
+  try {
+    r = await catalog.bulkUpdateProducts(user.id, parsed.data);
+  } catch (e) {
+    return handleError(e, prev, fd);
+  }
+  revalidatePath("/", "layout"); // tienda y panel
+  const n = (k: number) => (k === 1 ? "1 producto" : `${k} productos`);
+  const one = r.skipped === 1;
+  const skipped =
+    r.skipped &&
+    (parsed.data.action === "publicar"
+      ? ` ${n(r.skipped)} sin categoría no se ${one ? "publicó: asígnale" : "publicaron: asígnales"} una primero.`
+      : ` ${n(r.skipped)} ya no ${one ? "existía" : "existían"}.`);
+  return done(prev, `${n(r.updated)} actualizado${r.updated === 1 ? "" : "s"}.${skipped || ""}`);
+}

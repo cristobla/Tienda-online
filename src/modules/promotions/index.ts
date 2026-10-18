@@ -60,6 +60,9 @@ export async function saveCoupon(userId: string, id: string | null, d: CouponInp
   return db.transaction(async (tx) => {
     const [before] = id ? await tx.select().from(s.coupons).where(eq(s.coupons.id, id)).for("update") : [];
     if (id && !before) throw new UserError("El cupón no existe.");
+    // Los usos se cuentan por el código guardado en los pedidos: renombrar uno usado reiniciaría sus límites.
+    if (before && before.code !== d.code && (await tx.$count(s.orders, eq(s.orders.couponCode, before.code))) > 0)
+      throw new UserError("Este cupón ya se usó: no se puede cambiar su código. Pausa este y crea uno nuevo.", "code");
     const [row] = before
       ? await tx.update(s.coupons).set({ ...columns(d), updatedAt: new Date() }).where(eq(s.coupons.id, before.id)).returning()
       : await tx.insert(s.coupons).values(columns(d)).returning();

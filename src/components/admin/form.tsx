@@ -12,10 +12,23 @@ const Ctx = createContext<FormState>({});
  * Al cambiar `state.v` se vuelve a montar el contenido con los valores devueltos.
  * `confirm`: pregunta del navegador antes de enviar (acciones que mueven dinero o stock).
  */
-export function AdminForm({ action, children, className = "space-y-5", confirm }: { action: Action; children: React.ReactNode; className?: string; confirm?: string }) {
+export function AdminForm({
+  action,
+  children,
+  className = "space-y-5",
+  confirm,
+  id,
+}: {
+  action: Action;
+  children: React.ReactNode;
+  className?: string;
+  confirm?: string;
+  /** Para asociar campos que están fuera del formulario (atributo `form`), p. ej. casillas de una tabla. */
+  id?: string;
+}) {
   const [state, formAction] = useActionState(action, {});
   return (
-    <form action={formAction} onSubmit={confirm ? (e) => !window.confirm(confirm) && e.preventDefault() : undefined} className={className}>
+    <form id={id} action={formAction} onSubmit={confirm ? (e) => !window.confirm(confirm) && e.preventDefault() : undefined} className={className}>
       <Ctx value={state}>
         {state.error && (
           <p role="alert" className="rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta">

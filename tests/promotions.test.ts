@@ -91,6 +91,23 @@ describe("cupones", () => {
     expect(await db.$count(s.orders, eq(s.orders.couponCode, "ULTIMO"))).toBe(1);
   });
 
+  it("un cupón que deja el total en $0 no rompe la compra: avisa y no crea el pedido", async () => {
+    await coupon({ code: "TODO", kind: "FIXED", value: "5000" });
+    await saveSettings(adminId, settingsSchema.parse({ name: "X", description: "Y", pickupEnabled: "on", storeAddress: "Local 1" }));
+    const v = await makeVariant(10);
+    await expect(order(v.id, 1, 0, { couponCode: "TODO", delivery: "retiro", communeId: "", street: "", number: "" })).rejects.toSatisfy(couponError("$0"));
+    expect(await db.$count(s.orders)).toBe(0);
+  });
+
+  it("un cupón ya usado no se puede renombrar (sus usos se cuentan por el código)", async () => {
+    const c = await coupon({ code: "UNO", kind: "FIXED", value: "100", maxUses: "1" });
+    const v = await makeVariant(10);
+    await order(v.id, 1, 3900, { couponCode: "UNO" });
+    await expect(saveCoupon(adminId, c.id, couponSchema.parse({ code: "UNO2", kind: "FIXED", value: "100", maxUses: "1", active: "on" }))).rejects.toThrow("ya se usó");
+    // Cambiar otros datos sí se puede.
+    await saveCoupon(adminId, c.id, couponSchema.parse({ code: "UNO", kind: "FIXED", value: "200", maxUses: "1", active: "on" }));
+  });
+
   it("cambios auditados", async () => {
     const c = await coupon();
     await saveCoupon(adminId, c.id, couponSchema.parse({ code: c.code, kind: "PERCENT", value: "20", active: "on" }));
