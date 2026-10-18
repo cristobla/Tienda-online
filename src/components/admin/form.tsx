@@ -150,17 +150,20 @@ export function Submit({
   pendingText = "Guardando…",
 }: {
   children?: React.ReactNode;
-  variant?: "primary" | "danger" | "plain";
+  variant?: "primary" | "danger" | "plain" | "buy" | "line";
   pendingText?: string;
 }) {
   const { pending } = useFormStatus();
+  // "buy" y "line": botones de la tienda (.btn-buy y .btn-line en globals.css), con su propia forma.
   const styles = {
-    primary: "bg-leaf text-white hover:bg-leaf-dark",
-    danger: "border border-oferta text-oferta hover:bg-oferta hover:text-white",
-    plain: "border border-line hover:border-leaf",
+    primary: "rounded-md px-5 py-2 font-semibold bg-leaf text-white hover:bg-leaf-dark",
+    danger: "rounded-md px-5 py-2 font-semibold border border-oferta text-oferta hover:bg-oferta hover:text-white",
+    plain: "rounded-md px-5 py-2 font-semibold border border-line hover:border-leaf",
+    buy: "btn-buy px-7 py-3.5 text-lg",
+    line: "btn-line px-5 py-2.5",
   }[variant];
   return (
-    <button disabled={pending} className={`rounded-md px-5 py-2 font-semibold disabled:opacity-60 ${styles}`}>
+    <button disabled={pending} className={`disabled:opacity-60 ${styles}`}>
       {pending ? pendingText : children}
     </button>
   );

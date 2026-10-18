@@ -88,12 +88,17 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <JsonLd data={[jsonLd, breadcrumbLd]} />
       <Breadcrumbs items={[...crumbs.slice(0, -1), { name: product.name }]} />
 
-      <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
+      <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
         <div className="lg:sticky lg:top-4 lg:self-start">
           {/* En una columna (tablet) el cuadrado a todo el ancho dejaría el precio fuera de la pantalla: se limita el alto. */}
-          <div className="relative mx-auto aspect-square overflow-hidden rounded-md border border-line bg-mist max-lg:max-h-[55vh]">
+          <div className="relative mx-auto aspect-square overflow-hidden rounded-[1.75rem] ring-1 ring-line max-lg:max-h-[55vh]">
             <ProductImage url={image?.url} alt={image?.alt || product.name} brand={brand?.name} label={selected.name} sizes="(min-width: 1024px) 50vw, 100vw" priority large />
-            {off && inStock && <span className="absolute left-3 top-3 rounded-sm bg-oferta px-2.5 py-1 text-sm font-bold text-white">Oferta −{off}%</span>}
+            {off && inStock && (
+              <span className="absolute right-4 top-4 grid size-20 -rotate-12 place-items-center rounded-full bg-oferta text-center text-sm font-bold uppercase leading-tight text-white">
+                Oferta
+                <br />−{off}%
+              </span>
+            )}
           </div>
           {images.length > 1 && (
             <ul className="mt-3 grid grid-cols-5 gap-2" aria-label="Fotos del producto">
@@ -104,9 +109,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
                     scroll={false}
                     replace
                     aria-current={i.id === image?.id ? "true" : undefined}
-                    className={`relative block aspect-square overflow-hidden rounded-sm border-2 bg-mist ${i.id === image?.id ? "border-leaf" : "border-transparent hover:border-line"}`}
+                    className={`relative block aspect-square overflow-hidden rounded-xl bg-mist ring-2 transition-shadow ${i.id === image?.id ? "ring-ink" : "ring-transparent hover:ring-line"}`}
                   >
-                    <Image src={i.url} alt={i.alt || `Foto ${n + 1}`} fill sizes="10vw" className="object-contain p-1" />
+                    <Image src={i.url} alt={i.alt || `Foto ${n + 1}`} fill sizes="10vw" className="object-contain p-1 mix-blend-multiply" />
                   </Link>
                 </li>
               ))}
@@ -116,19 +121,19 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
         <div>
           {brand && (
-            <Link href={`/marca/${brand.slug}`} className="text-sm font-semibold uppercase tracking-wide text-muted hover:text-leaf hover:underline">
+            <Link href={`/marca/${brand.slug}`} className="etiqueta text-leaf-dark underline-offset-4 hover:underline">
               {brand.name}
             </Link>
           )}
-          <h1 className="mt-1 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{product.name}</h1>
-          <p className="mt-2 text-sm text-muted">
+          <h1 className="rotulo mt-2 text-display">{product.name}</h1>
+          <p className="mt-3 text-sm text-muted">
             {content ?? selected.name} · SKU {selected.sku}
           </p>
-          {product.shortDescription && <p className="mt-4 text-lg leading-relaxed">{product.shortDescription}</p>}
+          {product.shortDescription && <p className="mt-5 max-w-prose text-lg leading-relaxed">{product.shortDescription}</p>}
 
           {variants.length > 1 && (
-            <fieldset className="mt-6">
-              <legend className="mb-2 text-sm font-bold">
+            <fieldset className="mt-7">
+              <legend className="mb-3 text-sm font-bold">
                 Formato: <span className="font-normal">{selected.name}</span>
               </legend>
               <ul className="flex flex-wrap gap-2">
@@ -141,8 +146,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
                         scroll={false}
                         replace
                         aria-current={current ? "true" : undefined}
-                        className={`flex flex-col rounded-md border-2 px-4 py-2 text-sm ${
-                          current ? "border-leaf bg-leaf-soft" : "border-line bg-white hover:border-leaf"
+                        className={`flex flex-col rounded-2xl border-[1.5px] px-4 py-2.5 text-sm transition-colors ${
+                          current ? "border-ink bg-leaf-soft" : "border-line bg-white hover:border-ink"
                         } ${v.available > 0 ? "" : "text-muted"}`}
                       >
                         <span className={`font-semibold ${v.available > 0 ? "" : "line-through decoration-1"}`}>{v.name}</span>
@@ -155,49 +160,57 @@ export default async function ProductPage({ params, searchParams }: Props) {
             </fieldset>
           )}
 
-          <div className="mt-6 rounded-md border border-line bg-white p-5">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div className="w-fit min-w-56">
+          {/* La compra como un tramo de góndola: repisa tinta arriba y el fleje colgando de ella. */}
+          <div className="mt-7 overflow-hidden rounded-[1.5rem] bg-paper ring-1 ring-line">
+            <div aria-hidden className="relative z-[1] h-3 bg-ink" />
+            <div className="flex flex-wrap items-start justify-between gap-4 px-5 sm:px-6">
+              <div className="-mt-0.5 w-fit min-w-56">
                 <Fleje v={selected} large muted={!inStock} />
               </div>
               {off && selected.compareAtPrice && (
-                <p className="text-sm font-semibold text-oferta">Ahorras {formatCLP(selected.compareAtPrice - selected.price)}</p>
+                <p className="mt-4 rounded-full bg-oferta/10 px-3 py-1 text-sm font-semibold text-oferta">Ahorras {formatCLP(selected.compareAtPrice - selected.price)}</p>
               )}
             </div>
-            <p className="mt-4">
-              <StockBadge available={inStock} low={inStock && selected.available <= selected.minimumStock} />
-              {inStock && selected.available <= selected.minimumStock && <span className="ml-2 text-xs text-muted">Quedan {selected.available}</span>}
-            </p>
+            <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <p className="mt-5">
+                <StockBadge available={inStock} low={inStock && selected.available <= selected.minimumStock} />
+                {inStock && selected.available <= selected.minimumStock && <span className="ml-2 text-xs text-muted">Quedan {selected.available}</span>}
+              </p>
 
-            <div className="mt-5">
-              {inStock ? (
-                // key: al cambiar de formato el formulario se reinicia (cantidad 1, sin mensajes del anterior).
-                <AddToCartForm key={selected.id} variantId={selected.id} max={Math.min(selected.available, MAX_ITEM_QTY)} large />
-              ) : (
-                <SoldOutButton large />
-              )}
+              <div className="mt-5">
+                {inStock ? (
+                  // key: al cambiar de formato el formulario se reinicia (cantidad 1, sin mensajes del anterior).
+                  <AddToCartForm key={selected.id} variantId={selected.id} max={Math.min(selected.available, MAX_ITEM_QTY)} large />
+                ) : (
+                  <SoldOutButton large />
+                )}
+              </div>
+
+              <ul className="mt-6 grid gap-3 border-t border-line pt-5 text-sm sm:grid-cols-2">
+                <li className="flex items-center gap-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-menta/25 text-leaf-dark">
+                    <Icon name="truck" className="size-[1.1rem]" />
+                  </span>
+                  Despacho a todo Chile; costo según comuna.
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-menta/25 text-leaf-dark">
+                    <Icon name="shield" className="size-[1.1rem]" />
+                  </span>
+                  Precio con IVA incluido.
+                </li>
+              </ul>
             </div>
-
-            <ul className="mt-5 space-y-2 border-t border-line pt-4 text-sm">
-              <li className="flex items-center gap-2">
-                <Icon name="truck" className="size-5 text-leaf" />
-                Despacho a todo Chile; costo según comuna.
-              </li>
-              <li className="flex items-center gap-2">
-                <Icon name="shield" className="size-5 text-leaf" />
-                Precio con IVA incluido.
-              </li>
-            </ul>
           </div>
 
           {selected.barcode && <p className="mt-3 text-xs text-muted">Código de barras {selected.barcode}</p>}
         </div>
       </div>
 
-      <div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
+      <div className="mt-16 grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
         {product.description && (
           <section>
-            <h2 className="mb-4 border-b border-line pb-2 text-xl font-bold">Descripción</h2>
+            <h2 className="rotulo mb-5 border-b border-line pb-3 text-title">Descripción</h2>
             {/* Markdown básico convertido a elementos React: sin HTML crudo (ver src/lib/markdown.tsx). */}
             <div className="max-w-prose space-y-3 leading-relaxed [&_h3]:text-lg [&_h3]:font-bold [&_h4]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
               <Markdown text={product.description} />
@@ -206,10 +219,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
         )}
         {specs.length > 0 && (
           <section>
-            <h2 className="mb-4 border-b border-line pb-2 text-xl font-bold">Características</h2>
-            <dl className="overflow-hidden rounded-md border border-line">
+            <h2 className="rotulo mb-5 border-b border-line pb-3 text-title">Características</h2>
+            <dl className="overflow-hidden rounded-[1.25rem] ring-1 ring-line">
               {specs.map((a) => (
-                <div key={a.code} className="grid grid-cols-2 gap-4 px-4 py-2.5 text-sm odd:bg-paper">
+                <div key={a.code} className="grid grid-cols-2 gap-4 px-5 py-3 text-sm odd:bg-paper">
                   <dt className="text-muted">{a.label}</dt>
                   <dd className="font-medium">{a.value}</dd>
                 </div>
@@ -220,9 +233,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
       </div>
 
       {related.length > 0 && (
-        <section className="mt-16">
-          <h2 className="mb-5 border-b border-line pb-3 text-2xl font-extrabold tracking-tight">También en {categoryPath.at(-1)!.name}</h2>
-          <ProductGrid products={related} />
+        <section className="mt-20">
+          <p className="etiqueta text-leaf">Del mismo pasillo</p>
+          <h2 className="rotulo mb-8 mt-2 text-display">También en {categoryPath.at(-1)!.name}</h2>
+          <ProductGrid products={related} wide />
         </section>
       )}
     </>

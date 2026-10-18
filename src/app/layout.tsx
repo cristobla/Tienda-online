@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-// Barra del navegador móvil del mismo verde que la franja superior de la tienda.
-export const viewport: Viewport = { themeColor: "#0a5e4d" };
+// Barra del navegador móvil del mismo color (tinta) que la franja superior de la tienda.
+export const viewport: Viewport = { themeColor: "#102a33" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

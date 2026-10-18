@@ -1,27 +1,242 @@
 @import "tailwindcss";
 
 /*
- * Paleta: eucalipto (marca y acciones) sobre blancos y grises verdosos; amarillo solo para el fleje
- * de precio; rojo solo para ofertas y alertas. El "papel" separa secciones sin usar sombras.
+ * Identidad «la góndola del barrio, impecable» (ver CLAUDE.md, Decisiones visuales):
+ * tinta petróleo para texto y bandas oscuras; eucalipto para marca, enlaces y foco; menta SOLO para comprar
+ * (siempre con texto tinta); fondos de pasillo (espuma, agua, arena) para productos y categorías;
+ * amarillo SOLO para el fleje del precio; rojo SOLO para ofertas y alertas. El panel usa los mismos tokens.
  */
 @theme {
-  --color-ink: #14302b;
+  --color-ink: #102a33;
   --color-leaf: #0e7c66;
   --color-leaf-dark: #0a5e4d;
-  --color-leaf-soft: #dcefe8;
-  --color-mist: #eef3f1;
-  --color-paper: #f7f9f8;
-  --color-line: #d7e0dd;
-  --color-muted: #556964;
+  --color-leaf-soft: #dcf0e8;
+  --color-menta: #4fe0a8;
+  --color-menta-light: #7deec2;
+  --color-mist: #e8f1ee;
+  --color-paper: #f3f8f6;
+  --color-agua: #dbeef4;
+  --color-arena: #f4ecdd;
+  --color-line: #d5e1de;
+  --color-muted: #4d6568;
   --color-fleje: #ffe14d;
   --color-oferta: #c8102e;
+
   --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Titulares fluidos; el texto corrido usa la escala de Tailwind (rem). */
+  --text-hero: clamp(2.75rem, 1.5rem + 5.4vw, 6.25rem);
+  --text-hero--line-height: 0.9;
+  --text-display: clamp(2.1rem, 1.45rem + 2.7vw, 3.75rem);
+  --text-display--line-height: 0.95;
+  --text-title: clamp(1.6rem, 1.3rem + 1.25vw, 2.4rem);
+  --text-title--line-height: 1;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* La única sombra de la tienda: tarjetas que se levantan. */
+  --shadow-lift: 0 1.5rem 2.5rem -1.5rem rgb(16 42 51 / 0.42);
+
+  --animate-rise: rise 0.8s var(--ease-out) backwards;
+  --animate-page-in: page-in 0.45s var(--ease-out) backwards;
+  --animate-pop: pop 0.5s var(--ease-spring);
+  --animate-drop-in: drop-in 0.3s var(--ease-out);
 }
 
-/* Banda de fondo a todo el ancho dentro del <main> centrado; el contenido queda alineado con el resto. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.3);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+}
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
 @utility bleed {
   margin-inline: calc(50% - 50vw);
   padding-inline: calc(50vw - 50%);
+}
+
+/* Rótulo: Archivo condensado y grueso, como los letreros de pasillo y el fleje. */
+@utility rotulo {
+  font-weight: 800;
+  font-stretch: 72%;
+  letter-spacing: -0.012em;
+}
+
+/* Etiqueta: ancho expandido en mayúsculas, como el texto chico de un envase. */
+@utility etiqueta {
+  font-size: 0.7rem;
+  line-height: 1rem;
+  font-weight: 650;
+  font-stretch: 120%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Cifras caladas (números de pasillo): solo el contorno; `group-hover:relleno` las rellena. */
+@utility calado {
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1.5px currentColor;
+  transition: -webkit-text-fill-color 0.4s var(--ease-out);
+}
+@utility relleno {
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Subrayado que entra de izquierda a derecha. Usa ::after: no combinar con el enlace estirado de las tarjetas. */
+@utility subrayado {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: -0.15em;
+    height: 1.5px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.35s var(--ease-out);
+  }
+  @media (hover: hover) {
+    &:hover::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+  }
+  &:focus-visible::after {
+    transform: scaleX(1);
+  }
+}
+
+/* Ondas de agua (anillos concéntricos) para el fondo del héroe y de los títulos. Capa decorativa aparte (aria-hidden). */
+@utility ondas {
+  background-image: repeating-radial-gradient(circle at var(--ondas-x, 80%) var(--ondas-y, 40%), transparent 0 2.9rem, rgb(14 124 102 / 0.11) 2.9rem calc(2.9rem + 1.5px));
+  mask-image: radial-gradient(circle at var(--ondas-x, 80%) var(--ondas-y, 40%), #000 0 20%, transparent 65%);
+  pointer-events: none;
+}
+
+/* Borde de espuma (burbujas) sobre una banda tinta: se pone encima del pie. */
+@utility borde-espuma {
+  background:
+    radial-gradient(circle 0.85rem at 50% 100%, var(--color-ink) 96%, transparent) 0 100% / 1.7rem 0.85rem repeat-x,
+    radial-gradient(circle 1.3rem at 50% 100%, var(--color-ink) 97%, transparent) 0.6rem 100% / 3.1rem 1.3rem repeat-x;
+  pointer-events: none;
+}
+
+/* Aparece al entrar en pantalla, solo con CSS (navegadores con scroll-driven animations; el resto lo ve fijo). */
+@utility revelar {
+  @supports (animation-timeline: view()) {
+    @media screen and (prefers-reduced-motion: no-preference) {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+}
+
+@layer components {
+  /* Comprar: menta con texto tinta y un borde de repisa (sombra dura) que se hunde al presionar. */
+  .btn-buy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-menta);
+    color: var(--color-ink);
+    font-weight: 700;
+    box-shadow:
+      inset 0 0 0 1.5px var(--color-ink),
+      0 3px 0 var(--color-ink);
+    transition:
+      transform 0.16s var(--ease-out),
+      box-shadow 0.16s var(--ease-out),
+      background-color 0.2s var(--ease-out);
+  }
+  .btn-buy:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow:
+      inset 0 0 0 1.5px var(--color-ink),
+      0 0 0 var(--color-ink);
+  }
+  .btn-buy:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+
+  /* Acción secundaria: tinta sólida. */
+  .btn-ink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-ink);
+    color: #fff;
+    font-weight: 650;
+    transition:
+      transform 0.16s var(--ease-out),
+      background-color 0.2s var(--ease-out);
+  }
+  .btn-ink:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* Acción terciaria: contorno. */
+  .btn-line {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    border: 1.5px solid rgb(16 42 51 / 0.2);
+    background: #fff;
+    color: var(--color-ink);
+    font-weight: 650;
+    transition:
+      transform 0.16s var(--ease-out),
+      border-color 0.2s var(--ease-out),
+      background-color 0.2s var(--ease-out);
+  }
+  .btn-line:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  @media (hover: hover) {
+    .btn-buy:hover:not(:disabled) {
+      background: var(--color-menta-light);
+      transform: translateY(-1px);
+      box-shadow:
+        inset 0 0 0 1.5px var(--color-ink),
+        0 4px 0 var(--color-ink);
+    }
+    .btn-ink:hover:not(:disabled) {
+      background: var(--color-leaf-dark);
+    }
+    .btn-line:hover:not(:disabled) {
+      border-color: var(--color-ink);
+    }
+  }
 }
 
 @layer base {
@@ -31,14 +246,24 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    /* 100vw incluye la barra de scroll en Windows: evita el desborde horizontal de .bleed. */
     overflow-x: clip;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: var(--color-menta);
+    color: var(--color-ink);
   }
   :focus-visible {
     outline: 3px solid var(--color-leaf);
     outline-offset: 2px;
   }
-  /* Sin flechas en los <summary> usados como menús. */
   summary::-webkit-details-marker {
     display: none;
   }

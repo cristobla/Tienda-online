@@ -13,7 +13,8 @@ import { checkoutAction } from "./actions";
 
 export const metadata: Metadata = { title: "Finalizar compra", robots: { index: false, follow: false } };
 
-const card = "rounded-md border border-line bg-white p-5";
+const card = "rounded-[1.5rem] bg-white p-5 ring-1 ring-line sm:p-6";
+const step = "rotulo grid size-9 shrink-0 place-items-center rounded-full text-lg text-white";
 
 /**
  * Checkout en dos pasos que funcionan sin JavaScript: 1) elegir la comuna (GET ?comuna=, calcula el despacho);
@@ -30,13 +31,13 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: "Carrito", href: "/carrito" }, { name: "Finalizar compra" }]} />
-      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Finalizar compra</h1>
+      <h1 className="rotulo text-display">Finalizar compra</h1>
 
-      <div className="mt-6 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_22rem]">
+      <div className="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_23rem]">
         <div className="grid min-w-0 gap-6">
           <section aria-labelledby="paso-despacho" className={card}>
-            <h2 id="paso-despacho" className="flex items-center gap-2 text-lg font-bold">
-              <span className="grid size-7 place-items-center rounded-full bg-leaf text-sm text-white">1</span>
+            <h2 id="paso-despacho" className="flex items-center gap-3 text-xl font-bold">
+              <span className={`${step} bg-ink`}>1</span>
               Despacho
             </h2>
             {groups.length ? (
@@ -58,13 +59,13 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
                     ))}
                   </select>
                 </label>
-                <button className="rounded-md border border-line bg-white px-4 py-2 font-semibold hover:border-leaf">Calcular despacho</button>
+                <button className="btn-line px-5 py-2">Calcular despacho</button>
               </AutoSubmitForm>
             ) : (
               <p className="mt-3 text-muted">Por ahora no hay despachos disponibles. Vuelve a intentarlo pronto.</p>
             )}
             {quote && (
-              <p className="mt-4 flex items-start gap-2 rounded-md bg-leaf-soft px-4 py-3 text-sm text-leaf-dark">
+              <p className="mt-5 flex animate-drop-in items-start gap-2 rounded-2xl bg-leaf-soft px-4 py-3 text-sm text-leaf-dark">
                 <Icon name="truck" className="size-5 shrink-0" />
                 <span>
                   Despacho a <strong>{quote.commune}</strong>, {quote.region}: <strong>{quote.cost ? formatCLP(quote.cost) : "gratis"}</strong>
@@ -80,8 +81,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
           </section>
 
           <section aria-labelledby="paso-datos" className={`${card} ${quote ? "" : "opacity-60"}`}>
-            <h2 id="paso-datos" className="flex items-center gap-2 text-lg font-bold">
-              <span className={`grid size-7 place-items-center rounded-full text-sm text-white ${quote ? "bg-leaf" : "bg-muted"}`}>2</span>
+            <h2 id="paso-datos" className="flex items-center gap-3 text-xl font-bold">
+              <span className={`${step} ${quote ? "bg-ink" : "bg-muted"}`}>2</span>
               Tus datos y dirección
             </h2>
             {quote ? (
@@ -105,11 +106,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
                   {methods.length ? (
                     <div className="grid gap-2">
                       {methods.map((m, i) => (
-                        <label key={m.id} className="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3 has-[:checked]:border-leaf has-[:checked]:bg-leaf-soft">
+                        <label key={m.id} className="flex cursor-pointer items-start gap-3 rounded-2xl border-[1.5px] border-line p-4 transition-colors hover:border-ink/40 has-[:checked]:border-ink has-[:checked]:bg-leaf-soft">
                           <input type="radio" name="paymentMethod" value={m.id} defaultChecked={i === 0} required className="mt-1 size-4 accent-leaf" />
                           <span className="text-sm">
                             <span className="font-semibold">{m.label}</span>
-                            {m.testOnly && <span className="ml-2 rounded-sm bg-oferta px-1.5 py-0.5 text-xs font-bold text-white">PRUEBA</span>}
+                            {m.testOnly && <span className="ml-2 rounded-full bg-oferta px-2 py-0.5 text-xs font-bold text-white">PRUEBA</span>}
                             <span className="block text-muted">{m.description}</span>
                             <span className="block text-muted">Reservamos tus productos por {formatMinutes(m.reservationMinutes)} mientras se completa el pago.</span>
                           </span>
@@ -122,7 +123,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
                     </p>
                   )}
                 </fieldset>
-                {methods.length > 0 && <Submit pendingText="Confirmando…">Confirmar pedido · {formatCLP(total)}</Submit>}
+                {methods.length > 0 && (
+                  <Submit variant="buy" pendingText="Confirmando…">
+                    Confirmar pedido · {formatCLP(total)}
+                  </Submit>
+                )}
               </AdminForm>
             ) : (
               <p className="mt-3 text-sm text-muted">Primero elige la comuna de despacho.</p>
@@ -130,8 +135,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
           </section>
         </div>
 
-        <aside aria-labelledby="resumen" className={`${card} lg:sticky lg:top-4`}>
-          <h2 id="resumen" className="text-lg font-bold">
+        <aside aria-labelledby="resumen" className="rounded-[1.5rem] bg-paper p-6 ring-1 ring-line lg:sticky lg:top-4">
+          <h2 id="resumen" className="etiqueta text-leaf-dark">
             Resumen
           </h2>
           <ul className="mt-4 divide-y divide-line text-sm">
@@ -156,13 +161,13 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
               <dt className="text-muted">Despacho</dt>
               <dd>{quote ? (quote.cost ? formatCLP(quote.cost) : "Gratis") : "Elige tu comuna"}</dd>
             </div>
-            <div className="flex justify-between border-t border-line pt-3 text-base">
+            <div className="flex items-end justify-between border-t border-dashed border-ink/25 pt-4 text-base">
               <dt className="font-bold">Total</dt>
-              <dd className="text-2xl font-extrabold">{formatCLP(total)}</dd>
+              <dd className="rotulo text-4xl leading-none">{formatCLP(total)}</dd>
             </div>
           </dl>
           <p className="mt-1 text-right text-xs text-muted">IVA incluido</p>
-          <Link href="/carrito" className="mt-4 block text-center text-sm font-medium text-leaf hover:underline">
+          <Link href="/carrito" className="mt-4 block text-center text-sm font-semibold text-leaf-dark underline-offset-2 hover:underline">
             Editar carrito
           </Link>
         </aside>

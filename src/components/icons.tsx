@@ -22,6 +22,7 @@ const PATHS = {
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10",
   external: "M14 4h6v6M20 4l-9 9M18 14v6H4V6h6",
   chevron: "m9 6 6 6-6 6",
+  arrow: "M5 12h14m-6-6 6 6-6 6",
   alert: "M12 3 2 21h20L12 3Zm0 7v5m0 3h.01",
   check: "m5 12 5 5L20 7",
 } as const;

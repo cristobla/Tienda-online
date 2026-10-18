@@ -26,15 +26,15 @@ export default async function InfoPage({ params }: Props) {
   return (
     <>
       <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: title }]} />
-      <div className="grid gap-8 lg:grid-cols-[14rem_1fr]">
+      <div className="mt-2 grid gap-10 lg:grid-cols-[15rem_1fr]">
         <nav aria-label="Información" className="text-sm">
-          <ul className="space-y-1">
+          <ul className="flex flex-wrap gap-2 lg:flex-col lg:gap-1">
             {Object.entries(PAGES).map(([slug, name]) => (
               <li key={slug}>
                 <Link
                   href={`/info/${slug}`}
                   aria-current={name === title ? "page" : undefined}
-                  className={`block rounded-md px-3 py-2 ${name === title ? "bg-leaf-soft font-semibold text-leaf-dark" : "hover:bg-mist"}`}
+                  className={`block rounded-full px-4 py-2 transition-colors ${name === title ? "bg-ink font-semibold text-white" : "bg-paper hover:bg-mist lg:bg-transparent"}`}
                 >
                   {name}
                 </Link>
@@ -43,8 +43,9 @@ export default async function InfoPage({ params }: Props) {
           </ul>
         </nav>
         <article className="max-w-prose">
-          <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>
-          <p className="mt-4 rounded-md border border-dashed border-line bg-paper p-5 text-muted">
+          <p className="etiqueta text-leaf">Información</p>
+          <h1 className="rotulo mt-2 text-display">{title}</h1>
+          <p className="mt-6 rounded-[1.25rem] border border-dashed border-ink/25 bg-paper p-6 text-muted">
             Contenido pendiente: esta sección se completa con la información oficial de la tienda antes del lanzamiento.
           </p>
         </article>

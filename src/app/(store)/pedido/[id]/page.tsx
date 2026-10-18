@@ -49,33 +49,34 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className={`rounded-md border p-6 text-center ${cancelled ? "border-line bg-paper" : "border-leaf/30 bg-leaf-soft"}`}>
-        <span className={`mx-auto grid size-14 place-items-center rounded-full bg-white ${cancelled ? "text-muted" : "text-leaf"}`}>
-          <Icon name={cancelled ? "alert" : "check"} className="size-7" />
+      <div className={`relative overflow-hidden rounded-[1.75rem] px-6 py-10 text-center ${cancelled ? "bg-paper ring-1 ring-line" : "bg-leaf-soft"}`}>
+        {!cancelled && <div aria-hidden className="ondas absolute inset-0 [--ondas-x:50%] [--ondas-y:22%]" />}
+        <span className={`relative mx-auto grid size-16 animate-pop place-items-center rounded-full bg-white ring-1 ring-line ${cancelled ? "text-muted" : "text-leaf"}`}>
+          <Icon name={cancelled ? "alert" : "check"} className="size-8" />
         </span>
-        <h1 className="mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+        <h1 className="rotulo relative mt-5 text-display">
           {cancelled ? "Este pedido fue cancelado" : paid ? "¡Pago confirmado!" : "¡Recibimos tu pedido!"}
         </h1>
-        <p className="mt-2">
+        <p className="relative mt-3">
           Pedido <strong className="font-mono">{o.orderNumber}</strong> · {ORDER_STATUS_LABELS[o.status]}
         </p>
         {paid && o.paidAt && (
-          <p className="mt-2 text-sm text-muted">
+          <p className="relative mt-2 text-sm text-muted">
             Pago verificado el {formatDateTime(o.paidAt)}
             {o.paymentMethod && <> · {getProvider(o.paymentMethod)?.label ?? o.paymentMethod}</>}. Te avisaremos cuando despachemos tu pedido.
           </p>
         )}
         {o.paymentStatus === "REVIEW" && (
-          <p className="mx-auto mt-3 max-w-md text-sm font-medium text-oferta">
+          <p className="relative mx-auto mt-3 max-w-md text-sm font-medium text-oferta">
             Recibimos un pago que no pudimos aplicar automáticamente (monto distinto o fuera de plazo). Lo estamos revisando y te contactaremos.
           </p>
         )}
-        <p className="mt-3 text-sm text-muted">Guarda este enlace para revisar el estado de tu pedido.</p>
+        <p className="relative mt-3 text-sm text-muted">Guarda este enlace para revisar el estado de tu pedido.</p>
       </div>
 
       {pending && o.paymentStatus !== "REVIEW" && (
-        <section aria-labelledby="pago" className="mt-8 rounded-md border border-line bg-white p-5">
-          <h2 id="pago" className="text-lg font-bold">
+        <section aria-labelledby="pago" className="mt-8 rounded-[1.5rem] bg-white p-6 ring-1 ring-line">
+          <h2 id="pago" className="rotulo text-title">
             Pago
           </h2>
           {current?.status === "PENDING" && current.action && <PaymentActionView action={current.action} />}
@@ -105,7 +106,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
                   .filter((m) => !(current?.status === "PENDING" && current.provider === m.id))
                   .map((m) => (
                     <AdminForm key={m.id} action={startPaymentAction.bind(null, o.id, m.id)} className="space-y-2">
-                      <Submit variant="plain" pendingText="Preparando…">
+                      <Submit variant="line" pendingText="Preparando…">
                         {m.label}
                       </Submit>
                     </AdminForm>
@@ -118,12 +119,12 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
       )}
 
       <section aria-labelledby="detalle" className="mt-8">
-        <h2 id="detalle" className="mb-3 text-lg font-bold">
+        <h2 id="detalle" className="rotulo mb-4 text-title">
           Detalle
         </h2>
-        <ul className="divide-y divide-line rounded-md border border-line bg-white text-sm">
+        <ul className="divide-y divide-line overflow-hidden rounded-[1.5rem] bg-white text-sm ring-1 ring-line">
           {items.map((i) => (
-            <li key={i.id} className="flex justify-between gap-4 px-4 py-3">
+            <li key={i.id} className="flex justify-between gap-4 px-5 py-3.5">
               <span className="min-w-0">
                 <span className="block font-medium">{i.productName}</span>
                 <span className="text-muted">
@@ -143,17 +144,17 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
             <dt className="text-muted">Despacho</dt>
             <dd>{o.shippingTotal ? formatCLP(o.shippingTotal) : "Gratis"}</dd>
           </div>
-          <div className="flex justify-between border-t border-line pt-2 text-base">
+          <div className="flex items-end justify-between border-t border-dashed border-ink/25 pt-3 text-base">
             <dt className="font-bold">Total</dt>
-            <dd className="font-extrabold">{formatCLP(o.total)}</dd>
+            <dd className="rotulo text-3xl leading-none">{formatCLP(o.total)}</dd>
           </div>
         </dl>
         <p className="mt-1 text-right text-xs text-muted">IVA incluido. Este resumen no es una boleta ni un comprobante de pago.</p>
       </section>
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <section className="rounded-md border border-line bg-white p-5 text-sm">
-          <h2 className="mb-2 font-bold">Despacho</h2>
+        <section className="rounded-[1.5rem] bg-paper p-6 text-sm ring-1 ring-line">
+          <h2 className="etiqueta mb-3 text-leaf-dark">Despacho</h2>
           {a ? (
             <p>
               {a.recipientName}
@@ -168,15 +169,15 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
             <p className="text-muted">Sin dirección registrada.</p>
           )}
         </section>
-        <section className="rounded-md border border-line bg-white p-5 text-sm">
-          <h2 className="mb-2 font-bold">Contacto</h2>
+        <section className="rounded-[1.5rem] bg-paper p-6 text-sm ring-1 ring-line">
+          <h2 className="etiqueta mb-3 text-leaf-dark">Contacto</h2>
           <p className="break-all">{o.email}</p>
           {o.phone && <p>{o.phone}</p>}
         </section>
       </div>
 
-      <p className="mt-8 text-center">
-        <Link href="/productos" className="font-semibold text-leaf hover:underline">
+      <p className="mt-10 text-center">
+        <Link href="/productos" className="btn-line px-6 py-3">
           Seguir comprando
         </Link>
       </p>
@@ -193,13 +194,13 @@ function PaymentActionView({ action }: { action: PaymentAction }) {
         {Object.entries(action.fields).map(([k, v]) => (
           <input key={k} type="hidden" name={k} value={v} />
         ))}
-        <button className="rounded-md bg-leaf px-5 py-2 font-semibold text-white hover:bg-leaf-dark">Ir a pagar</button>
+        <button className="btn-buy px-7 py-3 text-lg">Ir a pagar</button>
       </form>
     );
   return (
     <div className="mt-3">
       {action.example && (
-        <p role="alert" className="mb-3 rounded-md border border-oferta/40 bg-oferta/5 px-3 py-2 text-sm font-semibold text-oferta">
+        <p role="alert" className="mb-4 rounded-2xl border border-oferta/40 bg-oferta/5 px-4 py-2.5 text-sm font-semibold text-oferta">
           DATOS DE EJEMPLO (entorno de pruebas): no transfieras a esta cuenta.
         </p>
       )}

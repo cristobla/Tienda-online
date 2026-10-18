@@ -2,20 +2,15 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons";
 import { JsonLd } from "@/components/store/json-ld";
 import { Fleje, ProductGrid, ProductImage } from "@/components/store/product-card";
-import { SearchBar } from "@/components/store/shell";
+import { aisle, SearchBar } from "@/components/store/shell";
 import { env } from "@/lib/env";
 import { SITE, socialLinks } from "@/lib/site";
 import { listBrands } from "@/modules/brands/queries";
-import { listProducts } from "@/modules/catalog/queries";
+import { listProducts, type ProductCard } from "@/modules/catalog/queries";
 import { loadCategories } from "@/modules/categories/queries";
 
-// Solo presentación: ícono y color por categoría raíz conocida; las demás usan el genérico.
-const ROOT_STYLE: Record<string, { icon: IconName; tint: string }> = {
-  "higiene-personal": { icon: "drop", tint: "bg-leaf-soft text-leaf-dark" },
-  "aseo-del-hogar": { icon: "home", tint: "bg-sky-100 text-sky-900" },
-  accesorios: { icon: "brush", tint: "bg-amber-100 text-amber-900" },
-};
-const DEFAULT_STYLE = { icon: "tag" as IconName, tint: "bg-mist text-ink" };
+// Fondo de cada pasillo (categoría raíz) según su orden en el panel.
+const AISLE_TINTS = ["bg-agua", "bg-leaf-soft", "bg-arena"];
 
 const BENEFITS: { icon: IconName; title: string; text: string }[] = [
   { icon: "shield", title: "Compra segura", text: "Pago con medios chilenos reconocidos." },
@@ -24,19 +19,52 @@ const BENEFITS: { icon: IconName; title: string; text: string }[] = [
   { icon: "chat", title: "Atención cercana", text: "Te ayudamos con tu pedido antes y después." },
 ];
 
-function SectionTitle({ id, title, href, link }: { id: string; title: string; href?: string; link?: string }) {
+// Cómo se compra: solo lo que la tienda ya hace (precio por litro o kilo, despacho por comuna, avisos por correo).
+const STEPS = [
+  { title: "Elige tus productos", text: "Compara por formato y por precio por litro o kilo antes de agregarlos al carrito." },
+  { title: "Ingresa tu comuna", text: "Ves el costo del despacho antes de pagar, junto al total con IVA incluido." },
+  { title: "Paga y listo", text: "Te avisamos por correo cuando confirmemos el pago y cuando despachemos tu pedido." },
+];
+
+function SectionTitle({ id, kicker, title, href, link }: { id: string; kicker: string; title: string; href?: string; link?: string }) {
   return (
-    <div className="mb-5 flex items-end justify-between gap-4 border-b border-line pb-3">
-      <h2 id={id} className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-        {title}
-      </h2>
+    <div className="revelar mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div>
+        <p className="etiqueta text-leaf">{kicker}</p>
+        <h2 id={id} className="rotulo mt-2 text-display">
+          {title}
+        </h2>
+      </div>
       {href && (
-        <Link href={href} className="flex shrink-0 items-center gap-1 text-sm font-semibold text-leaf hover:underline">
+        <Link href={href} className="group/ver inline-flex shrink-0 items-center gap-2.5 font-semibold text-leaf-dark transition-colors hover:text-ink">
           {link}
-          <Icon name="chevron" className="size-4" />
+          <span className="grid size-9 place-items-center rounded-full bg-leaf-soft transition-transform duration-300 ease-out group-hover/ver:translate-x-1">
+            <Icon name="arrow" className="size-4" />
+          </span>
         </Link>
       )}
     </div>
+  );
+}
+
+/** Producto destacado real como vitrina del héroe (no hay imágenes de campaña): en una "gota", con su fleje. */
+function Spotlight({ p }: { p: ProductCard }) {
+  return (
+    <Link href={`/producto/${p.slug}`} className="group relative mx-auto block w-full max-w-[27rem] animate-rise [animation-delay:200ms]">
+      <span className="etiqueta absolute right-3 top-3 z-10 rounded-full bg-white px-3 py-1.5 text-leaf-dark ring-1 ring-line sm:right-6 sm:top-6">Producto destacado</span>
+      <div className="relative aspect-square overflow-hidden rounded-full ring-1 ring-ink/10">
+        <div className="absolute inset-0 transition-[scale] duration-700 ease-out group-hover:scale-[1.04]">
+          <ProductImage url={p.imageUrl} alt="" brand={p.brandName} label={p.variantName} sizes="(min-width: 1024px) 27rem, 90vw" priority />
+        </div>
+      </div>
+      <div className="absolute bottom-16 left-0 w-40 -rotate-3 transition-transform duration-500 ease-spring group-hover:rotate-0 sm:-left-4 sm:w-48">
+        <Fleje v={p} from={p.maxPrice > p.price} muted={!p.inStock} />
+      </div>
+      <p className="mt-5 text-center">
+        {p.brandName && <span className="etiqueta block text-muted">{p.brandName}</span>}
+        <span className="mt-1 block text-lg font-bold leading-snug transition-colors group-hover:text-leaf-dark">{p.name}</span>
+      </p>
+    </Link>
   );
 }
 
@@ -72,62 +100,46 @@ export default async function Home() {
   return (
     <>
       <JsonLd data={siteLd} />
-      <section className="bleed -mt-8 bg-mist py-10 sm:py-14">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.25fr_1fr]">
+      <section className="bleed relative -mt-8 overflow-hidden bg-paper">
+        <div aria-hidden className="ondas absolute inset-0 [--ondas-x:80%] [--ondas-y:42%]" />
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 py-12 sm:py-16 lg:grid-cols-[1.15fr_1fr] lg:py-20">
           <div>
-            <p className="mb-3 inline-flex items-center gap-2 rounded-sm bg-white px-2.5 py-1 text-sm font-semibold text-leaf-dark">
-              <Icon name="truck" className="size-4" />
-              Compra online, recibe en tu casa
-            </p>
-            <h1 className="text-4xl font-extrabold leading-[1.02] tracking-tight [font-stretch:85%] sm:text-6xl">
-              ¿Qué te falta en casa?
+            {roots.length > 0 && <p className="etiqueta animate-rise text-leaf-dark">{roots.map((c) => c.name).join(" · ")}</p>}
+            <h1 className="rotulo mt-5 animate-rise text-hero [animation-delay:90ms]">
+              ¿Qué te falta <span className="text-leaf">en casa?</span>
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted">
+            <p className="mt-6 max-w-xl animate-rise text-lg text-muted [animation-delay:180ms]">
               Higiene personal, aseo del hogar y limpieza a precio claro: compara por formato y precio por litro o kilo antes de elegir.
             </p>
-            <div className="mt-7 max-w-xl">
+            <div className="mt-8 max-w-xl animate-rise [animation-delay:270ms]">
               <SearchBar id="buscar-inicio" placeholder="Lavalozas, shampoo, papel higiénico…" large />
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/productos" className="rounded-md bg-ink px-5 py-3 font-semibold text-white hover:bg-leaf-dark">
-                Ver todo el catálogo
-              </Link>
-              {roots[0] && (
-                <Link href={`/categoria/${roots[0].slug}`} className="rounded-md border border-ink/30 bg-white px-5 py-3 font-semibold hover:border-leaf hover:text-leaf">
-                  {roots[0].name}
-                </Link>
-              )}
-            </div>
+            <ul aria-label="Pasillos" className="mt-5 flex animate-rise flex-wrap gap-2 [animation-delay:360ms]">
+              {roots.map((c, i) => (
+                <li key={c.id}>
+                  <Link href={`/categoria/${c.slug}`} className="inline-flex items-baseline gap-2 rounded-full border-[1.5px] border-ink/15 bg-white px-4 py-2 text-sm font-semibold transition-colors hover:border-ink">
+                    <span aria-hidden className="etiqueta text-[0.6rem] text-leaf">
+                      {aisle(i)}
+                    </span>
+                    {c.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
-
-          {/* Producto destacado real como vitrina (no hay imágenes de campaña todavía). */}
-          {spotlight && (
-            <Link href={`/producto/${spotlight.slug}`} className="group mx-auto grid w-full max-w-md grid-cols-[1fr_auto] items-end gap-4 rounded-md border border-line bg-white p-5 hover:border-leaf">
-              <p className="col-span-2 text-xs font-bold uppercase tracking-widest text-leaf">Producto destacado</p>
-              <div className="relative col-span-2 aspect-[4/3] overflow-hidden rounded-sm bg-mist">
-                <ProductImage url={spotlight.imageUrl} alt="" brand={spotlight.brandName} label={spotlight.variantName} sizes="(min-width: 1024px) 28rem, 90vw" priority />
-              </div>
-              <div className="min-w-0">
-                {spotlight.brandName && <p className="text-xs font-semibold uppercase tracking-wide text-muted">{spotlight.brandName}</p>}
-                <p className="font-bold leading-snug group-hover:text-leaf group-hover:underline">{spotlight.name}</p>
-              </div>
-              <div className="w-36">
-                <Fleje v={spotlight} from={spotlight.maxPrice > spotlight.price} muted={!spotlight.inStock} />
-              </div>
-            </Link>
-          )}
+          {spotlight && <Spotlight p={spotlight} />}
         </div>
       </section>
 
       <section aria-label="Beneficios" className="bleed border-b border-line bg-white">
-        <ul className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-5 py-6 lg:grid-cols-4">
+        <ul className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 lg:grid-cols-4 lg:gap-x-0 lg:divide-x lg:divide-line">
           {BENEFITS.map((b) => (
-            <li key={b.title} className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-md bg-leaf-soft text-leaf-dark">
+            <li key={b.title} className="flex flex-col gap-2.5 py-5 sm:flex-row sm:items-start sm:gap-3.5 lg:px-6 lg:first:pl-0">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-menta/25 text-leaf-dark">
                 <Icon name={b.icon} />
               </span>
               <span>
-                <span className="block text-sm font-bold">{b.title}</span>
+                <span className="rotulo block text-xl leading-tight">{b.title}</span>
                 <span className="block text-sm text-muted">{b.text}</span>
               </span>
             </li>
@@ -135,63 +147,90 @@ export default async function Home() {
         </ul>
       </section>
 
-      <section aria-labelledby="categorias" className="mt-12">
-        <SectionTitle id="categorias" title="Compra por categoría" href="/productos" link="Ver todo" />
-        <div className="grid gap-4 md:grid-cols-3">
-          {roots.map((c) => {
-            const st = ROOT_STYLE[c.slug] ?? DEFAULT_STYLE;
-            return (
-              <div key={c.id} className="flex flex-col rounded-md border border-line bg-white">
-                <Link href={`/categoria/${c.slug}`} className={`group flex items-center gap-4 rounded-t-md p-5 ${st.tint}`}>
-                  <span className="grid size-12 shrink-0 place-items-center rounded-md bg-white/70">
-                    <Icon name={st.icon} className="size-7" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xl font-extrabold leading-tight group-hover:underline">{c.name}</span>
-                    <span className="block whitespace-nowrap text-sm opacity-80">{c.children.length} subcategorías</span>
-                  </span>
-                  <Icon name="chevron" />
-                </Link>
-                {c.children.length > 0 && (
-                  <ul className="flex flex-wrap gap-2 p-5">
-                    {c.children.map((sub) => (
-                      <li key={sub.id}>
-                        <Link href={`/categoria/${sub.slug}`} className="inline-block rounded-sm border border-line px-3 py-1.5 text-sm font-medium hover:border-leaf hover:text-leaf">
-                          {sub.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {featured.items.length > 0 && (
-        <section aria-labelledby="destacados" className="mt-14">
-          <SectionTitle id="destacados" title="Destacados" href="/productos" link="Ver todos los productos" />
-          <ProductGrid products={featured.items} />
+      {roots.length > 0 && (
+        <section aria-labelledby="pasillos" className="mt-16 sm:mt-20">
+          <SectionTitle id="pasillos" kicker="Recorre la tienda" title="Elige tu pasillo" href="/productos" link="Ver todo el catálogo" />
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {roots.map((c, i) => (
+              <li
+                key={c.id}
+                className={`revelar group relative flex min-h-64 flex-col overflow-hidden rounded-[1.75rem] p-6 sm:p-8 ${AISLE_TINTS[i % AISLE_TINTS.length]} ${i === 0 ? "md:row-span-2 md:min-h-[30rem]" : ""}`}
+              >
+                <span aria-hidden className={`rotulo calado leading-[0.8] text-ink/80 group-hover:relleno ${i === 0 ? "text-[clamp(6rem,14vw,11rem)]" : "text-[clamp(5rem,10vw,7.5rem)]"}`}>
+                  {aisle(i)}
+                </span>
+                <span aria-hidden className="absolute right-6 top-6 grid size-12 place-items-center rounded-full bg-ink text-white transition-transform duration-500 ease-spring group-hover:-rotate-45 sm:right-8 sm:top-8">
+                  <Icon name="arrow" />
+                </span>
+                <div className="mt-auto pt-8">
+                  <p className="etiqueta text-ink/75">Pasillo {aisle(i)}</p>
+                  <h3 className="rotulo mt-2 text-title">
+                    {/* Enlace estirado: todo el letrero lleva a la categoría; las subcategorías van encima (z-10). */}
+                    <Link href={`/categoria/${c.slug}`} className="after:absolute after:inset-0 after:content-['']">
+                      {c.name}
+                    </Link>
+                  </h3>
+                  {c.children.length > 0 && (
+                    <ul className="relative z-10 mt-5 flex flex-wrap gap-2">
+                      {c.children.map((sub) => (
+                        <li key={sub.id}>
+                          <Link href={`/categoria/${sub.slug}`} className="inline-block rounded-full bg-white/75 px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-ink hover:text-white">
+                            {sub.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
+      {featured.items.length > 0 && (
+        <section aria-labelledby="destacados" className="mt-20 sm:mt-24">
+          <SectionTitle id="destacados" kicker="Elegidos por la tienda" title="Destacados" href="/productos" link="Ver todos los productos" />
+          <ProductGrid products={featured.items} wide />
+        </section>
+      )}
+
+      <section aria-labelledby="como-comprar" className="bleed mt-20 bg-ink py-16 text-white sm:mt-24 sm:py-20 [&_:focus-visible]:outline-menta">
+        <div className="mx-auto max-w-7xl">
+          <p className="etiqueta text-menta">Así de simple</p>
+          <h2 id="como-comprar" className="rotulo mt-2 max-w-2xl text-display">
+            Tres pasos, <span className="calado text-menta">todo a la vista.</span>
+          </h2>
+          <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="revelar border-t border-white/20 pt-6">
+                <span aria-hidden className="rotulo block text-6xl leading-none text-menta">
+                  {aisle(i)}
+                </span>
+                <h3 className="mt-4 text-xl font-bold">{s.title}</h3>
+                <p className="mt-2 max-w-sm text-white/75">{s.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       {latest.items.length > 0 && (
-        <section aria-labelledby="nuevos" className="mt-14">
-          <SectionTitle id="nuevos" title="Recién llegados" href="/productos?orden=nuevos" link="Ver más nuevos" />
-          <ProductGrid products={latest.items} />
+        <section aria-labelledby="nuevos" className="mt-20 sm:mt-24">
+          <SectionTitle id="nuevos" kicker="Lo último en la góndola" title="Recién llegados" href="/productos?orden=nuevos" link="Ver más nuevos" />
+          <ProductGrid products={latest.items} wide />
         </section>
       )}
 
       {brands.length > 0 && (
-        <section aria-labelledby="marcas" className="mt-14">
-          <SectionTitle id="marcas" title="Marcas" />
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <section aria-labelledby="marcas" className="mt-20 sm:mt-24">
+          <SectionTitle id="marcas" kicker="Encuentra tu marca" title="Marcas" />
+          <ul className="revelar flex flex-wrap gap-3">
             {brands.map((b) => (
               <li key={b.id}>
                 <Link
                   href={`/marca/${b.slug}`}
-                  className="grid h-16 place-items-center rounded-md border border-line bg-white px-3 text-center text-sm font-bold uppercase tracking-wide text-muted hover:border-leaf hover:text-leaf"
+                  className="rotulo inline-block rounded-full border-[1.5px] border-ink/15 px-5 py-2.5 text-xl uppercase tracking-wide transition-colors hover:border-ink hover:bg-ink hover:text-white sm:text-2xl"
                 >
                   {b.name}
                 </Link>
