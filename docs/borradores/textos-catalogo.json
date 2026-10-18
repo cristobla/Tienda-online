@@ -1,0 +1,311 @@
+{
+    "categorias":  [
+                       {
+                           "descripcion":  "Productos para tu higiene diaria: cuidado capilar, corporal y dental, desodorantes, afeitado y artículos para bebé.",
+                           "metaTitle":  "Higiene personal | Cuidado diario online",
+                           "metaDescription":  "Encuentra shampoo, jabón, productos de cuidado dental y artículos para tu higiene diaria. Revisa los formatos y compra online.",
+                           "id":  "46faa642-f60a-4759-a59f-bb88e8395de1"
+                       },
+                       {
+                           "descripcion":  "Encuentra shampoo, acondicionadores y crema para peinar. Revisa los formatos y variedades para tu rutina de cabello.",
+                           "metaTitle":  "Cuidado capilar | Shampoo y acondicionadores",
+                           "metaDescription":  "Compra shampoo, acondicionadores y crema para peinar para tu rutina de cabello. Encuentra marcas y formatos en nuestra tienda online.",
+                           "id":  "f3ab88de-d5b1-42b1-84ab-7be6bcb92022"
+                       },
+                       {
+                           "descripcion":  "Encuentra jabones líquidos de glicerina y variedades cremosas para tu higiene corporal.",
+                           "metaTitle":  "Cuidado corporal | Jabones líquidos y de glicerina",
+                           "metaDescription":  "Encuentra jabones líquidos de glicerina y variedades cremosas para tu higiene corporal. Revisa marcas y formatos y compra online.",
+                           "id":  "35f16331-f4fa-429c-9175-82125ef75a48"
+                       },
+                       {
+                           "descripcion":  "Encuentra pastas, geles, enjuagues y cepillos dentales. Hay opciones para el cepillado de adultos y niños.",
+                           "metaTitle":  "Cuidado dental | Pastas, enjuagues y cepillos",
+                           "metaDescription":  "Revisa pastas y geles dentales, enjuagues bucales y cepillos para adultos y niños. Elige tus productos de cuidado dental y compra online.",
+                           "id":  "ff9f6b3d-72aa-4c50-8ed1-9d4e4b6823a1"
+                       },
+                       {
+                           "descripcion":  "Encuentra antitranspirantes Nivea en aerosol. Revisa las variedades disponibles para tu rutina de higiene personal.",
+                           "metaTitle":  "Desodorantes | Antitranspirantes Nivea en aerosol",
+                           "metaDescription":  "Encuentra antitranspirantes Nivea en aerosol de 150 ml para tu rutina de higiene personal. Revisa las variedades y compra online.",
+                           "id":  "8654fe5b-d3c2-486c-a020-eef8abb484ab"
+                       },
+                       {
+                           "descripcion":  "Encuentra máquinas de afeitar Gillette y Schick de tres hojas. Revisa las opciones disponibles por unidad.",
+                           "metaTitle":  "Afeitado | Máquinas de afeitar Gillette y Schick",
+                           "metaDescription":  "Encuentra máquinas de afeitar Gillette y Schick de tres hojas para tu rutina de afeitado. Revisa las variedades y compra online.",
+                           "id":  "0c19f078-8260-49c3-bff0-b0b18eccdf19"
+                       },
+                       {
+                           "descripcion":  "Encuentra productos para limpiar la cocina, el baño y otras superficies del hogar. También hay detergente y suavizante para la ropa.",
+                           "metaTitle":  "Aseo del hogar | Productos de limpieza online",
+                           "metaDescription":  "Encuentra lavalozas, cloro, limpiadores, detergente y suavizante para las tareas de aseo del hogar. Revisa los formatos y compra online.",
+                           "id":  "8b5401ee-aa64-4880-94cd-337fa7f734d0"
+                       },
+                       {
+                           "descripcion":  "Encuentra toallitas húmedas para la limpieza de la cocina. Revisa también la categoría de lavalozas para tus utensilios.",
+                           "metaTitle":  "Aseo de cocina | Toallitas húmedas y lavalozas",
+                           "metaDescription":  "Encuentra toallitas húmedas con aroma a limón para limpiar la cocina y revisa la categoría de lavalozas. Elige tus productos online.",
+                           "id":  "5ee7439a-4ecb-41ce-b7bf-60f52ca2f0cc"
+                       },
+                       {
+                           "descripcion":  "Encuentra lavalozas líquido para lavar la loza y los utensilios de cocina. Revisa el formato disponible de Quix Original.",
+                           "metaTitle":  "Lavalozas | Quix Original para tu cocina",
+                           "metaDescription":  "Encuentra lavalozas líquido Quix Original en botella de 500 ml para lavar la loza y los utensilios de cocina. Haz tu compra online.",
+                           "id":  "55420348-fcfe-4be5-8413-068806ec42c7"
+                       },
+                       {
+                           "descripcion":  "Encuentra limpiadores en crema, limpiavidrios y productos para el inodoro. También hay lustramuebles para el cuidado del hogar.",
+                           "metaTitle":  "Limpiadores | Vidrios, muebles y superficies",
+                           "metaDescription":  "Encuentra limpiadores en crema, limpiavidrios, productos para el inodoro y lustramuebles. Revisa sus formatos para el hogar y compra online.",
+                           "id":  "e90e846b-0dc2-43a4-b32b-a78dfd63605a"
+                       },
+                       {
+                           "descripcion":  "Encuentra detergente líquido y suavizante para el lavado de tu ropa. Revisa sus formatos y variedades.",
+                           "metaTitle":  "Lavado de ropa | Detergente líquido y suavizante",
+                           "metaDescription":  "Encuentra detergente líquido en bidón y suavizante en botella para el lavado de tu ropa. Revisa las variedades y compra en la tienda online.",
+                           "id":  "0271dcb4-8774-460f-9905-e4eb65f47d00"
+                       },
+                       {
+                           "descripcion":  "Encuentra cloro de uso doméstico y cloro en gel para la limpieza del hogar. Hay variedades con aroma a limón y lavanda.",
+                           "metaTitle":  "Desinfectantes y cloro | Limpieza del hogar",
+                           "metaDescription":  "Encuentra cloro de uso doméstico y cloro en gel para la limpieza del hogar, con distintas variedades y formatos. Elige y compra online.",
+                           "id":  "68b2e4f5-f928-497a-ae82-6b066b88646e"
+                       },
+                       {
+                           "descripcion":  "Encuentra esponjas para los utensilios de cocina y productos para el cuidado del auto y del calzado.",
+                           "metaTitle":  "Accesorios | Cocina, cuidado del auto y calzado",
+                           "metaDescription":  "Revisa esponjas para la cocina, cera y silicona para el auto, además de cera líquida para el calzado. Encuentra tus accesorios y compra online.",
+                           "id":  "9c9164c3-ee11-402d-83e2-b8fdd3cf4a16"
+                       },
+                       {
+                           "descripcion":  "Encuentra esponjas para limpiar los utensilios de cocina. Revisa el pack de tres unidades Ultra Clean Suave Oro-Plata.",
+                           "metaTitle":  "Esponjas y paños | Accesorios de limpieza",
+                           "metaDescription":  "Encuentra esponjas Ultra Clean Suave Oro-Plata en pack de tres unidades para la limpieza de utensilios de cocina. Compra en la tienda online.",
+                           "id":  "01be02ff-d01a-4c96-a26c-d8835f720ee7"
+                       },
+                       {
+                           "descripcion":  "Encuentra insecticidas Killer 1000 en aerosol. Revisa las variedades y las indicaciones del envase antes de usarlos.",
+                           "metaTitle":  "Insecticidas | Aerosoles Killer 1000",
+                           "metaDescription":  "Encuentra insecticidas Killer 1000 en aerosol de 390 ml. Revisa las variedades disponibles y las indicaciones de uso, y compra online.",
+                           "id":  "8f04be32-4049-4016-ac0a-d01689e44f9d"
+                       },
+                       {
+                           "descripcion":  "Encuentra cera y silicona Kit en aerosol para el cuidado del auto. Revisa el formato de cada producto.",
+                           "metaTitle":  "Cuidado del auto | Cera y silicona en aerosol",
+                           "metaDescription":  "Encuentra cera Kit en aerosol de 360 ml y silicona Kit de 480 ml para el cuidado del auto. Revisa los productos y compra en la tienda online.",
+                           "id":  "e38e98e6-c081-4ca1-a801-99d8f9163183"
+                       },
+                       {
+                           "descripcion":  "Encuentra toallitas húmedas para bebé y chupetes de repuesto para mamaderas de boca ancha. Revisa el contenido de cada pack.",
+                           "metaTitle":  "Bebé | Toallitas húmedas y repuestos de mamadera",
+                           "metaDescription":  "Encuentra toallitas húmedas Emubaby y chupetes de repuesto Simond\u0027s para mamaderas de boca ancha. Revisa los packs disponibles y compra online.",
+                           "id":  "13cceec6-8408-40cc-97ed-bf832210ac7d"
+                       },
+                       {
+                           "descripcion":  "Encuentra cera líquida Aileda para el cuidado del calzado. Hay opciones en negro y marrón, en envases de 75 ml.",
+                           "metaTitle":  "Cuidado del calzado | Cera líquida negra y marrón",
+                           "metaDescription":  "Encuentra cera líquida Aileda en negro y marrón para el cuidado de tu calzado. Revisa los envases de 75 ml y compra en nuestra tienda online.",
+                           "id":  "8c2b708e-bb45-4712-b21c-b508af440231"
+                       }
+                   ],
+    "productos":  [
+                      {
+                          "metaDescription":  "Acondicionador Kadus de manzanilla para el cuidado del cabello, en doypack de 900 ml. Compra online en nuestra tienda.",
+                          "id":  "28dfb6be-cb09-495d-8a51-2ec497876eee"
+                      },
+                      {
+                          "metaDescription":  "Enjuague bucal Oral Fresh Zero de menta fresca, sin alcohol, de 250 ml para tu higiene dental. Compra online en nuestra tienda.",
+                          "id":  "fd649d6f-b5c5-4590-bdb3-1b9dcc77ad54"
+                      },
+                      {
+                          "metaDescription":  "Cloro en gel Brillex con aroma a limón, en botella de 900 ml para la limpieza del hogar. Compra online en nuestra tienda.",
+                          "id":  "95f10f6b-c39e-4f0e-bd83-da78ec0af25a"
+                      },
+                      {
+                          "metaDescription":  "Enjuague bucal Oral Fresh de menta fuerte, en botella de 250 ml para complementar tu higiene dental. Compra online en nuestra tienda.",
+                          "id":  "f03b3891-7634-4030-9c62-648832c26ecf"
+                      },
+                      {
+                          "metaDescription":  "Acondicionador Herbal Essences con manzanilla de 865 ml para el cuidado del cabello. Compra online en nuestra tienda.",
+                          "id":  "c67c6945-8946-4999-93bd-bf26b0b16d87"
+                      },
+                      {
+                          "metaDescription":  "Shampoo Herbal Essences con manzanilla, aloe vera y pasiflora, de 865 ml para lavar el cabello. Compra online en nuestra tienda.",
+                          "id":  "303af5fd-8ce6-4369-b678-b8fa40b91695"
+                      },
+                      {
+                          "metaDescription":  "Insecticida Killer 1000 en aerosol de base acuosa de 390 ml para uso en casa y jardín. Compra online en nuestra tienda.",
+                          "id":  "35beca49-6c85-47f1-b4ce-d14ffd73d04a"
+                      },
+                      {
+                          "metaDescription":  "Cloro Igenix Tradicional de uso doméstico, en botella de 1 kg para la limpieza del hogar. Compra online en nuestra tienda.",
+                          "id":  "aaaa49a4-29fb-4385-8d8e-573a3085461b"
+                      },
+                      {
+                          "metaDescription":  "Cloro en gel Impeke Citrus Tropical, en botella de 900 ml para la limpieza del hogar. Compra online en nuestra tienda.",
+                          "id":  "0a91db2d-c7d9-4573-a20a-f13c938b5561"
+                      },
+                      {
+                          "metaDescription":  "Cloro en gel Brillex con aroma a lavanda, en botella de 900 ml para la limpieza del hogar. Compra online en nuestra tienda.",
+                          "id":  "f3e5f5a0-ce35-4bf5-a8e8-423fec93d582"
+                      },
+                      {
+                          "metaDescription":  "Cloro en gel Arcadia con aroma a limón, en botella de 900 ml para la limpieza del hogar. Compra online en nuestra tienda.",
+                          "id":  "eb54d56f-c763-4253-b833-3f714c2b6fed"
+                      },
+                      {
+                          "metaDescription":  "Insecticida Killer 1000 en aerosol, en lata de 390 ml para usar según las indicaciones del envase. Compra online en nuestra tienda.",
+                          "id":  "63b88ec1-48de-48e7-983e-b44648f26474"
+                      },
+                      {
+                          "metaDescription":  "Acondicionador Ballerina con bambú y ginseng, en doypack de 750 ml para el cuidado del cabello. Compra online en nuestra tienda.",
+                          "id":  "2e4328a9-069d-469c-a8f2-5f9489b34e37"
+                      },
+                      {
+                          "metaDescription":  "Toallitas húmedas Emubaby para la higiene del bebé, con aloe vera, en formato de 3 x 10 unidades. Compra online en nuestra tienda.",
+                          "id":  "bd881713-a228-41e3-9ce7-a2dda0589876"
+                      },
+                      {
+                          "metaDescription":  "Toallitas húmedas La Paloma con aroma a limón para limpiar la cocina, en paquete de 80 unidades. Compra online en nuestra tienda.",
+                          "id":  "95445b4f-b305-46c4-b7f1-07a7f9a4a0c1"
+                      },
+                      {
+                          "metaDescription":  "Suavizante líquido Cava Active Plus Aroma en Flor para el lavado de ropa, en botella de 1 L. Compra online en nuestra tienda.",
+                          "id":  "8e6fa259-d999-480b-8eae-acdf25d77c21"
+                      },
+                      {
+                          "metaDescription":  "Jabón líquido de glicerina Simond\u0027s Jalea Real de 750 ml, en doypack para tu higiene corporal. Compra online en nuestra tienda.",
+                          "id":  "428a8eb8-9ee7-44bc-956a-808a71844a85"
+                      },
+                      {
+                          "metaDescription":  "Antitranspirante Nivea Men Fresh Active en aerosol de 150 ml para tu rutina de higiene personal. Compra online en nuestra tienda.",
+                          "descripcion":  "Antitranspirante Nivea Men en aerosol para tu rutina de higiene personal. Es de la línea Fresh Active Infinifresh y contiene 150 ml.",
+                          "id":  "7423e358-28e6-436b-a395-8a94d36edfb0"
+                      },
+                      {
+                          "metaDescription":  "Antitranspirante Nivea Stress Protect Active en aerosol de 150 ml para tu rutina de higiene personal. Compra online en nuestra tienda.",
+                          "descripcion":  "Antitranspirante Nivea en aerosol de la línea Stress Protect Active. El envase contiene 150 ml e indica 0% alcohol.",
+                          "id":  "1f1db7ca-b1d5-415f-90d7-9742f67b78d8"
+                      },
+                      {
+                          "metaDescription":  "Jabón líquido de glicerina Simond\u0027s Dermo Care Cremoso de 750 ml, en doypack para tu higiene corporal. Compra online en nuestra tienda.",
+                          "id":  "ce998bc9-22b9-442c-8af2-64bc77571f48"
+                      },
+                      {
+                          "metaDescription":  "Cera Kit en aerosol para el cuidado del auto, en lata de 360 ml. Revisa las indicaciones del envase. Compra online en nuestra tienda.",
+                          "descripcion":  "Cera Kit en aerosol para el cuidado del auto. Viene en una lata de 360 ml.",
+                          "id":  "6d10085c-4af6-4d95-8fb0-f25f212bafa5"
+                      },
+                      {
+                          "metaDescription":  "Silicona Kit en aerosol para el cuidado del auto, en lata de 480 ml. Revisa las indicaciones del envase. Compra online en nuestra tienda.",
+                          "descripcion":  "Silicona Kit en aerosol para el cuidado del auto. Viene en una lata de 480 ml.",
+                          "id":  "7d90fd6b-947e-4064-b4c4-d488ca9b9848"
+                      },
+                      {
+                          "metaDescription":  "Limpiador multiuso en crema Cif Original de 500 ml para la limpieza de superficies del hogar. Compra online en nuestra tienda.",
+                          "id":  "3c065d2a-267b-4f17-82d0-4e80129c1d46"
+                      },
+                      {
+                          "metaDescription":  "Acondicionador Dove de la línea Óleo Micelar, en formato de 400 ml para el cuidado del cabello. Compra online en nuestra tienda.",
+                          "id":  "2bd4d37c-e385-4d7c-82f3-9c4e2935814c"
+                      },
+                      {
+                          "metaDescription":  "Detergente líquido Más Limpio Perlado para lavar la ropa, en bidón de 5 L con asa. Compra online en nuestra tienda.",
+                          "id":  "4d6fc50e-7a62-423b-a06a-5b4bcd7d583f"
+                      },
+                      {
+                          "metaDescription":  "Máquina de afeitar Gillette Prestobarba3 desechable, con tres hojas, en formato de una unidad. Compra online en nuestra tienda.",
+                          "id":  "d798f99c-1384-4820-bcb2-b8184d878d64"
+                      },
+                      {
+                          "metaDescription":  "Máquina de afeitar Schick Xtreme3 desechable, con tres hojas y banda con aloe, en formato de una unidad. Compra online en nuestra tienda.",
+                          "id":  "2c8c6a3d-826d-4682-98d0-6c276756e53f"
+                      },
+                      {
+                          "metaDescription":  "Máquina de afeitar Schick Xtreme3 de tres hojas, con aroma Hawaiian Tropic en el mango, por unidad. Compra online en nuestra tienda.",
+                          "id":  "c7b707ad-047d-4b3b-a3b7-be44c6486a7b"
+                      },
+                      {
+                          "metaDescription":  "Chupetes de repuesto Simond\u0027s para mamaderas de boca ancha, de flujo variable, en pack de 2 unidades. Compra online en nuestra tienda.",
+                          "id":  "f5d76941-c02a-4094-9727-62ade86c291a"
+                      },
+                      {
+                          "metaDescription":  "Cepillos dentales Daily Caristop extra suaves para el cepillado de niños de 2 a 6 años, pack de 2 cepillos. Compra online en nuestra tienda.",
+                          "id":  "747379d2-42a7-4a9f-aeed-104a34d7e242"
+                      },
+                      {
+                          "metaDescription":  "Limpiador de inodoro Teddy con aroma a lavanda, en botella de 500 ml con cuello curvo para el aseo del baño. Compra online en nuestra tienda.",
+                          "id":  "659fcdc3-8db3-416c-8c6f-3948a05121b6"
+                      },
+                      {
+                          "metaDescription":  "Lavalozas líquido Quix Original de 500 ml para el lavado de la loza y los utensilios de cocina. Compra online en nuestra tienda.",
+                          "id":  "520705c8-5a76-4971-a0dc-2fdd4bbabd52"
+                      },
+                      {
+                          "metaDescription":  "Limpiavidrios Sapolio Multiusos de 650 ml con gatillo, para limpiar vidrios, espejos y superficies cromadas. Compra online en nuestra tienda.",
+                          "id":  "e3237a18-2335-435e-af38-b22d01554773"
+                      },
+                      {
+                          "metaDescription":  "Limpiavidrios líquido Virutex en botella de 500 ml con gatillo para la limpieza de vidrios. Compra online en nuestra tienda.",
+                          "id":  "c7c82430-61e8-4007-9125-d68e251ca69b"
+                      },
+                      {
+                          "metaDescription":  "Jabón líquido Cell Skin Cremoso para lavar manos y cuerpo, en botella de 700 ml. Compra online en nuestra tienda.",
+                          "id":  "6be660b9-76fa-451f-b57b-42380dd504dc"
+                      },
+                      {
+                          "metaDescription":  "Lustramuebles Virginia Tradicional para el cuidado de los muebles del hogar, en botella de 250 ml. Compra online en nuestra tienda.",
+                          "id":  "f50fa1b5-4cf2-4ed7-8e5e-ecfc8ada7e80"
+                      },
+                      {
+                          "metaDescription":  "Cera líquida Aileda en color negro para el cuidado del calzado, en envase de 75 ml. Compra online en nuestra tienda.",
+                          "id":  "448c8e6d-8fb6-468b-a9f4-e24fbf4188f7"
+                      },
+                      {
+                          "metaDescription":  "Cera líquida Aileda en color marrón para el cuidado del calzado, en envase de 75 ml. Compra online en nuestra tienda.",
+                          "id":  "49e4a2ca-5071-45e8-94dd-32d338e95a0c"
+                      },
+                      {
+                          "metaDescription":  "Pasta dental Aquafresh con flúor para el cepillado de los dientes, en formato de 75 ml. Compra online en nuestra tienda.",
+                          "id":  "6b9a52a2-c550-4355-919c-f465592e82a0"
+                      },
+                      {
+                          "metaDescription":  "Gel dental infantil Gelatti Frozen Elsa y Anna, sabor Bubble Fruit, de 90 g para el cepillado. Compra online en nuestra tienda.",
+                          "id":  "f8160927-9086-4c37-bb20-bb953a4d994e"
+                      },
+                      {
+                          "metaDescription":  "Gel dental infantil Gelatti Monster High, sabor Bubble Mint, en formato de 90 g para el cepillado. Compra online en nuestra tienda.",
+                          "id":  "5e416d4a-c3e4-4f3f-9352-bc7ad9fbe769"
+                      },
+                      {
+                          "metaDescription":  "Gel dental infantil Gelatti Monster High, sabor Bubble Fruit, en formato de 90 g para el cepillado. Compra online en nuestra tienda.",
+                          "id":  "47bad814-64d6-48b4-9829-e5ca40cadcfd"
+                      },
+                      {
+                          "metaDescription":  "Gel dental infantil Gelatti con diseño de Elsa de Frozen, en tubo de 90 g para el cepillado. Compra online en nuestra tienda.",
+                          "id":  "ce13f221-33ed-49a2-be57-89c07e2b11f2"
+                      },
+                      {
+                          "metaDescription":  "Pasta dental Aquafresh con flúor y sabor a menta para el cepillado de los dientes, en tubo de 158 g. Compra online en nuestra tienda.",
+                          "id":  "2157208b-2fb4-4fe6-afe7-54bc87af37ec"
+                      },
+                      {
+                          "metaDescription":  "Discos en gel Aileda con aroma a limón para el inodoro, en formato de 36 ml con aplicador y repuesto. Compra online en nuestra tienda.",
+                          "id":  "0e2584a7-80cc-47b8-ba5f-da4645574e5d"
+                      },
+                      {
+                          "metaDescription":  "Esponjas Ultra Clean Suave Oro-Plata para limpiar utensilios de cocina, en pack de 3 esponjas. Compra online en nuestra tienda.",
+                          "id":  "c2826aa4-29d7-4599-86a4-4b35a4e13908"
+                      },
+                      {
+                          "metaDescription":  "Crema para peinar Sedal de la línea Prebióticos + Biotina, en envase de 300 ml con dosificador. Compra online en nuestra tienda.",
+                          "id":  "5c162a26-f935-4839-9446-b025e7e6d58c"
+                      }
+                  ],
+    "paginas":  {
+                    "ayuda":  "Aquí encuentras respuestas para preparar tu compra y seguir tu pedido.\n\n### ¿Cómo compro? ¿Necesito una cuenta?\n\nAgrega tus productos al carrito y compra como invitado, sin crear una cuenta. Ingresa tu email, nombre y teléfono. Si eliges despacho, agrega tu dirección. El RUT es opcional.\n\n### ¿Qué medios de pago puedo usar?\n\nPuedes pagar por transferencia bancaria. Al comprar verás los datos de la cuenta y el plazo para pagar. Confirmamos el pedido cuando verificamos el pago. También puedes pagar online con tarjeta cuando esa opción esté habilitada.\n\n### ¿Se reservan mis productos mientras pago?\n\nAl confirmar el pedido, tus productos quedan reservados durante el plazo indicado para pagar. Si no pagas a tiempo, el pedido se cancela automáticamente y los productos vuelven a estar disponibles.\n\n### ¿Cuánto cuesta y demora el despacho?\n\nEl despacho tiene un costo y un plazo según tu región. Al elegir tu comuna, verás ambos datos antes de pagar.\n\n### ¿Puedo retirar en el local?\n\nPuedes elegir retiro gratis cuando la opción esté disponible. La dirección y el horario del local aparecen al elegir retiro. Recibirás un correo cuando tu pedido esté listo para retirar.\n\n### ¿Cómo sigo mi pedido?\n\nEntra a «Sigue tu pedido» con tu número de pedido y el email que usaste al comprar. También puedes acceder desde el correo de tu compra.\n\nRecibirás correos de pedido recibido, pago confirmado y pedido despachado o listo para retirar.\n\n### ¿Dónde ingreso un cupón?\n\nIngresa tu cupón en el resumen de compra. Revisa el descuento y el total antes de confirmar el pedido.\n\n### ¿En qué moneda se muestran los precios?\n\nLos precios están en pesos chilenos con IVA incluido.\n\n### ¿Cómo recibo mi boleta?\n\nEl resumen del pedido no es una boleta. Recibes tu boleta según el medio de pago; si necesitas factura, escríbenos antes de comprar.\n\n### ¿Cómo pido un cambio o una devolución?\n\nRevisa la página «Cambios y devoluciones». Para solicitarlo, escríbenos por los canales de la página Contacto e indica tu número de pedido, el producto y el motivo de tu solicitud. Revisamos cada caso.\n\n### ¿Cómo me contacto con la tienda?\n\nSi tienes dudas, escríbenos por los canales de la página Contacto.",
+                    "despacho":  "Antes de pagar, revisa las opciones de entrega disponibles para tu pedido.\n\n### Despacho a domicilio\n\nEl despacho tiene un costo y un plazo según tu región. Al elegir tu comuna, verás ambos datos antes de pagar.\n\nIngresa tu dirección y revisa que los datos estén correctos antes de confirmar la compra.\n\n### Retiro en el local\n\nPuedes elegir retiro gratis cuando la opción esté disponible. La dirección y el horario del local aparecen al elegir retiro.\n\nRecibirás un correo cuando tu pedido esté listo. Espera ese aviso antes de ir al local.\n\n### Avisos y seguimiento\n\nRecibirás correos cuando se reciba tu pedido, se confirme el pago y tu compra esté despachada o lista para retirar.\n\nConsulta el estado en «Sigue tu pedido» con tu número de pedido y el email que usaste al comprar. También puedes acceder desde el correo de tu compra.\n\n### ¿Necesitas ayuda con la entrega?\n\nSi tienes dudas, escríbenos por los canales de la página Contacto e indica tu número de pedido para que podamos revisar tu consulta.",
+                    "cambios":  "Si necesitas un cambio o una devolución, escríbenos por los canales de la página Contacto. Revisamos cada caso.\n\n### Cómo solicitar un cambio o una devolución\n\nPara revisar tu solicitud, cuéntanos:\n\n- Tu número de pedido.\n- El producto que quieres cambiar o devolver.\n- Qué ocurrió y qué necesitas solicitar.\n\nRevisaremos tu caso y te indicaremos cómo coordinar la entrega del producto, si corresponde.\n\n### Condiciones del producto\n\nPara solicitar un cambio por preferencia, presenta el producto sin uso y en su envase. Si tiene una falla, indícalo al contactarnos para revisar el caso.\n\nLos productos de higiene personal abiertos pueden no admitir cambio por razones sanitarias, salvo falla.\n\n### Derechos del consumidor\n\nSe respetan los derechos de la Ley 19.496 sobre Protección de los Derechos de los Consumidores. Revisamos las solicitudes de cambio, devolución o por falla considerando estos derechos.\n\n### Envíos y reembolsos\n\nAl revisar tu caso, te informaremos cómo coordinar el envío, si corresponde, y los costos asociados. Si corresponde un reembolso, te indicaremos cómo se gestionará."
+                }
+}

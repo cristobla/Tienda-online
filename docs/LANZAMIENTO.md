@@ -15,6 +15,9 @@ Regla de oro: **nombre, dirección y teléfono idénticos en todas partes** (tie
 - [ ] **Categorías y marcas** reales. Hoy son de demostración.
 - [ ] **Stock real** por variante, contado en bodega. Se carga en `/admin/inventario` (o con la importación, opción de stock inicial).
 
+### Atajo: catálogo desde fotos (con Codex)
+Deja las fotos de los productos en `Documents/Tienda-fotos/entrada/` y pídele a Claude que cargue el catálogo. Codex identifica cada producto, busca su precio en tiendas chilenas y deja un informe con las fuentes. El cargador crea los productos con su foto al precio de referencia menos el descuento acordado (15 %). Los precios son una propuesta: revísalos antes de vender. Los productos que no se puedan identificar, de farmacia o sin precio comparable quedan fuera, con el motivo en el informe.
+
 ## 2. Datos que se cargan en el panel
 
 - [ ] `/admin/tienda` → **Identidad**: nombre y descripción de 1 o 2 frases (sale en Google y al compartir).

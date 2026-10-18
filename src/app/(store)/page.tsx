@@ -5,7 +5,7 @@ import { Fleje, ProductGrid, ProductImage } from "@/components/store/product-car
 import { aisle, SearchBar } from "@/components/store/shell";
 import { env } from "@/lib/env";
 import { formatPhone, mapsLink, pickupAvailable, socialLinks, storeAddressLine, whatsappUrl } from "@/lib/site";
-import { listBrands } from "@/modules/brands/queries";
+import { listBrandsInUse } from "@/modules/brands/queries";
 import { listProducts, type ProductCard } from "@/modules/catalog/queries";
 import { loadCategories } from "@/modules/categories/queries";
 import { getSettings } from "@/modules/settings";
@@ -70,12 +70,12 @@ function Spotlight({ p }: { p: ProductCard }) {
 }
 
 export default async function Home() {
-  const { roots, visibleIds } = await loadCategories();
+  const { nav: roots, visibleIds } = await loadCategories();
   const scope = { categoryIds: visibleIds };
   const [featured, latest, brands, st, sale] = await Promise.all([
     listProducts(scope, { featured: true }, { pageSize: 8 }),
     listProducts(scope, { inStock: true }, { sort: "nuevos", pageSize: 4 }),
-    listBrands(),
+    listBrandsInUse(),
     getSettings(),
     listProducts({ ...scope, onSale: true }, { inStock: true }, { pageSize: 4 }),
   ]);

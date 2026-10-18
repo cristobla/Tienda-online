@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [{ roots, visibleIds }, cartCount, settings] = await Promise.all([loadCategories(), currentCartId().then(cartItemCount), getSettings()]);
+  const [{ nav: roots, visibleIds }, cartCount, settings] = await Promise.all([loadCategories(), currentCartId().then(cartItemCount), getSettings()]);
   const onSale = (await listProducts({ categoryIds: visibleIds, onSale: true }, {}, { pageSize: 1 })).total > 0;
   return (
     <>

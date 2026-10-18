@@ -40,3 +40,21 @@ describe("ofertas", () => {
     expect((await listProducts({ categoryIds })).items.map((p) => p.variantId).sort()).toEqual([sale.id, plain.id].sort());
   });
 });
+
+describe("navegación sin categorías ni marcas vacías", () => {
+  it("el menú y la portada solo ofrecen categorías y marcas con productos publicados", async () => {
+    const v = await makeVariant(5);
+    const [p] = await db.select().from(s.products).where(eq(s.products.id, v.productId));
+    const [vacia] = await db.insert(s.categories).values({ name: "Vacía", slug: "vacia" }).returning();
+    const [conProducto] = await db.insert(s.brands).values({ name: "Con producto", slug: "con-producto" }).returning();
+    await db.insert(s.brands).values({ name: "Sin producto", slug: "sin-producto" });
+    await db.update(s.products).set({ active: true, brandId: conProducto!.id }).where(eq(s.products.id, p!.id));
+    const { loadCategories } = await import("@/modules/categories/queries");
+    const { listBrandsInUse } = await import("@/modules/brands/queries");
+    const cats = await loadCategories();
+    expect(cats.nav.map((c) => c.id)).toEqual([p!.categoryId]);
+    expect(cats.navIds.has(vacia!.id)).toBe(false);
+    expect(cats.visibleIds).toContain(vacia!.id); // sigue existiendo (página, validación)
+    expect((await listBrandsInUse()).map((b) => b.name)).toEqual(["Con producto"]);
+  });
+});
