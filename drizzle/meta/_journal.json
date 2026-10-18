@@ -50,6 +50,13 @@
       "when": 1791864516293,
       "tag": "0006_correos",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791870326190,
+      "tag": "0007_redirecciones",
+      "breakpoints": true
     }
   ]
 }

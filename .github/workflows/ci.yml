@@ -39,3 +39,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # La imagen de producción (Dockerfile) compila igual que en el servidor.
+  imagen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t tienda-app .

@@ -5,6 +5,7 @@ import { brands, products } from "@/db/schema";
 import { field, UserError } from "@/lib/form";
 import { slugify } from "@/lib/slug";
 import { audit } from "@/modules/audit";
+import { rememberSlug } from "@/modules/catalog/redirects";
 
 export const brandSchema = z.object({
   name: field.text(80),
@@ -44,6 +45,7 @@ export async function updateBrand(userId: string, id: string, data: BrandInput) 
     const [before] = await tx.select().from(brands).where(eq(brands.id, id)).for("update");
     if (!before) throw new UserError("La marca no existe.");
     const [row] = await tx.update(brands).set(withSlug(data)).where(eq(brands.id, id)).returning();
+    await rememberSlug(tx, "brand", id, before.slug, row!.slug);
     await audit(tx, { userId, action: "brand.update", entityType: "brand", entityId: id, before, after: row });
     return row!;
   });

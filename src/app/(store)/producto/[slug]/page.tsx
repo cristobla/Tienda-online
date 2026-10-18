@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Breadcrumbs, hrefWith, type SP } from "@/components/store/catalog-view";
 import { AddToCartForm } from "@/components/store/cart-forms";
@@ -13,6 +12,7 @@ import { MAX_ITEM_QTY } from "@/modules/cart";
 import { validGtin } from "@/modules/catalog/feed";
 import { contentLabel, discountPercent } from "@/modules/catalog/pricing";
 import { describeAttributes, getProductBySlug, relatedProducts } from "@/modules/catalog/queries";
+import { redirectFromOldSlug } from "@/modules/catalog/redirects";
 import { formatCLP } from "@/modules/chile";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SP> };
@@ -32,10 +32,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params, searchParams }: Props) {
-  const data = await getProductBySlug((await params).slug);
-  if (!data) notFound();
-  const { product, brand, categoryPath, variants, images, attributeDefs } = data;
+  const { slug } = await params;
   const sp = await searchParams;
+  const data = await getProductBySlug(slug);
+  if (!data) return redirectFromOldSlug("product", "/producto/", slug, sp);
+  const { product, brand, categoryPath, variants, images, attributeDefs } = data;
   const path = `/producto/${product.slug}`;
 
   // La variante elegida va en la URL (?variante=SKU): enlazable y funciona sin JavaScript.

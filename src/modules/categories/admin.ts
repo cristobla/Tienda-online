@@ -5,6 +5,7 @@ import { categories, products } from "@/db/schema";
 import { field, UserError } from "@/lib/form";
 import { slugify } from "@/lib/slug";
 import { audit } from "@/modules/audit";
+import { rememberSlug } from "@/modules/catalog/redirects";
 
 export const categorySchema = z.object({
   name: field.text(80),
@@ -75,6 +76,7 @@ export async function updateCategory(userId: string, id: string, data: CategoryI
     const [before] = await tx.select().from(categories).where(eq(categories.id, id)).for("update");
     if (!before) throw new UserError("La categoría no existe.");
     const [row] = await tx.update(categories).set(withSlug(data)).where(eq(categories.id, id)).returning();
+    await rememberSlug(tx, "category", id, before.slug, row!.slug);
     await audit(tx, { userId, action: "category.update", entityType: "category", entityId: id, before, after: row });
     return row!;
   });

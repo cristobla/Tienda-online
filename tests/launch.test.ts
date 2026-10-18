@@ -6,6 +6,10 @@ import * as s from "@/db/schema";
 import { clientIp } from "@/lib/client-ip";
 import { UserError } from "@/lib/form";
 import { createStaffUser, newUserSchema } from "@/modules/auth/users";
+import { brandSchema, createBrand, updateBrand } from "@/modules/brands/admin";
+import { deleteProduct, productSchema, updateProduct } from "@/modules/catalog/admin";
+import { currentSlug } from "@/modules/catalog/redirects";
+import { categorySchema, createCategory, updateCategory } from "@/modules/categories/admin";
 import { addToCart, getCart } from "@/modules/cart";
 import { productFeedXml, validGtin } from "@/modules/catalog/feed";
 import { type Deliver, sendPendingEmails } from "@/modules/mail";
@@ -161,6 +165,40 @@ describe("feed de productos (Google Merchant / Meta)", () => {
     expect(xml).toContain("<g:availability>in_stock</g:availability>");
     expect(xml).not.toContain(noPhoto.sku);
     expect(xml).not.toContain(draft.sku);
+  });
+});
+
+describe("redirecciones de direcciones antiguas", () => {
+  const rename = async (id: string, categoryId: string, slug: string) =>
+    updateProduct(adminId, id, productSchema.parse({ name: "Jabón", slug, categoryId, active: "on" }), {});
+
+  it("cambiar el slug de un producto deja el anterior apuntando al actual, en un salto y sin pisar uno vivo", async () => {
+    const v = await makeVariant(0);
+    const [p] = await db.select().from(s.products).where(eq(s.products.id, v.productId));
+    const first = "jabon-a";
+    await rename(p!.id, p!.categoryId!, first);
+    await rename(p!.id, p!.categoryId!, "jabon-b");
+    await rename(p!.id, p!.categoryId!, "jabon-c");
+    expect(await currentSlug("product", first)).toBe("jabon-c");
+    expect(await currentSlug("product", "jabon-b")).toBe("jabon-c");
+    expect(await currentSlug("product", "jabon-c")).toBeNull(); // el vigente no se redirige
+
+    await rename(p!.id, p!.categoryId!, first); // vuelve a su dirección original
+    expect(await currentSlug("product", first)).toBeNull();
+    expect(await currentSlug("product", "jabon-c")).toBe(first);
+    expect(await currentSlug("category", "jabon-c")).toBeNull(); // cada tipo por separado
+
+    await deleteProduct(adminId, p!.id); // sin stock ni ventas: se puede borrar
+    expect(await currentSlug("product", "jabon-c")).toBeNull(); // ya no existe: 404
+  });
+
+  it("también para categorías y marcas", async () => {
+    const c = await createCategory(adminId, categorySchema.parse({ name: "Cocina", sortOrder: "0", active: "on" }));
+    await updateCategory(adminId, c.id, categorySchema.parse({ name: "Cocina", slug: "cocina-y-mesa", sortOrder: "0", active: "on" }));
+    expect(await currentSlug("category", "cocina")).toBe("cocina-y-mesa");
+    const b = await createBrand(adminId, brandSchema.parse({ name: "Marca Uno", active: "on" }));
+    await updateBrand(adminId, b.id, brandSchema.parse({ name: "Marca Uno", slug: "marca-1", active: "on" }));
+    expect(await currentSlug("brand", "marca-uno")).toBe("marca-1");
   });
 });
 

@@ -8,7 +8,7 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Carpetas clave: `src/app/(store)` tienda pública · `src/app/admin` panel · `src/app/media/[name]` imágenes subidas (disco local, `UPLOAD_DIR`) · `src/components/{store,admin}` + `src/components/icons.tsx` · `src/db/schema` (catalog, users, sales) · `drizzle/` migraciones · `docs/`.
 
 ## Estado de fases (plan en `docs/ARQUITECTURA.md` §13)
-1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ✅ · 5. Carrito y pedidos ✅ · 6. Checkout ✅ · 7. Pagos: base + transferencia ✅, pasarelas online ⏳ · 8. Seguridad, SEO y cierre: esencial ✅ (rama `fase-8-esencial`), Docker y 301 ⏳.
+1. Arquitectura y BD ✅ · 2. Catálogo público ✅ · 3. Panel administrativo ✅ (+ iteración UI/UX) · 4. Inventario y movimientos ✅ · 5. Carrito y pedidos ✅ · 6. Checkout ✅ · 7. Pagos: base + transferencia ✅, pasarelas online ⏳ · 8. Seguridad, SEO y cierre ✅ (esencial, Docker y redirecciones; falta solo S3 si el hosting no tiene disco).
 - Cada fase depende de la anterior: los pedidos (5) usan reservas e inventario (4); el checkout (6) usa pedidos; los pagos (7) confirman pedidos.
 
 ## Fase 3 — lo implementado
@@ -88,14 +88,21 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Primer adaptador real (Webpay Plus o Mercado Pago): seguir `docs/PAGOS.md` §9 (protocolo oficial, sandbox con URL HTTPS pública, pruebas grabadas, recién después `implemented: true`).
 - Anular un pedido pagado (`SALE_CANCELLED`) y reembolsos: hoy manuales (incidencia REVIEW → "devuelto").
 
-## Fase 8 — esencial implementado (rama `fase-8-esencial`, apilada sobre `fase-7-pagos`)
+## Fase 8 — esencial implementado (PR #11, mergeado)
 - Primer Super Admin: `npm run admin:create -- correo` (`scripts/admin-create.ts`; contraseña sin eco o por stdin; `createStaffUser(null, …)` audita como sistema).
 - `next.config.ts`: CSP (solo propio; `script-src 'unsafe-inline'` por los scripts en línea de Next; `form-action 'self'` → agregar el dominio de una pasarela/analytics al integrarlos), HSTS (solo build de producción), X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy.
 - `src/lib/client-ip.ts` `clientIp(headers)`: la IP N-ésima desde el final de X-Forwarded-For según `TRUSTED_PROXY_HOPS` (1 en producción, 0 en local = "local"). Usada por login, webhook y checkout.
 - Límites: `MAX_PENDING_PER_EMAIL = 3` en `placeOrder` (base de datos) + 10 pedidos/15 min por conexión en `checkoutAction` (contador en memoria de `rate-limit`).
 - Correos: migración `0006_correos` (`email_outbox`, `key` única "tipo:pedido", PENDING/SENT/FAILED/SKIPPED). `src/modules/mail`: `enqueueEmail(tx, …)` en la transacción del hecho (`placeOrder` → order.received, `markOrderPaid` → order.paid, `changeOrderStatus` → SHIPPED → order.shipped); `sendPendingEmails` (job; SKIP LOCKED, 5 intentos, avisos > 3 días o que ya no corresponden → SKIPPED; texto armado al enviar). Proveedor: Resend por HTTP con `RESEND_API_KEY` + `MAIL_FROM`; local/test → consola; producción sin clave → esperan. Ficha del pedido en el panel: sección "Correos al cliente".
 - SEO/redes: sin `(store)/loading.tsx` (pasó a `productos/`) → 404 reales; `JsonLd` (componente); home con OnlineStore + WebSite/SearchAction; producto con `gtin` validado (`validGtin`, sin prefijo 2) + BreadcrumbList; `app/opengraph-image.tsx` (next/og) + twitter card; la ficha sin foto usa `/opengraph-image`; `SITE.social` + `socialLinks()` (pie y `sameAs`); `/feed/productos.xml` (`src/modules/catalog/feed.ts`, RSS g: para Google Merchant y Meta; solo publicados con foto).
-- Pruebas: `tests/launch.test.ts` (10). Conexión con buscadores y redes: `docs/DESPLIEGUE.md` §8.
+- Pruebas: `tests/launch.test.ts`. Conexión con buscadores y redes: `docs/DESPLIEGUE.md` §8.
+
+## Docker y redirecciones (rama `fase-8-docker-redirecciones`)
+- `Dockerfile` (node:26-slim, una sola imagen: build + `npm prune --omit=dev` en la etapa de compilación; `tsx` es dependencia de producción porque la imagen también corre `jobs`, `db:migrate`, `db:reference` y `admin:create`; CMD = migrar y `npm run start`; usuario `node`; fotos en `/data/uploads`). La build no se conecta a la base (DATABASE_URL ficticia); `robots.ts` es dinámico para usar el APP_URL del servidor. `.dockerignore` NO excluye `tests/` (hay pruebas en `src/` que importan `tests/helpers` y la build revisa tipos).
+- `docker-compose.prod.yml`: db (sin puertos publicados) · app (healthcheck con `fetch` de Node a `/robots.txt`) · jobs (ciclo `npm run jobs` cada 60 s, espera a la app sana: si no, corre antes de las migraciones) · caddy (HTTPS automático, `Caddyfile`, `TRUSTED_PROXY_HOPS=1`). Interpolación con `--env-file .env.production` (el `.env` sin sufijo es el de desarrollo). `.env.production.example` versionado (excepción en `.gitignore`); las variables vacías van comentadas (una vacía falla la validación de Zod).
+- CI: trabajo `imagen` = `docker build` en cada PR.
+- Redirecciones: migración `0007_redirecciones` (`slug_redirects`: kind + old_slug → target_id, sin FK). `src/modules/catalog/redirects.ts`: `rememberSlug(tx, …)` en `updateProduct`/`updateCategory`/`updateBrand` (el viejo apunta a la ENTIDAD; el nuevo deja de ser "viejo"), `currentSlug`, `redirectFromOldSlug` (308 con los mismos parámetros, o 404). Las páginas de producto, categoría y marca lo llaman solo si el slug no existe.
+- Verificado con el stack completo en local (proyecto `tienda-prod-prueba`, puertos 8080/8443, después borrado): HTTPS por Caddy, migraciones al arrancar, comunas, admin, 404, 308, cabeceras, volumen de fotos escribible.
 
 ## Plugins de la sesión
 - **Ponytail** (activo por hook): solución más simple que funcione, sin recortar validación, seguridad ni lo pedido explícitamente.

@@ -34,18 +34,18 @@ Elegir el servidor en una región cercana (São Paulo / Santiago si el proveedor
 
 ## 4. Endurecimiento (FASE 8)
 
-Hecho (rama `fase-8-esencial`):
+Hecho:
 - ✅ **Primer Super Admin**: `npm run admin:create -- correo@dominio.cl` (pide la contraseña sin mostrarla).
 - ✅ **Cabeceras de seguridad** (`next.config.ts`): Content-Security-Policy (solo recursos propios, sin frames ni formularios hacia otros sitios), HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`. Al sumar una pasarela, analytics o píxeles de redes hay que agregar sus dominios a la CSP.
 - ✅ **IP real detrás del proxy**: `TRUSTED_PROXY_HOPS` (por omisión 1 en producción). Lo usan el límite de ingreso al panel, el de pedidos y el de webhooks.
 - ✅ **Límite de pedidos pendientes**: máximo 3 esperando pago por email y 10 pedidos cada 15 minutos por conexión.
 - ✅ **Correos al cliente** (pedido recibido con las instrucciones de pago, pago confirmado, despachado): cola en la base, enviada por `npm run jobs`. Proveedor: Resend (`RESEND_API_KEY`, `MAIL_FROM`); sin clave, en local se muestran en la consola y en producción esperan en cola.
 - ✅ **SEO de producción**: 404 reales, JSON-LD (tienda, buscador, producto, migas), imagen para compartir y feed de productos (§8).
+- ✅ **Imagen Docker** (`Dockerfile`, `docker-compose.prod.yml`, `Caddyfile`, `.env.production.example`; §6). El CI la compila en cada PR.
+- ✅ **Redirecciones permanentes**: al cambiar el slug de un producto, categoría o marca, la dirección anterior responde 308 hacia la nueva (con sus parámetros). Tabla `slug_redirects`.
 
 Pendiente:
-1. **Imagen Docker de la app** (depende del hosting elegido): `Dockerfile` multi-etapa con `output: "standalone"` en `next.config.ts`, y un `docker-compose.prod.yml` (app + PostgreSQL con contraseña propia, sin publicar el puerto 5432 + Caddy). El `docker-compose.yml` actual es **solo de desarrollo** (usuario y clave `tienda`).
-2. **Redirecciones 301** al cambiar el slug de un producto o categoría (hoy el enlace viejo da 404).
-3. **Imágenes**: si se usa una plataforma sin disco persistente, implementar el adaptador S3 (la interfaz `saveImage/readImage/deleteImageFile` en `src/lib/storage.ts` ya está preparada).
+1. **Imágenes en S3** (solo si la plataforma no tiene disco persistente): implementar el adaptador en la interfaz `saveImage/readImage/deleteImageFile` de `src/lib/storage.ts`, que ya está preparada. El `docker-compose.yml` sin sufijo sigue siendo **solo de desarrollo** (usuario y clave `tienda`).
 
 ## 5. Variables de entorno en producción
 
@@ -68,32 +68,48 @@ No van en producción: `DATABASE_URL_TEST`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASS
 
 ## 6. Pasos de la primera puesta en marcha
 
-1. **Dominio**: registrar el `.cl` en NIC Chile y apuntar el DNS (registro A/AAAA) al servidor o al PaaS.
-2. **Servidor y base**: crear PostgreSQL 16 con usuario y contraseña propios; habilitar respaldos.
-3. **Código**: clonar el repositorio en la rama `main`, `npm ci`, crear las variables de §5.
-4. **Base de datos**:
+### A. Servidor propio (VPS) con Docker — recomendado para partir
+
+Archivos listos en el repositorio: `Dockerfile`, `docker-compose.prod.yml` (tienda + PostgreSQL privado + tareas cada minuto + Caddy con HTTPS automático), `Caddyfile` y `.env.production.example`. Probado de punta a punta en local con HTTPS.
+
+1. **Dominio**: registrar el `.cl` en NIC Chile y apuntar el DNS (registro A/AAAA) a la IP del servidor.
+2. **Servidor**: Linux con Docker (2 vCPU / 4 GB alcanzan), con los puertos 80 y 443 abiertos.
+3. **Código y variables**:
    ```bash
-   npm run db:migrate      # crea las tablas
-   npm run db:reference    # 16 regiones y 346 comunas
+   git clone https://github.com/cristobla/Tienda-online.git && cd Tienda-online
+   cp .env.production.example .env.production
    ```
-   Crear el Super Admin:
+   Editar `.env.production`: dominio, `APP_URL`, una contraseña larga para la base (`openssl rand -hex 24`), remitente y clave de correo.
+4. **Levantar**: compila la imagen, aplica las migraciones al arrancar y obtiene el certificado HTTPS:
    ```bash
-   npm run admin:create -- correo@tu-dominio.cl
+   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
    ```
-   Programar las tareas (vencimiento, reconciliación de pagos y envío de correos), p. ej. cron cada minuto:
+5. **Datos iniciales y primer admin** (una sola vez):
    ```bash
-   npm run jobs
+   docker compose --env-file .env.production -f docker-compose.prod.yml run --rm app npm run db:reference
+   docker compose --env-file .env.production -f docker-compose.prod.yml run --rm app npm run admin:create -- correo@tu-dominio.cl
    ```
-5. **Compilar y arrancar**: `npm run build` y `npm run start` (o la imagen Docker). Detrás de Caddy/PaaS con HTTPS.
-6. **Cargar el negocio desde el panel**: tarifas de despacho, categorías, marcas, atributos, productos con fotos y stock inicial (cada ingreso queda como movimiento de inventario).
-7. **Prueba completa** con un pedido real de bajo monto (cuando existan los pagos): pagar, ver el pedido pagado en el panel, stock descontado, boleta emitida.
-8. **Abrir al público**.
+6. **Cargar el negocio desde el panel**: cuenta para transferencias, tarifas de despacho, categorías, marcas, productos con fotos y stock inicial (por el importador de Excel o a mano).
+7. **Prueba completa** con un pedido real de bajo monto: transferir, confirmar en `/admin/pagos`, ver el stock descontado, el correo recibido y emitir la boleta.
+8. **Abrir al público** y conectar buscadores y redes (§8).
+
+### B. Plataforma administrada (Railway, Render, Fly.io)
+
+- Servicio web desde el `Dockerfile` del repositorio (puerto 3000), con las variables de §5 (`TRUSTED_PROXY_HOPS=1`).
+- PostgreSQL 16 administrado → su URL en `DATABASE_URL`.
+- Volumen persistente montado en `/data/uploads` con `UPLOAD_DIR=/data/uploads`. Sin disco persistente, implementar el adaptador S3 (§4).
+- Tarea programada cada 1 a 5 minutos con el comando `npm run jobs` (la app también las corre cada minuto mientras está encendida).
+- Una sola vez, desde la consola de la plataforma: `npm run db:reference` y `npm run admin:create -- correo@tu-dominio.cl`. Las migraciones se aplican solas al arrancar.
 
 ## 7. Operación diaria
 
-- **Respaldos**: `pg_dump` diario (o el respaldo del PaaS) + copia de `UPLOAD_DIR`. Probar una restauración al menos una vez antes de abrir.
-- **Actualizaciones**: cada versión = `git pull` → `npm ci` → `npm run db:migrate` → `npm run build` → reiniciar. Las migraciones nunca se editan, solo se agregan.
-- **Monitoreo**: revisar los logs del proceso (errores y el aviso "Error al vencer pedidos"); agregar un servicio de errores (p. ej. Sentry) y un chequeo de disponibilidad del sitio.
+- **Respaldos**: `pg_dump` diario (o el respaldo del PaaS) + copia de las fotos. Con Docker, p. ej. un cron diario:
+  ```bash
+  docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db pg_dump -U tienda tienda | gzip > respaldo-$(date +%F).sql.gz
+  ```
+  y el volumen `uploads`. Guardar las copias fuera del servidor y probar una restauración al menos una vez antes de abrir.
+- **Actualizaciones**: con Docker, `git pull` y el mismo `up -d --build` de §6 (las migraciones se aplican solas al arrancar). Sin Docker: `git pull` → `npm ci` → `npm run db:migrate` → `npm run build` → reiniciar. Las migraciones nunca se editan, solo se agregan.
+- **Monitoreo**: `docker compose … logs -f app jobs` (errores y el aviso "Error en las tareas de pedidos y pagos"); agregar un servicio de errores (p. ej. Sentry) y un chequeo de disponibilidad del sitio.
 - **Pedidos pendientes y stock**: el panel muestra pendientes de pago, por preparar y variantes bajo el mínimo.
 - **Usuarios del panel**: un usuario por persona, con el rol mínimo (Ventas, Bodega, Administrador); desactivar a quien deja la empresa.
 

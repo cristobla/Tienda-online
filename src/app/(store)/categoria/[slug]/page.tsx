@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { CatalogTitle, CatalogView, type SP, SubcategoryLinks } from "@/components/store/catalog-view";
+import { redirectFromOldSlug } from "@/modules/catalog/redirects";
 import { getCategoryBySlug, subtreeIds } from "@/modules/categories/queries";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SP> };
@@ -17,8 +17,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
-  const found = await getCategoryBySlug((await params).slug);
-  if (!found) notFound();
+  const { slug } = await params;
+  const found = await getCategoryBySlug(slug);
+  if (!found) return redirectFromOldSlug("category", "/categoria/", slug, await searchParams);
   const { category, path } = found;
 
   return (

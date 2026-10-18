@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { CatalogTitle, CatalogView, type SP } from "@/components/store/catalog-view";
 import { getBrandBySlug } from "@/modules/brands/queries";
+import { redirectFromOldSlug } from "@/modules/catalog/redirects";
 import { loadCategories } from "@/modules/categories/queries";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SP> };
@@ -13,8 +13,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function BrandPage({ params, searchParams }: Props) {
-  const brand = await getBrandBySlug((await params).slug);
-  if (!brand) notFound();
+  const { slug } = await params;
+  const brand = await getBrandBySlug(slug);
+  if (!brand) return redirectFromOldSlug("brand", "/marca/", slug, await searchParams);
   const { visibleIds } = await loadCategories();
 
   return (

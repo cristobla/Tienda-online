@@ -1,0 +1,6 @@
+# Proxy con HTTPS automático (certificado de Let's Encrypt) para el dominio de la tienda.
+# Agrega la IP del cliente a X-Forwarded-For: por eso TRUSTED_PROXY_HOPS=1.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
