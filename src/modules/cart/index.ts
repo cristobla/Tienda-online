@@ -3,7 +3,7 @@
  * así ningún total depende de lo que envía el navegador.
  * El carrito NO reserva stock: valida el disponible al agregar y el pedido reserva al crearse (modules/orders).
  */
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction, type Tx } from "@/db";
 import * as s from "@/db/schema";
@@ -13,6 +13,12 @@ import { loadCategories } from "@/modules/categories/queries";
 import { InsufficientStockError } from "@/modules/inventory";
 
 export const CART_COOKIE = "cart";
+
+/** Carritos sin cambios hace más de 30 días (abandonados): se borran con sus líneas. Lo llaman las tareas (jobs). */
+export async function purgeStaleCarts() {
+  const gone = await db.delete(s.carts).where(lt(s.carts.updatedAt, sql`now() - interval '30 days'`)).returning({ id: s.carts.id });
+  return gone.length;
+}
 export const MAX_ITEM_QTY = 99;
 
 export const addItemSchema = z.object({ variantId: z.uuid("Producto inválido"), quantity: field.int(1, MAX_ITEM_QTY) });

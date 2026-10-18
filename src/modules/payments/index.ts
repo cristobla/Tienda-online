@@ -23,9 +23,9 @@ import {
   type OrderInput,
   type PaymentStatus,
   recoverable,
+  isSold,
   reversePaidOrder as reverseOrderStatus,
   setOrderPaymentStatus,
-  SOLD_STATUSES,
 } from "@/modules/orders";
 import {
   type AttemptInfo,
@@ -68,7 +68,6 @@ export const ATTEMPT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
 const OPEN: PaymentStatus[] = ["PENDING", "AUTHORIZED", "UNCERTAIN"];
 /** Hay dinero verificado como recibido (confirme o no el pedido). */
 const MONEY: PaymentStatus[] = ["PAID", "REVIEW", "PARTIALLY_REFUNDED", "REFUNDED"];
-const PAID_ORDER = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"];
 
 export const SOURCE_LABELS: Record<string, string> = { webhook: "Notificación del proveedor", return: "Retorno del cliente", admin: "Panel", reconcile: "Consulta automática" };
 
@@ -348,13 +347,13 @@ export async function applyResult(tx: Transaction, paymentId: string, r: Verifie
       }
     } else {
       to = "REVIEW";
-      patch.incident = PAID_ORDER.includes(order.status)
+      patch.incident = isSold(order.status)
         ? "Pago duplicado: el pedido ya estaba pagado con otro intento. Reembolso pendiente."
         : "Pago recibido sobre un pedido cancelado o reembolsado: reembolso pendiente.";
     }
     if (to === "REVIEW") {
       outcome = "review";
-      if (!PAID_ORDER.includes(order.status)) await setOrderPaymentStatus(tx, order, "REVIEW");
+      if (!isSold(order.status)) await setOrderPaymentStatus(tx, order, "REVIEW");
     }
     // Una pasarela confirmó sola (sin pasar por el panel): la tienda se entera para preparar el pedido.
     if ((outcome === "confirmed" || outcome === "late_confirmed") && actor.source !== "admin") await notifyStore(tx, "store.order_paid", order);
@@ -631,7 +630,7 @@ export type RefundOutcome = { reference: string; provider: string; result: "REFU
 export async function refundOrder(adminId: string, orderId: string, input: { note: string; restock: boolean }) {
   const { order, restocked, paymentIds } = await db.transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
-    if (!(SOLD_STATUSES as readonly string[]).includes(order.status)) throw new UserError("Solo se anula o devuelve un pedido pagado.");
+    if (!isSold(order.status)) throw new UserError("Solo se anula o devuelve un pedido pagado.");
     const paid = await tx
       .select()
       .from(s.payments)

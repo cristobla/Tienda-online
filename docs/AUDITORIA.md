@@ -43,8 +43,8 @@ Revisión de frontend, backend, base de datos y operación, comparada con lo que
 ### Altos
 
 5. **Acceso al panel.**
-   - Sin segundo factor (2FA/TOTP), aunque el personal opera dinero y datos personales.
-   - Las sesiones del personal duran 30 días (`SESSION_TTL_DAYS`).
+   - Sin segundo factor (2FA/TOTP), aunque el personal opera dinero y datos personales. **Corregido:** TOTP opcional en «Mi cuenta», con aviso a administradores.
+   - Las sesiones del personal duraban 30 días (`SESSION_TTL_DAYS`). **Corregido:** ahora 1 día por omisión.
    - Los límites de intentos (login, checkout, webhooks) viven en memoria de un proceso: con dos instancias o un reinicio se pierden.
    - **Hacer:** TOTP para Administrador y Super administrador, sesión del panel de horas con expiración por inactividad, y límites en la base o en Redis.
 6. **Operación sin red de seguridad.**

@@ -23,10 +23,10 @@ export function UploadForm({ action }: { action: (prev: FormState, fd: FormData)
         aria-label="Archivos de imagen"
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
-          const big = files.find((f) => f.size > 5 * MB);
+          const big = files.find((f) => f.size > 15 * MB);
           const total = files.reduce((n, f) => n + f.size, 0);
           e.target.setCustomValidity(
-            big ? `"${big.name}" supera 5 MB.` : files.length > 10 ? "Máximo 10 imágenes por vez." : total > 24 * MB ? "En total superan 24 MB: súbelas en dos tandas." : "",
+            big ? `"${big.name}" supera 15 MB.` : files.length > 10 ? "Máximo 10 imágenes por vez." : total > 24 * MB ? "En total superan 24 MB: súbelas en dos tandas." : "",
           );
           e.target.reportValidity();
           for (const p of previews) URL.revokeObjectURL(p.url);
@@ -52,7 +52,7 @@ export function UploadForm({ action }: { action: (prev: FormState, fd: FormData)
         <span className="mb-1 block font-semibold">Texto alternativo</span>
         <input name="alt" maxLength={200} className="w-full rounded-md border border-line px-3 py-2" placeholder="Ej.: Botella de 500 ml, vista frontal" />
       </label>
-      <p className="text-xs text-muted">JPG, PNG, WebP o AVIF · máx. 5 MB c/u · hasta 10 por vez (24 MB en total). Ideal: fondo blanco, cuadradas, 1200 px.</p>
+      <p className="text-xs text-muted">JPG, PNG, WebP o AVIF · máx. 15 MB c/u · hasta 10 por vez (24 MB en total) · las grandes se reducen solas. Ideal: fondo blanco, cuadradas, 1200 px o más. Muchas fotos: «Subir fotos por SKU» en Productos.</p>
       {state.error && (
         <p role="alert" className="text-sm font-medium text-oferta">
           {state.error}

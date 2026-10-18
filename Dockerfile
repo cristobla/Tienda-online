@@ -9,6 +9,9 @@ RUN npm ci
 COPY . .
 # La compilación no se conecta a la base; APP_URL queda en las páginas estáticas (p. ej. la de 404).
 ARG APP_URL=https://localhost
+# Medición (opcional): la CSP permite Google Analytics o el píxel de Meta solo si su ID existe al compilar.
+ARG GA_ID=
+ARG META_PIXEL_ID=
 ENV NODE_ENV=production APP_ENV=production APP_URL=$APP_URL DATABASE_URL=postgres://compilacion@localhost/compilacion NEXT_TELEMETRY_DISABLED=1
 RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 

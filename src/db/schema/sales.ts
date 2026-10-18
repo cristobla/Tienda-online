@@ -99,6 +99,9 @@ export const paymentStatus = pgEnum("payment_status", [
 
 export const orderNumberSeq = pgSequence("order_number_seq", { startWith: 1000 });
 
+/** Cómo recibe el cliente: despacho a domicilio o retiro en el local (sin costo ni dirección). */
+export const fulfillment = pgEnum("fulfillment", ["DELIVERY", "PICKUP"]);
+
 export type AddressSnapshot = {
   recipientName: string;
   phone?: string | null;
@@ -132,8 +135,11 @@ export const orders = pgTable(
     currency: char({ length: 3 }).notNull().default("CLP"),
     subtotal: integer().notNull(),
     discountTotal: integer("discount_total").notNull().default(0),
+    /** Cupón aplicado (copia del código); sus usos se cuentan desde aquí. */
+    couponCode: text("coupon_code"),
     shippingTotal: integer("shipping_total").notNull().default(0),
     total: integer().notNull(),
+    fulfillment: fulfillment().notNull().default("DELIVERY"),
     status: orderStatus().notNull().default("PENDING_PAYMENT"),
     paymentStatus: paymentStatus("payment_status").notNull().default("PENDING"),
     paymentMethod: text("payment_method"),
@@ -147,6 +153,7 @@ export const orders = pgTable(
     index("orders_status_idx").on(t.status, t.createdAt),
     index("orders_created_idx").on(t.createdAt),
     index("orders_paid_idx").on(t.paidAt),
+    index("orders_coupon_idx").on(t.couponCode),
     check("orders_amounts_nonneg", sql`${t.subtotal} >= 0 AND ${t.discountTotal} >= 0 AND ${t.shippingTotal} >= 0`),
     check("orders_total_math", sql`${t.total} = ${t.subtotal} - ${t.discountTotal} + ${t.shippingTotal}`),
     check("orders_total_nonneg", sql`${t.total} >= 0`),
@@ -414,10 +421,54 @@ export const storeSettings = pgTable(
     tiktok: text(),
     /** Correo del encargado: recibe el aviso de cada pedido nuevo. */
     orderNotifyEmail: text("order_notify_email"),
+    /** Local físico: dirección (calle y número), comuna y región; vacío = la tienda no muestra un local. */
+    storeAddress: text("store_address"),
+    storeCommune: text("store_commune"),
+    storeRegion: text("store_region"),
+    /** Enlace a la ficha del local en Google Maps (Perfil de Empresa); sin él, se busca la dirección. */
+    mapsUrl: text("maps_url"),
+    /** Ofrecer "Retiro en el local" en el checkout (exige la dirección del local). */
+    pickupEnabled: boolean("pickup_enabled").notNull().default(false),
+    /** Despacho gratis cuando los productos (con descuento) suman al menos esto; null = no hay. */
+    freeShippingFrom: integer("free_shipping_from"),
     updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
     ...timestamps,
   },
   (t) => [check("store_settings_single_row", sql`${t.id} = 1`)],
+);
+
+// ───────────── Promociones ─────────────
+
+export const couponKind = pgEnum("coupon_kind", ["PERCENT", "FIXED"]);
+
+/**
+ * Cupón de descuento sobre los productos (no sobre el despacho). Los usos se cuentan desde los pedidos no
+ * cancelados con este código: un pedido vencido devuelve su uso.
+ */
+export const coupons = pgTable(
+  "coupons",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** En mayúsculas y sin espacios. */
+    code: text().notNull().unique(),
+    kind: couponKind().notNull(),
+    /** Porcentaje (1–90) o monto en CLP. */
+    value: integer().notNull(),
+    minSubtotal: integer("min_subtotal").notNull().default(0),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    /** Usos totales; null = sin límite. */
+    maxUses: integer("max_uses"),
+    oncePerEmail: boolean("once_per_email").notNull().default(false),
+    active: boolean().notNull().default(true),
+    note: text(),
+    ...timestamps,
+  },
+  (t) => [
+    check("coupons_value", sql`${t.value} > 0 AND (${t.kind} <> 'PERCENT' OR ${t.value} <= 90)`),
+    check("coupons_limits", sql`${t.minSubtotal} >= 0 AND (${t.maxUses} IS NULL OR ${t.maxUses} > 0)`),
+    check("coupons_code_format", sql`${t.code} ~ '^[A-Z0-9_-]{3,30}$'`),
+  ],
 );
 
 /** Texto (Markdown básico) de las páginas informativas del pie. Sin fila = contenido pendiente. */

@@ -10,6 +10,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NEXT_PHASE === "phase-production-build") return;
   const { runPaymentJobs } = await import("@/modules/payments");
   const { sendPendingEmails } = await import("@/modules/mail");
+  const { purgeExpiredSessions } = await import("@/modules/auth/session");
+  const { purgeStaleCarts } = await import("@/modules/cart");
   const g = globalThis as unknown as { orderExpiryTimer?: NodeJS.Timeout };
   // En desarrollo Next recarga módulos: un solo temporizador por proceso, que no impide que el proceso termine.
   // Sin base de datos basta una línea por minuto (no un stack trace); cualquier otro error se muestra completo.
@@ -19,6 +21,8 @@ export async function register() {
     () =>
       runPaymentJobs()
         .then(() => sendPendingEmails())
+        .then(() => purgeExpiredSessions())
+        .then(() => purgeStaleCarts())
         .catch(report),
     60_000,
   ).unref();

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { done, fail, fieldErrors, type FormState, formObject, handleError } from "@/lib/form";
 import { requirePermission } from "@/modules/auth/session";
+import { resetTotp } from "@/modules/auth/totp";
 import { createStaffUser, newUserSchema, passwordSchema, setUserPassword, updateStaffUser, userUpdateSchema } from "@/modules/auth/users";
 
 export async function createUserAction(prev: FormState, fd: FormData): Promise<FormState> {
@@ -45,4 +46,16 @@ export async function setPasswordAction(id: string, prev: FormState, fd: FormDat
   // Si fue la propia cuenta, su sesión también se cerró.
   if (actor.id === id) redirect("/admin/login");
   return done(prev, "Contraseña cambiada. Sus sesiones abiertas se cerraron.");
+}
+
+/** Quita la verificación en dos pasos de otra persona (celular perdido). */
+export async function resetTotpAction(id: string, prev: FormState): Promise<FormState> {
+  const actor = await requirePermission("users:manage");
+  try {
+    await resetTotp(actor.id, z.uuid().parse(id));
+  } catch (e) {
+    return handleError(e, prev, new FormData());
+  }
+  revalidatePath("/admin/usuarios");
+  return done(prev, "Verificación en dos pasos quitada. Pídele que la active de nuevo.");
 }

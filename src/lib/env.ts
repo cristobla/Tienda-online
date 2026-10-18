@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Un argumento de build vacío llega como "" (Dockerfile): equivale a no definido.
+const blankToUndef = (v: unknown) => (v === "" ? undefined : v);
+
 /** Toda la configuración externa pasa por aquí y se valida al arrancar. Ver .env.example. */
 const schema = z
   .object({
@@ -12,7 +15,8 @@ const schema = z
     APP_ENV: z.enum(["local", "test", "integration", "production"]).optional(),
     DATABASE_URL: z.string().url(),
     APP_URL: z.string().url().default("http://localhost:3000"),
-    SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+    /** Duración del ingreso al panel. 1 día: un computador del local con el panel abierto no queda con permisos por semanas. */
+    SESSION_TTL_DAYS: z.coerce.number().int().positive().default(1),
     RESERVATION_TTL_MINUTES: z.coerce.number().int().positive().default(30),
     /** Plazo de reserva de un pedido pagado por transferencia (minutos). Sin definir: RESERVATION_TTL_MINUTES. */
     TRANSFER_RESERVATION_MINUTES: z.coerce.number().int().min(5).max(4320).optional(),
@@ -35,6 +39,12 @@ const schema = z
      */
     MERCADOPAGO_ACCESS_TOKEN: z.string().min(20).optional(),
     MERCADOPAGO_WEBHOOK_SECRET: z.string().min(16).optional(),
+    /**
+     * Medición con consentimiento: Google Analytics 4 (G-XXXXXXX) y píxel de Meta (solo dígitos). Van también como
+     * argumentos de la build (Dockerfile): la política de contenido (CSP) solo permite sus dominios si existen.
+     */
+    GA_ID: z.preprocess(blankToUndef, z.string().regex(/^G-[A-Z0-9]{4,20}$/, "Formato G-XXXXXXX").optional()),
+    META_PIXEL_ID: z.preprocess(blankToUndef, z.string().regex(/^\d{8,20}$/, "Solo dígitos").optional()),
   })
   .transform((e) => {
     const APP_ENV = e.APP_ENV ?? (e.NODE_ENV === "production" ? "production" : "local");

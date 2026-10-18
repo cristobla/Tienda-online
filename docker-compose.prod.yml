@@ -6,6 +6,8 @@ x-app: &app
     context: .
     args:
       APP_URL: ${APP_URL}
+      GA_ID: ${GA_ID:-}
+      META_PIXEL_ID: ${META_PIXEL_ID:-}
   image: tienda-app
   restart: unless-stopped
   env_file: .env.production
@@ -52,6 +54,25 @@ services:
     # Después de que la app aplicó las migraciones.
     depends_on:
       app:
+        condition: service_healthy
+
+  # Respaldo diario de la base y las fotos en ./respaldos (14 días). Copiarlos fuera del servidor: §7 de DESPLIEGUE.md.
+  respaldos:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-tienda}
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./scripts/respaldo.sh:/respaldo.sh:ro
+      - ./respaldos:/respaldos
+      - uploads:/data/uploads:ro
+    command: ["sh", "/respaldo.sh"]
+    depends_on:
+      db:
         condition: service_healthy
 
   caddy:

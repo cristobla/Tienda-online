@@ -54,7 +54,7 @@ Pendiente:
 | `NODE_ENV` | `production` |
 | `DATABASE_URL` | `postgres://USUARIO:CLAVE_LARGA@HOST:5432/tienda` (usuario propio, no `tienda/tienda`) |
 | `APP_URL` | `https://tu-dominio.cl` |
-| `SESSION_TTL_DAYS` | `30` (o menos para el panel) |
+| `SESSION_TTL_DAYS` | `1` (por omisión; sesiones del panel) |
 | `APP_ENV` | `production` (explícito; habilita las reglas de producción: sin pago simulado ni datos de ejemplo, `APP_URL` https) |
 | `RESERVATION_TTL_MINUTES` | `30` (tiempo para pagar antes de liberar el stock) |
 | `TRANSFER_RESERVATION_MINUTES` | Opcional: plazo propio para transferencias (p. ej. `1440` = 24 h); sin definir usa el anterior |
@@ -103,11 +103,14 @@ Archivos listos en el repositorio: `Dockerfile`, `docker-compose.prod.yml` (tien
 
 ## 7. Operación diaria
 
-- **Respaldos**: `pg_dump` diario (o el respaldo del PaaS) + copia de las fotos. Con Docker, p. ej. un cron diario:
-  ```bash
-  docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db pg_dump -U tienda tienda | gzip > respaldo-$(date +%F).sql.gz
-  ```
-  y el volumen `uploads`. Guardar las copias fuera del servidor y probar una restauración al menos una vez antes de abrir.
+- **Respaldos** (automáticos con Docker): el servicio `respaldos` (`scripts/respaldo.sh`) guarda cada 24 h `respaldos/tienda-AAAA-MM-DD.dump` (base, `pg_dump -Fc`) y `respaldos/fotos-AAAA-MM-DD.tar.gz`, y borra los de más de `BACKUP_KEEP_DAYS` (14). Respaldo inmediato: `docker compose --env-file .env.production -f docker-compose.prod.yml run --rm respaldos sh /respaldo.sh una`.
+  - **Copiarlos fuera del servidor** (si el servidor se pierde, se pierden con él): p. ej. un cron diario en otra máquina con `rsync -a usuario@servidor:tienda/respaldos/ ./respaldos/`, o `rclone` a Google Drive / S3.
+  - **Restaurar** (probarlo una vez antes de abrir, en una base nueva):
+    ```bash
+    docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db createdb -U tienda tienda_restaurada
+    docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db pg_restore --no-owner -U tienda -d tienda_restaurada < respaldos/tienda-AAAA-MM-DD.dump
+    ```
+    Fotos: `tar -xzf respaldos/fotos-AAAA-MM-DD.tar.gz` y copiar `uploads/` al volumen. Verificado: un respaldo restaurado tiene los mismos pedidos, productos y movimientos.
 - **Actualizaciones**: con Docker, `git pull` y el mismo `up -d --build` de §6 (las migraciones se aplican solas al arrancar). Sin Docker: `git pull` → `npm ci` → `npm run db:migrate` → `npm run build` → reiniciar. Las migraciones nunca se editan, solo se agregan.
 - **Monitoreo**: `docker compose … logs -f app jobs` (errores y el aviso "Error en las tareas de pedidos y pagos"); agregar un servicio de errores (p. ej. Sentry) y un chequeo de disponibilidad del sitio.
 - **Pedidos pendientes y stock**: el panel muestra pendientes de pago, por preparar y variantes bajo el mínimo.
@@ -121,7 +124,7 @@ La tienda ya entrega lo que estas plataformas leen. Estas son las conexiones, en
 2. **Google Search Console**: verificar el dominio (registro DNS TXT, sin tocar el código) y enviar `https://tu-dominio.cl/sitemap.xml`. Revisar «Resultados enriquecidos»: cada producto declara precio, stock, marca, GTIN y migas.
 3. **Google Merchant Center** (Google Shopping y las fichas gratuitas): fuente de datos programada → `https://tu-dominio.cl/feed/productos.xml` (diaria). Solo entran los productos publicados **con foto**; con un código de barras real (EAN-13 válido) se identifican mejor.
 4. **Meta Commerce Manager** (catálogo de Instagram y Facebook Shops): catálogo → fuente de datos → la misma URL del feed, programada.
-5. **Perfil de empresa en Google** (Maps): con la dirección o la zona de despacho del negocio.
+5. **Perfil de empresa en Google** (Maps): con la misma dirección, nombre y teléfono que `/admin/tienda` → «Local físico» (Google compara los tres). Pega en ese panel el enlace «Compartir» de la ficha: la tienda lo usa en «Cómo llegar» y en los datos para Google (`Store` con `hasMap`). Lista completa de pasos: `docs/LANZAMIENTO.md`.
 6. **Medición** (Google Analytics, píxel de Meta): necesitan su ID y agregar sus dominios a la CSP de `next.config.ts`. Revisar el consentimiento según la Ley 21.719.
 
 Fotos: cuadradas, de 1200 px o más y con fondo blanco. Las usan la ficha, Google Shopping, el catálogo de Meta y la vista previa al compartir un producto.

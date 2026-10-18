@@ -4,7 +4,10 @@ import { db } from "@/db";
 import * as s from "@/db/schema";
 import { UserError } from "@/lib/form";
 import { addToCart, getCart } from "@/modules/cart";
-import { createOrderFromCart, getOrder, orderInputSchema } from "@/modules/orders";
+import { DEFAULT_SETTINGS } from "@/lib/site";
+import { createOrderFromCart, getOrder, orderInputSchema, statusLabel } from "@/modules/orders";
+import { renderEmail } from "@/modules/mail";
+import { saveSettings, settingsSchema } from "@/modules/settings";
 import { listDeliveryCommunes, listShippingRates, parseShippingForm, quoteShipping, saveShippingRates } from "@/modules/shipping";
 import { makeCommune, makeVariant, resetDb } from "./helpers";
 
@@ -103,5 +106,39 @@ describe("tarifas de despacho", () => {
     expect((await listDeliveryCommunes()).map((g) => g.region)).toEqual(["Región T4"]);
     const [log] = await db.select().from(s.auditLogs);
     expect(log).toMatchObject({ action: "shipping.update", userId: adminId });
+  });
+});
+
+describe("retiro en el local", () => {
+  // Sin comuna ni dirección (el formulario de retiro no tiene esos campos).
+  const pickupForm = (expectedTotal: number) => ({ ...form(0, expectedTotal, { communeId: "", street: "", number: "" }), delivery: "retiro" });
+
+  it("sin dirección ni costo de despacho, y solo si el local lo ofrece con dirección", async () => {
+    const v = await makeVariant(10);
+    const cart = await cartOf(v.id, 2); // 2000
+    // Apagado (por omisión): se rechaza y el carrito queda intacto.
+    await expect(createOrderFromCart(cart, orderInputSchema.parse(pickupForm(2000)))).rejects.toThrow("retiro en el local no está disponible");
+    expect(await db.$count(s.orders)).toBe(0);
+    // Encendido, pero sin dirección: tampoco (no se puede guardar así desde el panel, pero se comprueba igual).
+    await saveSettings(adminId, { ...DEFAULT_SETTINGS, pickupEnabled: true });
+    await expect(createOrderFromCart(cart, orderInputSchema.parse(pickupForm(2000)))).rejects.toThrow("no está disponible");
+
+    await saveSettings(adminId, { ...DEFAULT_SETTINGS, pickupEnabled: true, storeAddress: "Av. Local 1" });
+    const o = await createOrderFromCart(cart, orderInputSchema.parse(pickupForm(2000)));
+    expect(o).toMatchObject({ fulfillment: "PICKUP", subtotal: 2000, shippingTotal: 0, total: 2000, shippingAddress: null, shippingCommuneId: null });
+    expect(statusLabel("SHIPPED", o.fulfillment)).toBe("Listo para retiro");
+    expect(statusLabel("SHIPPED", "DELIVERY")).toBe("Despachado");
+    expect((await renderEmail(db, "order.received", o.id))?.text).toContain("Retiro en el local: Av. Local 1");
+  });
+
+  it("despacho sigue exigiendo comuna, calle y número; el panel exige dirección para ofrecer retiro", () => {
+    for (const k of ["communeId", "street", "number"]) {
+      const r = orderInputSchema.safeParse({ ...form(1, 1000), [k]: "" });
+      expect(r.success && r.data).toBe(false);
+    }
+    const r = settingsSchema.safeParse({ name: "X", description: "Y", pickupEnabled: "on", storeAddress: "" });
+    expect(r.error?.issues.map((i) => i.path)).toEqual([["storeAddress"]]);
+    expect(settingsSchema.parse({ name: "X", description: "Y", pickupEnabled: "on", storeAddress: "Av. Local 1", mapsUrl: "https://maps.app.goo.gl/abc" })).toMatchObject({ pickupEnabled: true });
+    expect(settingsSchema.safeParse({ name: "X", description: "Y", mapsUrl: "https://evil.com/maps" }).success).toBe(false);
   });
 });

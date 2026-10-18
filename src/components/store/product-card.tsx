@@ -147,7 +147,7 @@ function CardBuy({ p }: { p: Card }) {
         <Icon name="arrow" className="hidden size-4 sm:block" />
       </Link>
     );
-  return <AddToCartForm variantId={p.variantId} />;
+  return <AddToCartForm variantId={p.variantId} item={{ sku: p.sku, name: p.name, price: p.price }} />;
 }
 
 /**

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { StoreFooter, StoreHeader } from "@/components/store/shell";
+import { Analytics } from "@/components/store/analytics";
+import { StoreFooter, StoreHeader, WhatsAppButton } from "@/components/store/shell";
+import { env } from "@/lib/env";
+import { pickupAvailable } from "@/lib/site";
 import { cartItemCount, currentCartId } from "@/modules/cart";
 import { loadCategories } from "@/modules/categories/queries";
 import { getSettings } from "@/modules/settings";
@@ -20,11 +23,13 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <a href="#contenido" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:font-semibold focus:text-white">
         Saltar al contenido
       </a>
-      <StoreHeader roots={roots} cartCount={cartCount} name={settings.name} />
+      <StoreHeader roots={roots} cartCount={cartCount} name={settings.name} pickup={pickupAvailable(settings)} freeFrom={settings.freeShippingFrom} />
       <main id="contenido" className="mx-auto max-w-7xl px-4 py-8">
         {children}
       </main>
-      <StoreFooter roots={roots} settings={settings} />
+      <StoreFooter roots={roots} settings={settings} consent={!!(env.GA_ID || env.META_PIXEL_ID)} />
+      {settings.whatsapp && <WhatsAppButton phone={settings.whatsapp} store={settings.name} />}
+      <Analytics gaId={env.GA_ID ?? null} pixelId={env.META_PIXEL_ID ?? null} />
     </>
   );
 }

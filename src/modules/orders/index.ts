@@ -12,7 +12,13 @@ import { cartLines } from "@/modules/cart";
 import { normalizeChileanPhone, normalizeRut } from "@/modules/chile";
 import { releaseOrderReservations, reserveStock } from "@/modules/inventory";
 import { enqueueEmail } from "@/modules/mail";
+import { pickupAvailable, shippingCost } from "@/lib/site";
+import { applyCoupon } from "@/modules/promotions";
+import { readSettings } from "@/modules/settings";
 import { quoteShipping } from "@/modules/shipping";
+import { isSold, SOLD_STATUSES } from "./status";
+
+export { isSold, SOLD_STATUSES };
 
 export type OrderStatus = (typeof s.orderStatus.enumValues)[number];
 export type PaymentStatus = (typeof s.paymentStatus.enumValues)[number];
@@ -41,8 +47,14 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   REVIEW: "En revisión",
 };
 
-/** Pedidos vendidos: el pago se verificó y no se anuló ni devolvió. */
-export const SOLD_STATUSES = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"] as const satisfies readonly OrderStatus[];
+export type Fulfillment = (typeof s.fulfillment.enumValues)[number];
+
+/** Con retiro en el local, "despachado" es "listo para retiro" y "entregado" es "retirado" (mismo estado, otro nombre). */
+export function statusLabel(status: OrderStatus, fulfillment: Fulfillment) {
+  if (fulfillment === "PICKUP" && status === "SHIPPED") return "Listo para retiro";
+  if (fulfillment === "PICKUP" && status === "DELIVERED") return "Retirado";
+  return ORDER_STATUS_LABELS[status];
+}
 
 /** Transiciones permitidas. Agregar un estado = enum + una línea aquí. */
 export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -81,21 +93,30 @@ const normalized = (normalize: (v: string) => string | null, message: string) =>
 /**
  * Datos del checkout. `expectedTotal` es el total (productos + despacho) que el cliente vio al confirmar:
  * no se usa para cobrar (los montos se recalculan aquí), solo para no crear un pedido con montos que no aceptó.
+ * Con `delivery: "retiro"` no hay despacho: comuna y dirección no se piden (y se ignoran si llegan).
  */
-export const orderInputSchema = z.object({
+export const orderInputSchema = z
+  .object({
+  // Sin indicar = despacho (el comportamiento de siempre).
+  delivery: z.enum(["despacho", "retiro"]).optional(),
   // Recortar antes de validar (z.email().trim() rechaza "ana@x.cl " del autocompletado del celular).
   email: z.string().trim().toLowerCase().max(200, "Máximo 200 caracteres").pipe(z.email("Email inválido")),
   firstName: field.text(100),
   lastName: field.text(100),
   phone: normalized(normalizeChileanPhone, "Teléfono chileno inválido (ej. 9 1234 5678)").refine((v) => v !== null, "Obligatorio"),
   rut: normalized(normalizeRut, "RUT inválido"),
-  communeId: field.int(1, 1_000_000),
-  street: field.text(120),
-  number: field.text(20),
+  communeId: field.optInt(1, 1_000_000),
+  street: field.optText(120),
+  number: field.optText(20),
   apartment: field.optText(40),
   notes: field.optText(300),
+  couponCode: field.optText(40).optional(),
   expectedTotal: field.int(0),
-});
+})
+  .superRefine((d, ctx) => {
+    if (d.delivery === "retiro") return;
+    for (const k of ["communeId", "street", "number"] as const) if (d[k] === null) ctx.addIssue({ code: "custom", path: [k], message: "Obligatorio" });
+  });
 export type OrderInput = z.infer<typeof orderInputSchema>;
 
 /** Cliente con cuenta: su ficha (se crea la primera vez). Invitado: una ficha nueva por pedido. */
@@ -128,10 +149,18 @@ export async function createOrderFromCart(
     const bad = lines.find((l) => l.problem);
     if (bad) throw new UserError(`${bad.productName} (${bad.variantName}): ${bad.problem}. Revisa tu carrito.`);
     const subtotal = lines.reduce((t, l) => t + l.lineTotal, 0);
-    const ship = await quoteShipping(input.communeId, tx);
-    if (!ship) throw new UserError("Por ahora no despachamos a esa comuna.", "communeId");
-    const total = subtotal + ship.cost;
-    if (total !== input.expectedTotal) throw new UserError("El total cambió (precios o despacho). Revisa el resumen antes de confirmar.");
+    const pickup = input.delivery === "retiro";
+    const settings = await readSettings(tx);
+    // Retiro: sin costo ni dirección, y solo si el local lo ofrece ahora (se comprueba aquí, no en el formulario).
+    if (pickup && !pickupAvailable(settings)) throw new UserError("El retiro en el local no está disponible. Elige despacho a domicilio.");
+    const ship = pickup ? null : input.communeId ? await quoteShipping(input.communeId, tx) : null;
+    if (!pickup && !ship) throw new UserError("Por ahora no despachamos a esa comuna.", "communeId");
+    // Cupón bloqueado hasta el final de la transacción: dos pedidos a la vez no superan su máximo de usos.
+    const coupon = input.couponCode ? await applyCoupon(tx, input.couponCode, { subtotal, email: input.email, lock: true }) : null;
+    const discountTotal = coupon?.discount ?? 0;
+    const shippingTotal = ship ? shippingCost(ship.cost, subtotal - discountTotal, settings) : 0;
+    const total = subtotal - discountTotal + shippingTotal;
+    if (total !== input.expectedTotal) throw new UserError("El total cambió (precios, despacho o descuento). Revisa el resumen antes de confirmar.");
 
     const [order] = await tx
       .insert(s.orders)
@@ -141,20 +170,25 @@ export async function createOrderFromCart(
         customerName: `${input.firstName} ${input.lastName}`,
         phone: input.phone,
         rut: input.rut,
-        shippingCommuneId: ship.communeId,
+        fulfillment: pickup ? "PICKUP" : "DELIVERY",
+        shippingCommuneId: ship?.communeId ?? null,
         // Copia de la dirección: el pedido no cambia si después se edita la comuna o la libreta del cliente.
-        shippingAddress: {
-          recipientName: `${input.firstName} ${input.lastName}`,
-          phone: input.phone,
-          street: input.street,
-          number: input.number,
-          apartment: input.apartment,
-          commune: ship.commune,
-          region: ship.region,
-          notes: input.notes,
-        },
+        shippingAddress: ship
+          ? {
+              recipientName: `${input.firstName} ${input.lastName}`,
+              phone: input.phone,
+              street: input.street!,
+              number: input.number!,
+              apartment: input.apartment,
+              commune: ship.commune,
+              region: ship.region,
+              notes: input.notes,
+            }
+          : null,
         subtotal,
-        shippingTotal: ship.cost,
+        discountTotal,
+        couponCode: coupon?.code ?? null,
+        shippingTotal,
         total,
       })
       .returning();
@@ -282,7 +316,7 @@ export async function markOrderPaid(tx: Transaction, o: Order, opts: { method: s
  */
 export async function reversePaidOrder(tx: Transaction, o: Order, opts: { userId: string; note: string }) {
   const to: OrderStatus = o.status === "SHIPPED" || o.status === "DELIVERED" ? "REFUNDED" : "CANCELLED";
-  if (!(SOLD_STATUSES as readonly OrderStatus[]).includes(o.status) || !TRANSITIONS[o.status].includes(to))
+  if (!isSold(o.status) || !TRANSITIONS[o.status].includes(to))
     throw new UserError(`Un pedido "${ORDER_STATUS_LABELS[o.status]}" no se puede anular ni devolver.`);
   // Otra solicitud de pago que quedó abierta (otro medio que el cliente alcanzó a iniciar) ya no corresponde.
   await tx.update(s.payments).set({ status: "CANCELLED" }).where(and(eq(s.payments.orderId, o.id), eq(s.payments.status, "PENDING")));
@@ -322,6 +356,7 @@ export async function listOrders(f: { q?: string; status?: OrderStatus; page?: n
       total: s.orders.total,
       status: s.orders.status,
       paymentStatus: s.orders.paymentStatus,
+      fulfillment: s.orders.fulfillment,
       createdAt: s.orders.createdAt,
       // "orders"."id" explícito: sin joins Drizzle escribe la columna sin tabla y dentro de la subconsulta sería i.id.
       items: sql<number>`(SELECT coalesce(sum(i.quantity), 0)::int FROM order_items i WHERE i.order_id = "orders"."id")`,

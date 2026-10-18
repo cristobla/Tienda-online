@@ -4,16 +4,17 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { AdminForm, Submit } from "@/components/admin/form";
 import { Icon } from "@/components/icons";
+import { TrackPurchase } from "@/components/store/analytics";
 import { AutoRefresh } from "@/components/store/auto-refresh";
 import type { PaymentAction } from "@/db/schema";
 import { formatCLP, formatDateTime } from "@/modules/chile";
-import { getOrder, ORDER_STATUS_LABELS } from "@/modules/orders";
+import { mapsLink, storeAddressLine } from "@/lib/site";
+import { getOrder, isSold, statusLabel } from "@/modules/orders";
 import { beginAttempt, checkoutMethods, customerPayments, getProvider } from "@/modules/payments";
+import { getSettings } from "@/modules/settings";
 import { startPaymentAction } from "./actions";
 
 export const metadata: Metadata = { title: "Tu pedido", robots: { index: false, follow: false } };
-
-const PAID = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"];
 
 /**
  * Pedido y pago para el cliente. Se accede por enlace secreto (el id es un UUID v4, no adivinable): es lo único que
@@ -43,14 +44,23 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
   const verifying = current?.status === "UNCERTAIN" || current?.status === "AUTHORIZED";
   const methods = live && !verifying ? await checkoutMethods() : [];
   const waiting = pending && (current?.status === "PENDING" || current?.status === "UNCERTAIN" || current?.status === "AUTHORIZED");
-  const paid = PAID.includes(o.status);
+  const paid = isSold(o.status);
   const cancelled = o.status === "CANCELLED" || o.status === "REFUNDED";
   // Anulado o devuelto después de pagar: el dinero se devuelve aparte (REVIEW = pendiente, REFUNDED = hecho).
   const reversed = cancelled && !!o.paidAt;
   const a = o.shippingAddress;
+  const pickup = o.fulfillment === "PICKUP";
+  const st = pickup ? await getSettings() : null;
 
   return (
     <div className="mx-auto max-w-3xl">
+      {paid && (
+        <TrackPurchase
+          orderNumber={o.orderNumber}
+          value={o.total}
+          items={items.map((i) => ({ sku: i.sku, name: i.productName, price: i.unitPrice, quantity: i.quantity }))}
+        />
+      )}
       <div className={`relative overflow-hidden rounded-[1.75rem] px-6 py-10 text-center ${cancelled ? "bg-paper ring-1 ring-line" : "bg-leaf-soft"}`}>
         {!cancelled && <div aria-hidden className="ondas absolute inset-0 [--ondas-x:50%] [--ondas-y:22%]" />}
         <span className={`relative mx-auto grid size-16 animate-pop place-items-center rounded-full bg-white ring-1 ring-line ${cancelled ? "text-muted" : "text-leaf"}`}>
@@ -60,12 +70,12 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
           {o.status === "REFUNDED" ? "Este pedido fue devuelto" : cancelled ? "Este pedido fue cancelado" : paid ? "¡Pago confirmado!" : "¡Recibimos tu pedido!"}
         </h1>
         <p className="relative mt-3">
-          Pedido <strong className="font-mono">{o.orderNumber}</strong> · {ORDER_STATUS_LABELS[o.status]}
+          Pedido <strong className="font-mono">{o.orderNumber}</strong> · {statusLabel(o.status, o.fulfillment)}
         </p>
         {paid && o.paidAt && (
           <p className="relative mt-2 text-sm text-muted">
             Pago verificado el {formatDateTime(o.paidAt)}
-            {o.paymentMethod && <> · {getProvider(o.paymentMethod)?.label ?? o.paymentMethod}</>}. Te avisaremos cuando despachemos tu pedido.
+            {o.paymentMethod && <> · {getProvider(o.paymentMethod)?.label ?? o.paymentMethod}</>}. {pickup ? "Te avisaremos cuando esté listo para retirar." : "Te avisaremos cuando despachemos tu pedido."}
           </p>
         )}
         {reversed && (
@@ -147,8 +157,14 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
             <dt className="text-muted">Subtotal</dt>
             <dd>{formatCLP(o.subtotal)}</dd>
           </div>
+          {o.discountTotal > 0 && (
+            <div className="flex justify-between text-leaf-dark">
+              <dt>Descuento{o.couponCode && ` (${o.couponCode})`}</dt>
+              <dd>−{formatCLP(o.discountTotal)}</dd>
+            </div>
+          )}
           <div className="flex justify-between">
-            <dt className="text-muted">Despacho</dt>
+            <dt className="text-muted">{pickup ? "Retiro en el local" : "Despacho"}</dt>
             <dd>{o.shippingTotal ? formatCLP(o.shippingTotal) : "Gratis"}</dd>
           </div>
           <div className="flex items-end justify-between border-t border-dashed border-ink/25 pt-3 text-base">
@@ -161,8 +177,19 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <section className="rounded-[1.5rem] bg-paper p-6 text-sm ring-1 ring-line">
-          <h2 className="etiqueta mb-3 text-leaf-dark">Despacho</h2>
-          {a ? (
+          <h2 className="etiqueta mb-3 text-leaf-dark">{pickup ? "Retiro en el local" : "Despacho"}</h2>
+          {st ? (
+            <p>
+              {storeAddressLine(st) ?? st.name}
+              {st.hours && <span className="block text-muted">{st.hours}</span>}
+              {mapsLink(st) && (
+                <a href={mapsLink(st)!} target="_blank" rel="noopener" className="mt-2 inline-block font-medium text-leaf-dark underline-offset-2 hover:underline">
+                  Cómo llegar
+                </a>
+              )}
+              <span className="mt-2 block text-muted">Trae tu número de pedido. Te avisamos por correo cuando esté listo.</span>
+            </p>
+          ) : a ? (
             <p>
               {a.recipientName}
               <br />

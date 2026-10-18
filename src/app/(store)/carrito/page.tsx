@@ -6,12 +6,14 @@ import { Breadcrumbs } from "@/components/store/catalog-view";
 import { ProductImage } from "@/components/store/product-card";
 import { currentCartId, getCart, MAX_ITEM_QTY } from "@/modules/cart";
 import { formatCLP } from "@/modules/chile";
+import { getSettings } from "@/modules/settings";
 
 export const metadata: Metadata = { title: "Carrito", robots: { index: false, follow: false } };
 
 /** Carrito con precios y stock actuales (se leen de la base en cada visita; el carrito no reserva stock). */
 export default async function CartPage() {
-  const { lines, subtotal, count, ready } = await getCart(await currentCartId());
+  const [{ lines, subtotal, count, ready }, st] = await Promise.all([getCart(await currentCartId()), getSettings()]);
+  const free = st.freeShippingFrom;
 
   return (
     <>
@@ -91,8 +93,22 @@ export default async function CartPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted">Despacho</dt>
-              <dd>Se calcula según tu comuna</dd>
+              <dd>{free !== null && subtotal >= free ? "Gratis" : "Se calcula según tu comuna"}</dd>
             </div>
+            {free !== null && (
+              <div className="rounded-xl bg-leaf-soft px-3 py-2 text-xs font-medium text-leaf-dark">
+                {subtotal >= free ? (
+                  "¡Tu compra tiene despacho gratis!"
+                ) : (
+                  <>
+                    Te faltan {formatCLP(free - subtotal)} para el despacho gratis.
+                    <span aria-hidden className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-white">
+                      <span className="block h-full rounded-full bg-leaf" style={{ width: `${Math.round((subtotal / free) * 100)}%` }} />
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
             <div className="flex items-end justify-between border-t border-dashed border-ink/25 pt-4 text-base">
               <dt className="font-bold">Total</dt>
               <dd className="rotulo text-4xl leading-none">{formatCLP(subtotal)}</dd>

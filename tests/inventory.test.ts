@@ -10,7 +10,6 @@ import {
   InsufficientStockError,
   listInventory,
   listMovements,
-  releaseExpiredReservations,
   releaseOrderReservations,
   reserveStock,
   stockOperationSchema,
@@ -194,15 +193,6 @@ describe("reservas", () => {
     expect(await stock(v.id)).toEqual({ onHand: 5, reserved: 0 });
     const [r] = await db.select().from(s.stockReservations);
     expect(r!.status).toBe("RELEASED");
-  });
-
-  it("libera solo las reservas vencidas", async () => {
-    const v = await makeVariant(5);
-    await reserve(await newOrder(), [{ variantId: v.id, quantity: 1 }], 0); // vence de inmediato
-    await reserve(await newOrder(), [{ variantId: v.id, quantity: 2 }], 30);
-    const released = await releaseExpiredReservations();
-    expect(released.map((r) => r.quantity)).toEqual([1]);
-    expect(await stock(v.id)).toEqual({ onHand: 5, reserved: 2 });
   });
 });
 

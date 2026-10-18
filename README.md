@@ -83,10 +83,13 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 | `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros | `catalog:read` |
 | `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes (con «Hacer principal»), SEO | `catalog:write` |
 | `/admin/productos/importar` | Importar el catálogo desde Excel (.xlsx): vista previa por fila, opciones y confirmación | `catalog:write` |
+| `/admin/productos/fotos` | Subir muchas fotos a la vez: el nombre del archivo es el SKU o el código de barras (`SKU-2.jpg` = segunda foto); lista de productos sin foto | `catalog:write` |
 | `/admin/inventario`, `/admin/inventario/[variante]` | Stock por variante (bodega, reservado, disponible), historial; ingresos, mermas y conteo físico | `inventory:read` / ajustar: `inventory:adjust` |
 | `/admin/despacho` | Costo y plazo de despacho por región (sin costo = no se despacha) | `shipping:manage` |
+| `/admin/promociones`, `/admin/promociones/[id]` | Cupones de descuento (porcentaje o monto, vigencia, mínimo, usos, uno por cliente) y despacho gratis desde un monto | `promotions:manage` |
 | `/admin/categorias`, `/admin/marcas`, `/admin/atributos` | Árbol de categorías, marcas y definiciones de atributos | `catalog:write` |
-| `/admin/usuarios` | Usuarios del staff, roles, contraseñas | `users:manage` (Super Admin) |
+| `/admin/usuarios` | Usuarios del staff, roles, contraseñas; quitar la verificación en dos pasos (celular perdido) | `users:manage` (Super Admin) |
+| `/admin/cuenta` | Cambiar la propia contraseña y activar la verificación en dos pasos (app de códigos) | todo el personal |
 | `/admin/auditoria` | Quién cambió qué y cuándo | `audit:read` |
 
 - El stock nunca se edita directo: cada cambio (stock inicial, ingreso, merma, conteo) es un movimiento de inventario con usuario y motivo; el historial no se puede editar ni borrar.

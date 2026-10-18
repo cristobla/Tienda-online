@@ -5,7 +5,7 @@
 import { asc, desc, eq, ilike, or, type SQL, sql } from "drizzle-orm";
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { SOLD_STATUSES } from "@/modules/orders";
+import { isSold, SOLD_STATUSES } from "@/modules/orders";
 
 export const CUSTOMERS_PAGE_SIZE = 50;
 export const CUSTOMER_SORTS = { recientes: "Compra más reciente", gasto: "Más gasto", pedidos: "Más pedidos" } as const;
@@ -76,7 +76,7 @@ export async function getCustomer(customerId: string) {
     .where(sql`lower("orders"."email") = ${email}`)
     .orderBy(desc(s.orders.createdAt));
   if (!orders.length) return null;
-  const paid = orders.filter((o) => (SOLD_STATUSES as readonly string[]).includes(o.status));
+  const paid = orders.filter((o) => isSold(o.status));
   const spent = paid.reduce((t, o) => t + o.total, 0);
   const unique = <T,>(xs: (T | null | undefined)[]) => [...new Set(xs.filter((x): x is T => x != null))];
   return {

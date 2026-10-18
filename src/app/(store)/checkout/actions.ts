@@ -32,8 +32,8 @@ export async function checkoutAction(prev: FormState, fd: FormData): Promise<For
     registerFailure(key); // cuenta el pedido creado (mismo contador en memoria que los intentos de ingreso)
   } catch (e) {
     revalidatePath("/checkout"); // el resumen vuelve con los montos actuales
-    // La comuna se elige arriba (no es un campo de este formulario): su error va como mensaje general.
-    if (e instanceof UserError && e.field === "communeId") return fail(prev, fd, e.message);
+    // Comuna y cupón se eligen fuera de este formulario: su error va como mensaje general.
+    if (e instanceof UserError && (e.field === "communeId" || e.field === "couponCode")) return fail(prev, fd, e.message);
     return handleError(e, prev, fd);
   }
   revalidatePath("/", "layout"); // el carrito quedó vacío

@@ -38,7 +38,8 @@ export const ownPasswordSchema = z
   .refine((d) => d.password !== d.currentPassword, { message: "Debe ser distinta de la actual", path: ["password"] });
 
 // Nunca se audita ni se devuelve el hash.
-const safe = ({ passwordHash: _, ...u }: typeof users.$inferSelect) => u;
+// Nunca salen de aquí la contraseña ni el secreto de la verificación en dos pasos.
+const safe = ({ passwordHash: _, totpSecret, totpLastStep: __, ...u }: typeof users.$inferSelect) => ({ ...u, has2fa: !!totpSecret });
 
 export async function listStaff() {
   return (await db.select().from(users).where(ne(users.role, "CUSTOMER")).orderBy(asc(users.email))).map(safe);

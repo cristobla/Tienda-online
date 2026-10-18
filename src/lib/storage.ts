@@ -9,7 +9,9 @@ import path from "node:path";
 import { env } from "./env";
 import { UserError } from "./form";
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+/** Lado mayor con que se guarda una foto: alcanza para el zoom y para Google Shopping (pide ≥ 800 px). */
+export const STORED_SIDE = 2000;
 
 // Sin SVG a propósito: puede llevar JavaScript.
 const TYPES = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif" } as const;
@@ -36,26 +38,34 @@ export const IMAGE_SIDE = { min: 100, max: 8000 };
 
 /** Valida y guarda la imagen. Devuelve la URL pública. */
 export async function saveImage(file: File): Promise<string> {
-  if (file.size > MAX_IMAGE_BYTES) throw new StorageError(`"${file.name}" supera 5 MB.`);
+  if (file.size > MAX_IMAGE_BYTES) throw new StorageError(`"${file.name}" supera 15 MB.`);
   const bytes = new Uint8Array(await file.arrayBuffer());
   const ext = sniffImage(bytes);
   if (!ext) throw new StorageError(`"${file.name}" no es JPG, PNG, WebP ni AVIF.`);
   // La firma no basta: se decodifica de verdad (contenido falso o dañado no pasa) y se miden las dimensiones.
   const { default: sharp } = await import("sharp");
-  let size: { width?: number; height?: number };
+  const open = () => sharp(bytes, { limitInputPixels: IMAGE_SIDE.max * IMAGE_SIDE.max, failOn: "error" });
+  let size: { width?: number; height?: number; exif?: unknown; xmp?: unknown; iptc?: unknown };
   try {
-    const img = sharp(bytes, { limitInputPixels: IMAGE_SIDE.max * IMAGE_SIDE.max, failOn: "error" });
-    size = await img.metadata();
-    await img.resize(16, 16, { fit: "inside" }).toBuffer();
+    size = await open().metadata();
+    await open().resize(16, 16, { fit: "inside" }).toBuffer();
   } catch {
     throw new StorageError(`"${file.name}" está dañada o no es una imagen válida.`);
   }
   const { width = 0, height = 0 } = size;
   if (Math.min(width, height) < IMAGE_SIDE.min) throw new StorageError(`"${file.name}" es muy pequeña (${width}×${height}); mínimo ${IMAGE_SIDE.min} px por lado.`);
   if (Math.max(width, height) > IMAGE_SIDE.max) throw new StorageError(`"${file.name}" es demasiado grande (${width}×${height}); máximo ${IMAGE_SIDE.max} px por lado.`);
-  const name = `${randomUUID()}.${ext}`;
+  // Fotos grandes o con metadatos (las de celular traen la ubicación GPS): se rotan según EXIF, se reducen a
+  // STORED_SIDE y se guardan como WebP sin metadatos. Las demás se guardan tal cual.
+  let out = bytes;
+  let outExt = ext;
+  if (Math.max(width, height) > STORED_SIDE || bytes.length > 1.5 * 1024 * 1024 || size.exif || size.xmp || size.iptc) {
+    out = new Uint8Array(await open().rotate().resize(STORED_SIDE, STORED_SIDE, { fit: "inside", withoutEnlargement: true }).webp({ quality: 85 }).toBuffer());
+    outExt = "webp";
+  }
+  const name = `${randomUUID()}.${outExt}`;
   await mkdir(dir(), { recursive: true });
-  await writeFile(path.join(dir(), name), bytes);
+  await writeFile(path.join(dir(), name), out);
   return `/media/${name}`;
 }
 

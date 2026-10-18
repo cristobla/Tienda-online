@@ -26,6 +26,7 @@ const NAV: { href: string; label: string; icon: IconName; perm?: Permission }[] 
   { href: "/admin/categorias", label: "Categorías", icon: "layers", perm: "catalog:write" },
   { href: "/admin/marcas", label: "Marcas", icon: "tag", perm: "catalog:write" },
   { href: "/admin/despacho", label: "Despacho", icon: "home", perm: "shipping:manage" },
+  { href: "/admin/promociones", label: "Promociones", icon: "tag", perm: "promotions:manage" },
   { href: "/admin/atributos", label: "Atributos", icon: "sliders", perm: "catalog:write" },
   { href: "/admin/tienda", label: "Tienda", icon: "store", perm: "settings:manage" },
   { href: "/admin/paginas", label: "Páginas", icon: "file", perm: "settings:manage" },

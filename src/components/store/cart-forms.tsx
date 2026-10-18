@@ -1,17 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { addToCartAction, setCartItemAction } from "@/app/(store)/carrito/actions";
 import { Icon } from "@/components/icons";
+import { track } from "./analytics";
 
 /**
  * Agregar al carrito. Funciona sin JavaScript (formulario con server action); con JavaScript muestra
  * el resultado en el mismo lugar. `large` = ficha de producto con selector de cantidad; si no, agrega 1.
  */
-export function AddToCartForm({ variantId, max, large = false }: { variantId: string; max?: number; large?: boolean }) {
+export function AddToCartForm({
+  variantId,
+  max,
+  large = false,
+  item,
+}: {
+  variantId: string;
+  max?: number;
+  large?: boolean;
+  /** Para la medición (si la persona la aceptó). */
+  item?: { sku: string; name: string; price: number };
+}) {
   const [state, action, pending] = useActionState(addToCartAction, {});
   const qty = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!state.message || !item) return;
+    const quantity = Number(qty.current?.value) || 1;
+    track("add_to_cart", { value: item.price * quantity, items: [{ ...item, quantity }] });
+    // Solo cuando llega una respuesta nueva (state.v cambia en cada envío).
+  }, [state.v]);
   const step = "grid w-11 place-items-center self-stretch text-xl text-muted transition-colors hover:text-ink";
   return (
     <form action={action}>

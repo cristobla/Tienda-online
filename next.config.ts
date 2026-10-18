@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const dev = process.env.NODE_ENV !== "production";
+// Medición (src/components/store/analytics.tsx): sus dominios solo se permiten si hay un ID configurado al compilar.
+const ga = process.env.GA_ID ? { script: " https://www.googletagmanager.com", connect: " https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com", img: " https://*.google-analytics.com https://www.googletagmanager.com" } : null;
+const meta = process.env.META_PIXEL_ID ? { script: " https://connect.facebook.net", connect: " https://www.facebook.com https://connect.facebook.net", img: " https://www.facebook.com" } : null;
+const extra = (k: "script" | "connect" | "img") => (ga?.[k] ?? "") + (meta?.[k] ?? "");
 
 /**
  * Política de contenido: solo recursos propios (imágenes, fuentes y scripts se sirven desde la app), sin frames
@@ -12,11 +16,11 @@ const dev = process.env.NODE_ENV !== "production";
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}${extra("script")}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob:${extra("img")}`,
   "font-src 'self'",
-  `connect-src 'self'${dev ? " ws: wss:" : ""}`,
+  `connect-src 'self'${dev ? " ws: wss:" : ""}${extra("connect")}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

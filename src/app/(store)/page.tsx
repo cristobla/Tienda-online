@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/store/json-ld";
 import { Fleje, ProductGrid, ProductImage } from "@/components/store/product-card";
 import { aisle, SearchBar } from "@/components/store/shell";
 import { env } from "@/lib/env";
-import { socialLinks } from "@/lib/site";
+import { formatPhone, mapsLink, pickupAvailable, socialLinks, storeAddressLine, whatsappUrl } from "@/lib/site";
 import { listBrands } from "@/modules/brands/queries";
 import { listProducts, type ProductCard } from "@/modules/catalog/queries";
 import { loadCategories } from "@/modules/categories/queries";
@@ -79,7 +79,9 @@ export default async function Home() {
     getSettings(),
   ]);
   const spotlight = featured.items[0];
-  // Para buscadores: la tienda (con sus redes, cuando existan) y el buscador interno.
+  const place = storeAddressLine(st);
+  // Para buscadores: la tienda (con sus redes, cuando existan), el local físico (si hay dirección) y el buscador interno.
+  // El local usa los mismos nombre, dirección y teléfono que la ficha de Google Maps (deben coincidir).
   const siteLd = [
     {
       "@context": "https://schema.org",
@@ -91,6 +93,24 @@ export default async function Home() {
       telephone: st.whatsapp ?? undefined,
       sameAs: socialLinks(st).map((l) => l.url),
     },
+    st.storeAddress && {
+      "@context": "https://schema.org",
+      "@type": "Store",
+      name: st.name,
+      url: env.APP_URL,
+      image: `${env.APP_URL}/opengraph-image`,
+      telephone: st.whatsapp ?? undefined,
+      email: st.email ?? undefined,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: st.storeAddress,
+        addressLocality: st.storeCommune ?? undefined,
+        addressRegion: st.storeRegion ?? undefined,
+        addressCountry: "CL",
+      },
+      hasMap: mapsLink(st),
+      sameAs: socialLinks(st).map((l) => l.url),
+    },
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
@@ -98,7 +118,7 @@ export default async function Home() {
       url: env.APP_URL,
       potentialAction: { "@type": "SearchAction", target: `${env.APP_URL}/productos?q={search_term_string}`, "query-input": "required name=search_term_string" },
     },
-  ];
+  ].filter(Boolean);
 
   return (
     <>
@@ -240,6 +260,38 @@ export default async function Home() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {place && (
+        <section aria-labelledby="local" className="relative mt-20 overflow-hidden rounded-[1.75rem] bg-leaf-soft px-6 py-10 sm:mt-24 sm:px-10 sm:py-12">
+          <div aria-hidden className="ondas absolute inset-0 [--ondas-x:90%] [--ondas-y:50%]" />
+          <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto]">
+            <div>
+              <p className="etiqueta text-leaf-dark">{pickupAvailable(st) ? "Compra online, retira gratis" : "También en persona"}</p>
+              <h2 id="local" className="rotulo mt-2 text-display">
+                Visítanos en <span className="calado text-leaf-dark">nuestro local.</span>
+              </h2>
+              <p className="mt-4 flex items-start gap-2 text-lg font-semibold">
+                <Icon name="pin" className="mt-1 size-5 shrink-0 text-leaf-dark" />
+                {place}
+              </p>
+              {st.hours && <p className="mt-1 pl-7 text-muted">{st.hours}</p>}
+              {pickupAvailable(st) && <p className="mt-3 max-w-xl pl-7 text-sm">Elige «Retiro en el local» al finalizar tu compra: sin costo de despacho y te avisamos cuando esté listo.</p>}
+            </div>
+            <div className="flex flex-wrap gap-3 md:flex-col">
+              <a href={mapsLink(st)!} target="_blank" rel="noopener" className="btn-ink px-6 py-3">
+                <Icon name="pin" />
+                Cómo llegar
+              </a>
+              {st.whatsapp && (
+                <a href={whatsappUrl(st.whatsapp)} target="_blank" rel="noopener" className="btn-line px-6 py-3">
+                  <Icon name="chat" />
+                  {formatPhone(st.whatsapp)}
+                </a>
+              )}
+            </div>
+          </div>
         </section>
       )}
     </>

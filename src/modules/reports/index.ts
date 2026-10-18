@@ -1,14 +1,15 @@
 /**
- * Reportes de ventas (permiso reports:read). Una venta es un pedido pagado (pagado, en preparación, despachado o
- * entregado) y se cuenta en la fecha de su pago, en hora de Chile. Lo anulado o devuelto después de pagar sale de
- * las ventas y se informa aparte. Montos en CLP con IVA incluido; el neto se calcula por pedido (como cada boleta).
+ * Reportes de ventas (permiso reports:read). Una venta es un pedido con pago verificado y se cuenta en la fecha de
+ * su pago (hora de Chile) AUNQUE después se anule o devuelva: así un mes ya cerrado no cambia, igual que su boleta.
+ * Las anulaciones y devoluciones se informan aparte, en la fecha en que ocurren (como una nota de crédito).
+ * Montos en CLP con IVA incluido; el neto se calcula por pedido (como cada boleta).
  */
 import { and, asc, desc, eq, inArray, isNotNull, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { netFromGross } from "@/modules/chile";
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, SOLD_STATUSES } from "@/modules/orders";
+import { PAYMENT_STATUS_LABELS, statusLabel } from "@/modules/orders";
 import { getProvider } from "@/modules/payments";
 
 const TZ = "America/Santiago";
@@ -44,7 +45,8 @@ export function parseReportRange(sp: Record<string, unknown>, today = chileDate(
 const within = (col: SQL, r: ReportRange) =>
   sql`${col} >= (${r.from}::date)::timestamp AT TIME ZONE ${TZ} AND ${col} < ((${r.to}::date + 1)::timestamp AT TIME ZONE ${TZ})`;
 
-const soldIn = (r: ReportRange) => and(inArray(s.orders.status, [...SOLD_STATUSES]), within(sql`"orders"."paid_at"`, r));
+// paid_at solo existe si el pago se verificó (markOrderPaid); fuera del rango o nulo no cuenta.
+const soldIn = (r: ReportRange) => within(sql`"orders"."paid_at"`, r);
 
 export async function salesSummary(r: ReportRange) {
   const [[sales], [items], [reversed]] = await Promise.all([
@@ -74,6 +76,8 @@ export async function salesSummary(r: ReportRange) {
     average: sales!.orders ? Math.round(sales!.total / sales!.orders) : 0,
     units: items!.units,
     reversed: reversed!,
+    /** Ventas del período menos lo anulado o devuelto en el período. */
+    netOfReversals: sales!.total - reversed!.total,
   };
 }
 
@@ -134,7 +138,7 @@ const excelDate = (d: Date | null) => (d ? stamp.format(d) : null);
 /** "+56912345678" → "9 1234 5678": sin "+" inicial (Excel lo tomaría como fórmula). */
 const nationalPhone = (p: string | null) => p?.replace(/^\+56(\d)(\d{4})(\d{4})$/, "$1 $2 $3") ?? null;
 
-export const EXPORT_HEAD = ["Pedido", "Creado", "Pagado", "Estado", "Pago", "Medio de pago", "Cliente", "Email", "Teléfono", "RUT", "Comuna", "Región", "Unidades", "Productos", "Despacho", "Total", "Neto", "IVA"];
+export const EXPORT_HEAD = ["Pedido", "Creado", "Pagado", "Estado", "Pago", "Medio de pago", "Cliente", "Email", "Teléfono", "RUT", "Comuna", "Región", "Unidades", "Productos", "Despacho", "Total", "Neto", "IVA", "Entrega", "Cupón", "Descuento"];
 
 /** Pedidos pagados en el período (por fecha de pago) o todos los creados en el período (por fecha de creación). */
 export async function ordersForExport(r: ReportRange, kind: ExportKind) {
@@ -152,7 +156,7 @@ export async function ordersForExport(r: ReportRange, kind: ExportKind) {
       o.orderNumber,
       excelDate(o.createdAt),
       excelDate(o.paidAt),
-      ORDER_STATUS_LABELS[o.status],
+      statusLabel(o.status, o.fulfillment),
       PAYMENT_STATUS_LABELS[o.paymentStatus],
       o.paymentMethod ? (getProvider(o.paymentMethod)?.label ?? o.paymentMethod) : null,
       o.customerName,
@@ -167,6 +171,9 @@ export async function ordersForExport(r: ReportRange, kind: ExportKind) {
       o.total,
       net,
       iva,
+      o.fulfillment === "PICKUP" ? "Retiro en el local" : "Despacho",
+      o.couponCode,
+      o.discountTotal,
     ];
   });
 }

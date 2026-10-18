@@ -3,7 +3,7 @@
  * stock_on_hand = físico en bodega · stock_reserved = apartado para pedidos pendientes · disponible = físico − reservado.
  * Los CHECK de la base (nunca negativo, nunca reservado > físico) respaldan todo lo de aquí aunque el código falle.
  */
-import { and, asc, desc, eq, ilike, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
 import { inventoryMovements, movementType, products, productVariants, stockReservations, users } from "@/db/schema";
@@ -152,7 +152,7 @@ export async function reserveStock(tx: Transaction, orderId: string, items: { va
       throw new InsufficientStockError(it.variantId, v?.available ?? 0);
     }
   }
-  // Vencimiento con el reloj de la base, el mismo que usa releaseExpiredReservations.
+  // Vencimiento con el reloj de la base (el mismo que usa expireOrders).
   const expiresAt = sql`now() + make_interval(mins => ${ttlMinutes})`;
   return tx
     .insert(stockReservations)
@@ -208,10 +208,6 @@ export async function reservationState(tx: Transaction, orderId: string) {
   return { active: r!.active, live: r!.active > 0 && r!.live, expiresAt: r!.expiresAt };
 }
 
-/** Para la tarea periódica (y la verificación perezosa) de reservas vencidas. */
-export function releaseExpiredReservations() {
-  return db.transaction((tx) => releaseWhere(tx, lte(stockReservations.expiresAt, sql`now()`)));
-}
 
 // ───────────── Consultas del panel ─────────────
 

@@ -55,7 +55,7 @@ const uuids = (ids: string[]) => sql`${sql.param(ids)}::uuid[]`;
 // Variante más barata de cada producto (la que se muestra en la grilla) + agregados de todas sus variantes activas.
 const cheapestVariant = sql`
   SELECT DISTINCT ON (x.product_id)
-    x.product_id, x.id AS variant_id, x.name AS variant_name, x.price, x.compare_at_price, x.net_content, x.content_unit, x.units_per_pack,
+    x.product_id, x.id AS variant_id, x.name AS variant_name, x.sku AS variant_sku, x.price, x.compare_at_price, x.net_content, x.content_unit, x.units_per_pack,
     count(*) OVER w AS variant_count,
     max(x.price) OVER w AS max_price,
     bool_or(x.stock_on_hand > x.stock_reserved) OVER w AS in_stock
@@ -143,6 +143,8 @@ export type ProductCard = {
   /** Variante mostrada en la tarjeta (la más barata); se agrega directo al carrito si es la única. */
   variantId: string;
   variantName: string;
+  /** SKU de esa variante: id del producto en el feed (Google, Meta) y en la medición. */
+  sku: string;
   price: number;
   maxPrice: number;
   compareAtPrice: number | null;
@@ -168,7 +170,7 @@ export async function listProducts(
     db.execute<Record<string, unknown>>(sql`
       SELECT p.id, p.slug, p.name, p.featured, b.name AS brand_name,
         (SELECT i.url FROM product_images i WHERE i.product_id = p.id ORDER BY i.sort_order LIMIT 1) AS image_url,
-        v.variant_id, v.variant_name, v.price, v.max_price, v.compare_at_price, v.net_content, v.content_unit, v.units_per_pack, v.variant_count, v.in_stock
+        v.variant_id, v.variant_name, v.variant_sku, v.price, v.max_price, v.compare_at_price, v.net_content, v.content_unit, v.units_per_pack, v.variant_count, v.in_stock
       ${FROM} WHERE ${where}
       ORDER BY ${orderBy(sort, scope.q)}, p.id
       LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`),
@@ -184,6 +186,7 @@ export async function listProducts(
     featured: r.featured as boolean,
     variantId: r.variant_id as string,
     variantName: r.variant_name as string,
+    sku: r.variant_sku as string,
     price: r.price as number,
     maxPrice: r.max_price as number,
     compareAtPrice: r.compare_at_price as number | null,
