@@ -72,11 +72,12 @@ function Spotlight({ p }: { p: ProductCard }) {
 export default async function Home() {
   const { roots, visibleIds } = await loadCategories();
   const scope = { categoryIds: visibleIds };
-  const [featured, latest, brands, st] = await Promise.all([
+  const [featured, latest, brands, st, sale] = await Promise.all([
     listProducts(scope, { featured: true }, { pageSize: 8 }),
     listProducts(scope, { inStock: true }, { sort: "nuevos", pageSize: 4 }),
     listBrands(),
     getSettings(),
+    listProducts({ ...scope, onSale: true }, { inStock: true }, { pageSize: 4 }),
   ]);
   const spotlight = featured.items[0];
   const place = storeAddressLine(st);
@@ -208,6 +209,13 @@ export default async function Home() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {sale.items.length > 0 && (
+        <section aria-labelledby="ofertas" className="mt-20 sm:mt-24">
+          <SectionTitle id="ofertas" kicker="Precio rebajado" title="Ofertas" href="/ofertas" link={sale.total > 4 ? `Ver las ${sale.total} ofertas` : "Ver ofertas"} />
+          <ProductGrid products={sale.items} wide />
         </section>
       )}
 

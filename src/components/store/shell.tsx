@@ -68,7 +68,22 @@ export function WhatsAppButton({ phone, store }: { phone: string; store: string 
 /** Número de pasillo de cada categoría raíz (01, 02…): el orden es el del panel. */
 export const aisle = (i: number) => String(i + 1).padStart(2, "0");
 
-export function StoreHeader({ roots, cartCount, name, pickup, freeFrom }: { roots: CategoryNode[]; cartCount: number; name: string; pickup: boolean; freeFrom: number | null }) {
+export function StoreHeader({
+  roots,
+  cartCount,
+  name,
+  pickup,
+  freeFrom,
+  onSale,
+}: {
+  roots: CategoryNode[];
+  cartCount: number;
+  name: string;
+  pickup: boolean;
+  freeFrom: number | null;
+  /** Hay productos en oferta: muestra el enlace a /ofertas. */
+  onSale: boolean;
+}) {
   return (
     <header className="relative z-30 border-b border-line bg-white">
       <div className="bg-ink text-white/85">
@@ -81,9 +96,14 @@ export function StoreHeader({ roots, cartCount, name, pickup, freeFrom }: { root
             </span>
             {pickup ? "Retiro gratis en tienda" : "Precios con IVA incluido"}
           </p>
-          <Link href="/info/ayuda" className="subrayado hidden text-white focus-visible:outline-menta sm:block">
-            Centro de ayuda
-          </Link>
+          <span className="hidden gap-4 sm:flex">
+            <Link href="/seguimiento" className="subrayado text-white focus-visible:outline-menta">
+              Sigue tu pedido
+            </Link>
+            <Link href="/info/ayuda" className="subrayado text-white focus-visible:outline-menta">
+              Centro de ayuda
+            </Link>
+          </span>
         </div>
       </div>
 
@@ -103,6 +123,12 @@ export function StoreHeader({ roots, cartCount, name, pickup, freeFrom }: { root
               Ver todos los productos
               <Icon name="arrow" />
             </Link>
+            {onSale && (
+              <Link href="/ofertas" className="mt-2 flex items-center gap-2 rounded-xl border border-oferta/30 px-4 py-3 font-bold text-oferta">
+                <Icon name="tag" className="size-4" />
+                Ofertas
+              </Link>
+            )}
             {roots.map((c, i) => (
               <div key={c.id} className="border-b border-line px-2 py-3 last:border-b-0">
                 <Link href={`/categoria/${c.slug}`} className="flex items-baseline gap-2 py-1 font-bold">
@@ -186,6 +212,14 @@ export function StoreHeader({ roots, cartCount, name, pickup, freeFrom }: { root
               )}
             </li>
           ))}
+          {onSale && (
+            <li className="ml-auto">
+              <Link href="/ofertas" className="flex items-center gap-1.5 py-3 pl-3 font-bold text-oferta hover:underline">
+                <Icon name="tag" className="size-4" />
+                Ofertas
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
     </header>
@@ -193,6 +227,7 @@ export function StoreHeader({ roots, cartCount, name, pickup, freeFrom }: { root
 }
 
 const HELP = [
+  { href: "/seguimiento", label: "Sigue tu pedido" },
   { href: "/info/despacho", label: "Despacho y retiro" },
   { href: "/info/cambios", label: "Cambios y devoluciones" },
   { href: "/info/ayuda", label: "Preguntas frecuentes" },

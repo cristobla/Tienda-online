@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { AdminForm, Check, Submit, TextArea } from "@/components/admin/form";
+import { Icon } from "@/components/icons";
 import { Badge, PageHeader, Section, Table } from "@/components/admin/ui";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
@@ -45,7 +46,17 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <PageHeader title={`Pedido ${o.orderNumber}`} back={{ href: "/admin/pedidos", label: "Pedidos" }} />
+      <PageHeader title={`Pedido ${o.orderNumber}`} back={{ href: "/admin/pedidos", label: "Pedidos" }}>
+        <a
+          href={`/admin/imprimir/pedido/${o.id}`}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold hover:border-leaf hover:text-leaf"
+        >
+          <Icon name="file" className="size-4" />
+          Imprimir hoja
+        </a>
+      </PageHeader>
       <p className="-mt-4 mb-6 flex flex-wrap items-center gap-2 text-sm text-muted">
         Creado el {formatDateTime(o.createdAt)}
         <Badge tone={ORDER_TONE[o.status]}>{label(o.status)}</Badge>

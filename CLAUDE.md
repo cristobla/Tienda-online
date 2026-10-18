@@ -115,7 +115,8 @@ Proyecto: e-commerce para Chile (higiene personal, cuidado personal, aseo del ho
 - Medición: `src/components/store/analytics.tsx` (GA4 + píxel de Meta solo tras «Aceptar»; `track()` add_to_cart/purchase con SKU = id del feed; `TrackPurchase` en el pedido pagado, una vez por navegador). `GA_ID`/`META_PIXEL_ID` (env + argumentos de la build: `next.config.ts` agrega sus dominios a la CSP solo si existen). Las tarjetas traen `sku`.
 - Respaldos: servicio `respaldos` en `docker-compose.prod.yml` + `scripts/respaldo.sh` (pg_dump -Fc + fotos, rotación `BACKUP_KEEP_DAYS`); restauración probada (mismos conteos). `.gitattributes`: `*.sh` con LF.
 - Navegador del panel de Claude: el contenido en streaming queda en `<div hidden id="S:0">` hasta el siguiente cuadro; tomar una captura antes de probar componentes de cliente (si no, parecen sin hidratar).
-- Pruebas: `tests/photos.test.ts`, `tests/promotions.test.ts`, `tests/totp.test.ts` (222 en total).
+- Pruebas: `tests/photos.test.ts`, `tests/promotions.test.ts`, `tests/totp.test.ts`.
+- Operación del día 1: `/seguimiento` (número + email → comprobante; `normalizeOrderNumber`, `findOrderId`; 10 intentos fallidos/15 min por conexión), «Sigue tu pedido» en la franja y el pie. `/ofertas` (`Scope.onSale`: la variante mostrada tiene `compare_at_price`, que la base exige mayor al precio) + enlace en el menú solo si hay ofertas + sección en la portada. Hoja imprimible `/admin/imprimir/pedido/[id]` (fuera del layout del panel). Pruebas: `tests/storefront.test.ts` (224 en total).
 
 ## Fase 8 — esencial implementado (PR #11, mergeado)
 - Primer Super Admin: `npm run admin:create -- correo` (`scripts/admin-create.ts`; contraseña sin eco o por stdin; `createStaffUser(null, …)` audita como sistema).

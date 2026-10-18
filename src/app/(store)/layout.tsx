@@ -4,6 +4,7 @@ import { StoreFooter, StoreHeader, WhatsAppButton } from "@/components/store/she
 import { env } from "@/lib/env";
 import { pickupAvailable } from "@/lib/site";
 import { cartItemCount, currentCartId } from "@/modules/cart";
+import { listProducts } from "@/modules/catalog/queries";
 import { loadCategories } from "@/modules/categories/queries";
 import { getSettings } from "@/modules/settings";
 
@@ -17,13 +18,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [{ roots }, cartCount, settings] = await Promise.all([loadCategories(), currentCartId().then(cartItemCount), getSettings()]);
+  const [{ roots, visibleIds }, cartCount, settings] = await Promise.all([loadCategories(), currentCartId().then(cartItemCount), getSettings()]);
+  const onSale = (await listProducts({ categoryIds: visibleIds, onSale: true }, {}, { pageSize: 1 })).total > 0;
   return (
     <>
       <a href="#contenido" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:font-semibold focus:text-white">
         Saltar al contenido
       </a>
-      <StoreHeader roots={roots} cartCount={cartCount} name={settings.name} pickup={pickupAvailable(settings)} freeFrom={settings.freeShippingFrom} />
+      <StoreHeader roots={roots} cartCount={cartCount} name={settings.name} pickup={pickupAvailable(settings)} freeFrom={settings.freeShippingFrom} onSale={onSale} />
       <main id="contenido" className="mx-auto max-w-7xl px-4 py-8">
         {children}
       </main>

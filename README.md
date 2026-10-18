@@ -54,14 +54,16 @@ npm run start                 # http://localhost:3000
 
 | Ruta | Qué muestra |
 |---|---|
-| `/` | Buscador, categorías, destacados y marcas |
+| `/` | Buscador, categorías, ofertas, destacados, recién llegados, marcas y el local (si tiene dirección) |
 | `/productos` | Todo el catálogo; con `?q=` es la búsqueda (no indexada) |
 | `/categoria/[slug]` | Categoría con sus subcategorías |
 | `/marca/[slug]` | Productos de una marca |
+| `/ofertas` | Productos con precio anterior (rebajados); el menú lo muestra solo si hay |
 | `/producto/[slug]` | Ficha con selector de formato (`?variante=SKU`), cantidad, agregar al carrito, características y JSON-LD |
 | `/carrito` | Carrito: cambiar cantidades y quitar, con precio y stock actuales (no reserva stock) |
-| `/checkout` | Comuna de despacho (costo y plazo) → datos y dirección → confirmar pedido (reserva el stock) |
+| `/checkout` | Entrega (comuna de despacho o retiro en el local) → datos → confirmar pedido (reserva el stock); cupón con `?cupon=` |
 | `/pedido/[id]` | Pedido y pago para el cliente: instrucciones, estado, reintento (enlace secreto, no indexado) |
+| `/seguimiento` | Número de pedido + email → lleva al comprobante (para quien perdió el enlace) |
 | `/cuenta`, `/info/[tema]` | Páginas provisorias (cuenta de cliente, ayuda y legales por redactar) |
 | `/sitemap.xml`, `/robots.txt` | Generados desde la base |
 | `/feed/productos.xml` | Feed de productos para Google Merchant Center y el catálogo de Meta (publicados con foto) |
@@ -83,6 +85,7 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 | `/admin/productos` | Listado con búsqueda (nombre, SKU, código de barras) y filtros | `catalog:read` |
 | `/admin/productos/nuevo`, `/admin/productos/[id]` | Producto + variantes, atributos, imágenes (con «Hacer principal»), SEO | `catalog:write` |
 | `/admin/productos/importar` | Importar el catálogo desde Excel (.xlsx): vista previa por fila, opciones y confirmación | `catalog:write` |
+| `/admin/imprimir/pedido/[id]` | Hoja A4 del pedido para preparar y entregar (casillas por producto, despacho o retiro, firma); botón «Imprimir hoja» en la ficha del pedido | `orders:read` |
 | `/admin/productos/fotos` | Subir muchas fotos a la vez: el nombre del archivo es el SKU o el código de barras (`SKU-2.jpg` = segunda foto); lista de productos sin foto | `catalog:write` |
 | `/admin/inventario`, `/admin/inventario/[variante]` | Stock por variante (bodega, reservado, disponible), historial; ingresos, mermas y conteo físico | `inventory:read` / ajustar: `inventory:adjust` |
 | `/admin/despacho` | Costo y plazo de despacho por región (sin costo = no se despacha) | `shipping:manage` |
