@@ -68,7 +68,7 @@ npm run start                 # http://localhost:3000
 | `/opengraph-image` | Imagen al compartir la tienda en redes (los productos con foto usan la suya) |
 
 Filtros por URL: `marca`, `precio_min`, `precio_max`, `disponible=1`, `a_<atributo>` (atributos marcados como filtrables), `orden`, `pagina`.
-El nombre de la tienda, el contacto y las redes sociales se cambian en `src/lib/site.ts`. Conectar buscadores y redes: `docs/DESPLIEGUE.md` §8.
+El nombre de la tienda, el contacto, las redes sociales y el correo que recibe los pedidos se cambian en el panel (`/admin/tienda`); los textos legales y de ayuda, en `/admin/paginas`. Conectar buscadores y redes: `docs/DESPLIEGUE.md` §8.
 
 ## Panel de administración
 

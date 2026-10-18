@@ -4,10 +4,11 @@ import { JsonLd } from "@/components/store/json-ld";
 import { Fleje, ProductGrid, ProductImage } from "@/components/store/product-card";
 import { aisle, SearchBar } from "@/components/store/shell";
 import { env } from "@/lib/env";
-import { SITE, socialLinks } from "@/lib/site";
+import { socialLinks } from "@/lib/site";
 import { listBrands } from "@/modules/brands/queries";
 import { listProducts, type ProductCard } from "@/modules/catalog/queries";
 import { loadCategories } from "@/modules/categories/queries";
+import { getSettings } from "@/modules/settings";
 
 // Fondo de cada pasillo (categoría raíz) según su orden en el panel.
 const AISLE_TINTS = ["bg-agua", "bg-leaf-soft", "bg-arena"];
@@ -71,10 +72,11 @@ function Spotlight({ p }: { p: ProductCard }) {
 export default async function Home() {
   const { roots, visibleIds } = await loadCategories();
   const scope = { categoryIds: visibleIds };
-  const [featured, latest, brands] = await Promise.all([
+  const [featured, latest, brands, st] = await Promise.all([
     listProducts(scope, { featured: true }, { pageSize: 8 }),
     listProducts(scope, { inStock: true }, { sort: "nuevos", pageSize: 4 }),
     listBrands(),
+    getSettings(),
   ]);
   const spotlight = featured.items[0];
   // Para buscadores: la tienda (con sus redes, cuando existan) y el buscador interno.
@@ -82,16 +84,17 @@ export default async function Home() {
     {
       "@context": "https://schema.org",
       "@type": "OnlineStore",
-      name: SITE.name,
+      name: st.name,
       url: env.APP_URL,
       logo: `${env.APP_URL}/icon.svg`,
-      email: SITE.email ?? undefined,
-      sameAs: socialLinks().map((l) => l.url),
+      email: st.email ?? undefined,
+      telephone: st.whatsapp ?? undefined,
+      sameAs: socialLinks(st).map((l) => l.url),
     },
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      name: SITE.name,
+      name: st.name,
       url: env.APP_URL,
       potentialAction: { "@type": "SearchAction", target: `${env.APP_URL}/productos?q={search_term_string}`, "query-input": "required name=search_term_string" },
     },

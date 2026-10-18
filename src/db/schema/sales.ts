@@ -10,6 +10,7 @@ import {
   pgEnum,
   pgSequence,
   pgTable,
+  smallint,
   text,
   timestamp,
   unique,
@@ -60,6 +61,10 @@ export const inventoryMovements = pgTable(
     uniqueIndex("movements_one_sale_per_order_line")
       .on(t.referenceId, t.variantId)
       .where(sql`${t.type} = 'SALE' AND ${t.referenceType} = 'ORDER'`),
+    // Y la devuelve (anulación o devolución) una sola vez: el stock no vuelve dos veces por un doble envío.
+    uniqueIndex("movements_one_reversal_per_order_line")
+      .on(t.referenceId, t.variantId)
+      .where(sql`${t.type} IN ('SALE_CANCELLED', 'RETURN') AND ${t.referenceType} = 'ORDER'`),
   ],
 );
 
@@ -141,6 +146,7 @@ export const orders = pgTable(
     index("orders_customer_idx").on(t.customerId, t.createdAt),
     index("orders_status_idx").on(t.status, t.createdAt),
     index("orders_created_idx").on(t.createdAt),
+    index("orders_paid_idx").on(t.paidAt),
     check("orders_amounts_nonneg", sql`${t.subtotal} >= 0 AND ${t.discountTotal} >= 0 AND ${t.shippingTotal} >= 0`),
     check("orders_total_math", sql`${t.total} = ${t.subtotal} - ${t.discountTotal} + ${t.shippingTotal}`),
     check("orders_total_nonneg", sql`${t.total} >= 0`),
@@ -386,6 +392,41 @@ export const emailOutbox = pgTable(
   },
   (t) => [index("email_outbox_status_idx").on(t.status, t.createdAt), index("email_outbox_order_idx").on(t.orderId)],
 );
+
+// ───────────── Tienda: datos y páginas informativas ─────────────
+
+/**
+ * Datos de la tienda editables en el panel: nombre, descripción, contacto, redes y a quién avisar de los pedidos.
+ * Una sola fila (id = 1); mientras no exista rigen los valores por omisión del código (src/modules/settings).
+ */
+export const storeSettings = pgTable(
+  "store_settings",
+  {
+    id: smallint().primaryKey().default(1),
+    name: text().notNull(),
+    description: text().notNull(),
+    email: text(),
+    /** E.164 (+56912345678): enlace a WhatsApp en el pie y en Contacto. */
+    whatsapp: text(),
+    hours: text(),
+    instagram: text(),
+    facebook: text(),
+    tiktok: text(),
+    /** Correo del encargado: recibe el aviso de cada pedido nuevo. */
+    orderNotifyEmail: text("order_notify_email"),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [check("store_settings_single_row", sql`${t.id} = 1`)],
+);
+
+/** Texto (Markdown básico) de las páginas informativas del pie. Sin fila = contenido pendiente. */
+export const infoPages = pgTable("info_pages", {
+  slug: text().primaryKey(),
+  body: text().notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  ...timestamps,
+});
 
 // ───────────── Auditoría ─────────────
 

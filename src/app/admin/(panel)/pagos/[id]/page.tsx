@@ -11,7 +11,7 @@ import { formatCLP, formatDateTime } from "@/modules/chile";
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/modules/orders";
 import { getPayment, getProvider, SOURCE_LABELS } from "@/modules/payments";
 import { ORDER_TONE, PAYMENT_TONE } from "../../pedidos/labels";
-import { confirmTransferAction, resolveIncidentAction } from "../actions";
+import { confirmTransferAction, refundPaymentAction, resolveIncidentAction } from "../actions";
 
 export const metadata: Metadata = { title: "Pago" };
 
@@ -143,9 +143,30 @@ export default async function PaymentPage({ params }: { params: Promise<{ id: st
           {!confirmable && provider && !provider.capabilities.manualConfirmation && !MONEY.includes(x.status) && (
             <p className="text-sm text-muted">Este pago se confirma solo con la verificación del proveedor; no se puede marcar como pagado a mano.</p>
           )}
+          {x.status === "REVIEW" && canManage && provider?.implemented && provider.capabilities.refund && (
+            <Section title={`Reembolsar con ${provider.label}`}>
+              <p className="mb-4 text-sm text-muted">
+                Pide a {provider.label} que devuelva {formatCLP(x.receivedAmount ?? x.amount)} al cliente, por el mismo medio con que pagó. Si no responde, reintenta: no se
+                devuelve dos veces.
+              </p>
+              <AdminForm
+                action={refundPaymentAction.bind(null, x.id)}
+                confirm={`¿Devolver ${formatCLP(x.receivedAmount ?? x.amount)} al cliente por ${provider.label}? No se puede deshacer.`}
+                className="space-y-4"
+              >
+                <Submit variant="danger" pendingText="Pidiendo el reembolso…">
+                  Reembolsar {formatCLP(x.receivedAmount ?? x.amount)}
+                </Submit>
+              </AdminForm>
+            </Section>
+          )}
           {x.status === "REVIEW" && canManage && (
-            <Section title="Resolver incidencia">
-              <p className="mb-4 text-sm text-muted">Cuando el dinero ya se devolvió al cliente (los reembolsos se hacen fuera del sistema).</p>
+            <Section title="Registrar devolución hecha">
+              <p className="mb-4 text-sm text-muted">
+                {provider?.capabilities.refund
+                  ? "Solo si el dinero se devolvió por otro camino (p. ej. desde el panel del proveedor)."
+                  : "Cuando el dinero ya se devolvió al cliente (p. ej. con una transferencia desde el banco)."}
+              </p>
               <AdminForm action={resolveIncidentAction.bind(null, x.id)} confirm="¿Confirmas que el dinero ya se devolvió al cliente?" className="space-y-4">
                 <TextArea name="note" label="Cómo y cuándo se devolvió" rows={2} maxLength={500} required />
                 <Submit variant="danger">Marcar como devuelto</Submit>

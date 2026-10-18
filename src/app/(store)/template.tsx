@@ -1,4 +1,6 @@
-// Cada página de la tienda entra con un fundido corto (template se vuelve a montar al navegar; con "reducir movimiento", nada).
+import { PageTransition } from "@/components/store/page-transition";
+
+// Transición entre páginas: ver PageTransition (no anima la primera carga, así no retrasa lo que pinta el servidor).
 export default function StoreTemplate({ children }: { children: React.ReactNode }) {
-  return <div className="animate-page-in">{children}</div>;
+  return <PageTransition>{children}</PageTransition>;
 }

@@ -7,7 +7,7 @@ import { AddToCartForm } from "@/components/store/cart-forms";
 import { JsonLd } from "@/components/store/json-ld";
 import { Fleje, ProductGrid, ProductImage, SoldOutButton, StockBadge } from "@/components/store/product-card";
 import { env } from "@/lib/env";
-import { Markdown } from "@/lib/markdown";
+import { Markdown, MARKDOWN_CLASS } from "@/lib/markdown";
 import { MAX_ITEM_QTY } from "@/modules/cart";
 import { validGtin } from "@/modules/catalog/feed";
 import { contentLabel, discountPercent } from "@/modules/catalog/pricing";
@@ -212,7 +212,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <section>
             <h2 className="rotulo mb-5 border-b border-line pb-3 text-title">Descripción</h2>
             {/* Markdown básico convertido a elementos React: sin HTML crudo (ver src/lib/markdown.tsx). */}
-            <div className="max-w-prose space-y-3 leading-relaxed [&_h3]:text-lg [&_h3]:font-bold [&_h4]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
+            <div className={MARKDOWN_CLASS}>
               <Markdown text={product.description} />
             </div>
           </section>

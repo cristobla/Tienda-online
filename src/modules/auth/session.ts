@@ -12,6 +12,9 @@ export type SessionUser = { id: string; email: string; role: Role };
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
+/** Id de la sesión en la base: el hash del token de la cookie. */
+export const sessionIdOf = sha256;
+
 /** Devuelve el token en claro (va a la cookie); en BD solo queda su hash. */
 export async function createSession(userId: string, meta: { ip?: string; userAgent?: string } = {}) {
   const token = randomBytes(32).toString("base64url");

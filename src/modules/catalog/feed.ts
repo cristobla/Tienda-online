@@ -7,8 +7,8 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { env } from "@/lib/env";
-import { SITE } from "@/lib/site";
 import { loadCategories } from "@/modules/categories/queries";
+import { readSettings } from "@/modules/settings";
 
 /** GTIN real (EAN-8, UPC-12, EAN-13, GTIN-14) con dígito verificador; los códigos internos (prefijo 2) no se informan. */
 export function validGtin(code: string | null): code is string {
@@ -71,10 +71,11 @@ export async function productFeedXml() {
     ];
     return `<item>${tags.map(([k, v]) => (v ? `<${k}>${esc(v)}</${k}>` : "")).join("")}</item>`;
   });
+  const st = await readSettings();
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel>',
-    `<title>${esc(SITE.name)}</title><link>${esc(env.APP_URL)}</link><description>${esc(SITE.description)}</description>`,
+    `<title>${esc(st.name)}</title><link>${esc(env.APP_URL)}</link><description>${esc(st.description)}</description>`,
     ...items,
     "</channel></rss>",
   ].join("\n");

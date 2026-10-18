@@ -53,7 +53,7 @@ export function Section({ title, children, actions }: { title: string; children:
 }
 
 /** Indicador del inicio del panel. Con href, toda la tarjeta enlaza al listado filtrado. */
-export function StatCard({ label, value, icon, href, alert = false }: { label: string; value: number; icon: IconName; href?: string; alert?: boolean }) {
+export function StatCard({ label, value, icon, href, alert = false }: { label: string; value: number | string; icon: IconName; href?: string; alert?: boolean }) {
   const body = (
     <>
       <span className={`grid size-10 shrink-0 place-items-center rounded-md ${alert ? "bg-oferta/10 text-oferta" : "bg-leaf-soft text-leaf-dark"}`}>

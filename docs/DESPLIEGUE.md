@@ -10,7 +10,7 @@ Guía para pasar de "funciona en mi PC" a una tienda pública. Está ordenada po
 | 2 | **Credenciales de pago** | Webpay Plus (código de comercio + API key) y/o Mercado Pago (access token + secreto de webhook). Se tramitan con Transbank / Mercado Pago a nombre de la empresa. Transferencia bancaria no necesita credenciales (el admin confirma). | Negocio |
 | 3 | **Boleta / factura electrónica (SII)** | Cada venta debe emitir documento tributario. Contratar un proveedor de DTE con API. | Negocio + desarrollo |
 | 4 | **Textos legales** | Términos y condiciones, política de privacidad, cambios y devoluciones (derecho a retracto en compras a distancia, Ley 19.496), tratamiento de datos personales (Ley 19.628 y Ley 21.719, que entra en vigencia en diciembre de 2026). Revisar con asesoría legal. Se publican en `/info/*`. | Negocio + legal |
-| 5 | **Datos reales** | Contacto y horario (`src/lib/site.ts`: `email`, `hours`), tarifas y plazos de despacho reales (`/admin/despacho`), categorías, marcas, productos, fotos y stock real. **Nunca correr `npm run db:seed` en producción** (borra todo; además se niega con `NODE_ENV=production`). | Negocio |
+| 5 | **Datos reales** | Datos de la tienda y contacto (`/admin/tienda`), textos legales y de ayuda (`/admin/paginas`), tarifas y plazos de despacho reales (`/admin/despacho`), categorías, marcas, productos, fotos y stock real. **Nunca correr `npm run db:seed` en producción** (borra todo; además se niega con `NODE_ENV=production`). | Negocio |
 | 6 | **Endurecimiento (FASE 8)** | Ver §4. Varias piezas son necesarias antes de abrir al público. | Desarrollo |
 
 ## 2. Dónde alojarla
@@ -117,7 +117,7 @@ Archivos listos en el repositorio: `Dockerfile`, `docker-compose.prod.yml` (tien
 
 La tienda ya entrega lo que estas plataformas leen. Estas son las conexiones, en orden:
 
-1. **Datos de la marca**: en `src/lib/site.ts`, el nombre, el email, el horario y las URL de los perfiles (`social`: Instagram, Facebook, TikTok). Aparecen en el pie, en la imagen al compartir y en los datos para Google (`sameAs`).
+1. **Datos de la marca**: en el panel, `/admin/tienda`: nombre, descripción, email, WhatsApp, horario y las URL de los perfiles (Instagram, Facebook, TikTok). Aparecen en el pie, en la imagen al compartir y en los datos para Google (`sameAs`).
 2. **Google Search Console**: verificar el dominio (registro DNS TXT, sin tocar el código) y enviar `https://tu-dominio.cl/sitemap.xml`. Revisar «Resultados enriquecidos»: cada producto declara precio, stock, marca, GTIN y migas.
 3. **Google Merchant Center** (Google Shopping y las fichas gratuitas): fuente de datos programada → `https://tu-dominio.cl/feed/productos.xml` (diaria). Solo entran los productos publicados **con foto**; con un código de barras real (EAN-13 válido) se identifican mejor.
 4. **Meta Commerce Manager** (catálogo de Instagram y Facebook Shops): catálogo → fuente de datos → la misma URL del feed, programada.

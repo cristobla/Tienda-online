@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge, PageHeader, Section, StatCard, Table } from "@/components/admin/ui";
-import { SITE } from "@/lib/site";
 import { listAudit } from "@/modules/audit";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
@@ -9,10 +8,13 @@ import { dashboardStats } from "@/modules/catalog/admin";
 import { formatDateTime } from "@/modules/chile";
 import { orderStats } from "@/modules/orders";
 import { paymentStats } from "@/modules/payments";
+import { getSettings } from "@/modules/settings";
 import { actionLabel } from "./auditoria/labels";
 
 // absolute: la plantilla "· Panel" del layout solo aplica a las páginas hijas, no a la de su mismo segmento.
-export const metadata: Metadata = { title: { absolute: `Inicio · Panel ${SITE.name}` } };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: { absolute: `Inicio · Panel ${(await getSettings()).name}` } };
+}
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ sin_permiso?: string }> }) {
   const user = await requireStaffPage();

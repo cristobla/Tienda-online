@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
-import { SITE, socialLinks } from "@/lib/site";
+import { formatPhone, socialLinks, type StoreSettings, whatsappUrl } from "@/lib/site";
 import type { CategoryNode } from "@/modules/categories/queries";
 
 /** Buscador del catálogo: formulario GET a /productos?q= (funciona sin JavaScript). */
@@ -38,11 +38,11 @@ export function BrandMark({ className = "size-10" }: { className?: string }) {
   );
 }
 
-export function Logo({ className = "" }: { className?: string }) {
+export function Logo({ name, className = "" }: { name: string; className?: string }) {
   return (
     <Link href="/" className={`group flex items-center gap-2.5 ${className}`}>
       <BrandMark className="size-10 transition-transform duration-500 ease-spring group-hover:-rotate-8" />
-      <span className="rotulo text-[1.8rem] leading-none">{SITE.name}</span>
+      <span className="rotulo text-[1.8rem] leading-none">{name}</span>
     </Link>
   );
 }
@@ -50,7 +50,7 @@ export function Logo({ className = "" }: { className?: string }) {
 /** Número de pasillo de cada categoría raíz (01, 02…): el orden es el del panel. */
 export const aisle = (i: number) => String(i + 1).padStart(2, "0");
 
-export function StoreHeader({ roots, cartCount }: { roots: CategoryNode[]; cartCount: number }) {
+export function StoreHeader({ roots, cartCount, name }: { roots: CategoryNode[]; cartCount: number; name: string }) {
   return (
     <header className="relative z-30 border-b border-line bg-white">
       <div className="bg-ink text-white/85">
@@ -107,7 +107,7 @@ export function StoreHeader({ roots, cartCount }: { roots: CategoryNode[]; cartC
           </nav>
         </details>
 
-        <Logo className="justify-self-start md:col-start-1" />
+        <Logo name={name} className="justify-self-start md:col-start-1" />
 
         <div className="col-span-3 row-start-2 md:col-span-1 md:col-start-2 md:row-start-1 md:w-full md:max-w-2xl md:justify-self-center">
           <SearchBar id="buscar" />
@@ -185,7 +185,7 @@ const LEGAL = [
   { href: "/info/privacidad", label: "Política de privacidad" },
 ];
 
-export function StoreFooter({ roots }: { roots: CategoryNode[] }) {
+export function StoreFooter({ roots, settings: st }: { roots: CategoryNode[]; settings: StoreSettings }) {
   const col = "space-y-2.5 text-sm text-white/75";
   const head = "etiqueta mb-4 text-menta";
   const link = "subrayado transition-colors hover:text-white";
@@ -207,12 +207,12 @@ export function StoreFooter({ roots }: { roots: CategoryNode[] }) {
           <div className="col-span-2 lg:col-span-1">
             <p className="flex items-center gap-2.5">
               <BrandMark />
-              <span className="rotulo text-[1.8rem] leading-none">{SITE.name}</span>
+              <span className="rotulo text-[1.8rem] leading-none">{st.name}</span>
             </p>
-            <p className="mt-4 max-w-xs text-sm text-white/75">{SITE.description}</p>
-            {socialLinks().length > 0 && (
+            <p className="mt-4 max-w-xs text-sm text-white/75">{st.description}</p>
+            {socialLinks(st).length > 0 && (
               <ul aria-label="Redes sociales" className="mt-5 flex flex-wrap gap-2 text-sm">
-                {socialLinks().map((l) => (
+                {socialLinks(st).map((l) => (
                   <li key={l.label}>
                     <a href={l.url} rel="me noopener" target="_blank" className="inline-block rounded-full border border-white/30 px-3.5 py-1.5 transition-colors hover:border-menta hover:text-menta">
                       {l.label}
@@ -221,23 +221,33 @@ export function StoreFooter({ roots }: { roots: CategoryNode[] }) {
                 ))}
               </ul>
             )}
-            {/* Solo se muestra el contacto que ya está definido en SITE (no se publican datos inventados). */}
-            {(SITE.email || SITE.hours) && (
+            {/* Solo se muestra el contacto guardado en el panel (no se publican datos inventados). */}
+            {(st.email || st.whatsapp || st.hours) && (
               <dl className="mt-5 space-y-1 text-sm text-white/75">
-                {SITE.email && (
+                {st.email && (
                   <div className="flex gap-2">
                     <dt className="font-semibold text-white">Correo:</dt>
                     <dd>
-                      <a href={`mailto:${SITE.email}`} className={link}>
-                        {SITE.email}
+                      <a href={`mailto:${st.email}`} className={link}>
+                        {st.email}
                       </a>
                     </dd>
                   </div>
                 )}
-                {SITE.hours && (
+                {st.whatsapp && (
+                  <div className="flex gap-2">
+                    <dt className="font-semibold text-white">WhatsApp:</dt>
+                    <dd>
+                      <a href={whatsappUrl(st.whatsapp)} rel="noopener" target="_blank" className={link}>
+                        {formatPhone(st.whatsapp)}
+                      </a>
+                    </dd>
+                  </div>
+                )}
+                {st.hours && (
                   <div className="flex gap-2">
                     <dt className="font-semibold text-white">Horario:</dt>
-                    <dd>{SITE.hours}</dd>
+                    <dd>{st.hours}</dd>
                   </div>
                 )}
               </dl>
@@ -289,7 +299,7 @@ export function StoreFooter({ roots }: { roots: CategoryNode[] }) {
       <div className="border-t border-white/15">
         <div className="mx-auto flex max-w-7xl flex-wrap justify-between gap-2 px-4 py-5 text-xs text-white/60">
           <p>
-            © {new Date().getFullYear()} {SITE.name} · Chile
+            © {new Date().getFullYear()} {st.name} · Chile
           </p>
           <p>Precios en pesos chilenos (CLP) con IVA incluido.</p>
         </div>

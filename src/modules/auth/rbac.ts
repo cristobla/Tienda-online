@@ -15,6 +15,8 @@ export const PERMISSIONS = [
   "customers:read",
   "customers:write",
   "reports:read",
+  /** Datos de la tienda (nombre, contacto, redes, aviso de pedidos) y textos de las páginas informativas. */
+  "settings:manage",
   "users:manage",
   "audit:read",
 ] as const;

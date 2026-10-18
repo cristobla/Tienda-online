@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientIp } from "@/lib/client-ip";
 import { isBlocked, registerFailure } from "@/modules/auth/rate-limit";
-import { inboundProvider, receiveProviderInput } from "@/modules/payments";
+import { inboundProvider, ProviderTimeoutError, receiveProviderInput } from "@/modules/payments";
 
 const MAX_BYTES = 65_536;
 
@@ -20,8 +20,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   let parsed: Awaited<ReturnType<NonNullable<typeof p.provider.parseWebhook>>>;
   try {
     parsed = await p.provider.parseWebhook(req, p.ctx);
-  } catch {
-    registerFailure(key); // entradas inválidas repetidas desde la misma IP: se bloquean un rato
+  } catch (e) {
+    // El proveedor no respondió al identificar la notificación: 503 para que la reenvíe (no es una entrada inválida).
+    if (e instanceof ProviderTimeoutError) return new NextResponse(null, { status: 503 });
+    registerFailure(key); // firmas o formas inválidas repetidas desde la misma IP: se bloquean un rato
     return new NextResponse(null, { status: 400 });
   }
   const r = await receiveProviderInput(p.provider.id, "webhook", parsed);
