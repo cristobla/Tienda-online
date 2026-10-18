@@ -34,7 +34,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ id: s
             <div className="grid gap-4 sm:grid-cols-2">
               <Text name="name" label="Nombre" initial={c?.name} required maxLength={80} />
               <Select name="parentId" label="Dentro de" initial={c?.parentId} empty="— Categoría principal —" options={parents.map((p) => ({ value: p.id, label: p.path }))} />
-              <Text name="slug" label="Dirección (slug)" initial={c?.slug} maxLength={80} hint={c ? "Cambiarlo rompe enlaces ya compartidos." : "Vacío = se genera desde el nombre."} />
+              <Text name="slug" label="Dirección (slug)" initial={c?.slug} maxLength={80} hint={c ? "Si lo cambias, la dirección anterior redirige a la nueva." : "Vacío = se genera desde el nombre."} />
               <Text name="sortOrder" label="Orden" type="number" min={0} initial={c?.sortOrder ?? 0} required hint="Menor = aparece primero." />
             </div>
             <TextArea name="description" label="Descripción" initial={c?.description} rows={3} maxLength={2000} />

@@ -10,3 +10,4 @@ next-env.d.ts
 /uploads/
 # Archivos reales del negocio (catálogo, precios, costos): se cargan por /admin, no se versionan.
 /datos/
+!.env.production.example

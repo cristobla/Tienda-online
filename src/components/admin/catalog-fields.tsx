@@ -58,7 +58,7 @@ export function ProductFields({
             label="Dirección (slug)"
             initial={product?.slug}
             maxLength={200}
-            hint={product ? "Cambiarlo rompe los enlaces ya compartidos o indexados." : "Vacío = se genera desde el nombre."}
+            hint={product ? "Si lo cambias, la dirección anterior redirige a la nueva." : "Vacío = se genera desde el nombre."}
           />
           <Text name="metaTitle" label="Título para buscadores" initial={product?.metaTitle} maxLength={70} hint="Vacío = nombre del producto. Máx. 70." />
           <TextArea name="metaDescription" label="Descripción para buscadores" initial={product?.metaDescription} rows={2} maxLength={170} hint="Vacío = descripción corta. Máx. 170." />

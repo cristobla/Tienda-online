@@ -9,6 +9,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -167,4 +168,20 @@ export const productImages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("product_images_product_idx").on(t.productId, t.sortOrder)],
+);
+
+/**
+ * Slugs anteriores de productos, categorías y marcas: el enlace viejo (compartido o indexado) redirige de forma
+ * permanente al actual. Apunta a la ENTIDAD, no al slug nuevo: una cadena de cambios se resuelve en un salto.
+ * Sin FK (sirve a tres tablas): si la entidad ya no existe, el enlace viejo da 404.
+ */
+export const slugRedirects = pgTable(
+  "slug_redirects",
+  {
+    kind: text().notNull(),
+    oldSlug: text("old_slug").notNull(),
+    targetId: uuid("target_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.oldSlug] }), check("slug_redirects_kind", sql`${t.kind} IN ('product', 'category', 'brand')`)],
 );

@@ -22,6 +22,7 @@ PostgreSQL 16. Esquema en `src/db/schema/`, migraciones SQL en `drizzle/`.
 | Pagos | `payments` | Intento de pago (varios por pedido): referencia interna, proveedor, ambiente, cuenta, referencia externa, monto congelado, estado, acción entregada al cliente, dinero recibido y verificación, incidencia. Ver `docs/PAGOS.md`. |
 | | `payment_events` | Entradas de proveedores y comandos del admin, guardadas antes de procesarse (recibido / procesado / fallido / ignorado, reintentos); único por (proveedor, event_id). |
 | | `payment_methods` | Interruptor y configuración NO secreta por método (cuenta para transferencias). Sin credenciales. |
+| Catálogo | `slug_redirects` | Direcciones anteriores de productos, categorías y marcas → la entidad actual (redirección 308). Migración `0007_redirecciones`. |
 | Correos | `email_outbox` | Avisos al cliente en cola (pedido recibido, pago confirmado, despachado), escritos en la misma transacción del hecho; `key` única = un aviso por pedido; estado PENDING/SENT/FAILED/SKIPPED, reintentos. Migración `0006_correos`. |
 | Usuarios | `users`, `sessions` | Credenciales (Argon2id) y sesiones (se guarda el hash del token). |
 | | `customers`, `addresses` | Cliente (puede ser invitado, `user_id` NULL), RUT, teléfono, direcciones. |

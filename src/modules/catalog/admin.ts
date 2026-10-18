@@ -11,6 +11,7 @@ import { slugify } from "@/lib/slug";
 import { deleteImageFile, saveImage } from "@/lib/storage";
 import { audit } from "@/modules/audit";
 import { applyMovement } from "@/modules/inventory";
+import { rememberSlug } from "./redirects";
 
 // ───────────── Esquemas ─────────────
 
@@ -282,6 +283,7 @@ export async function updateProduct(userId: string, id: string, data: ProductInp
       .set({ ...productValues(data), attributes })
       .where(eq(s.products.id, id))
       .returning();
+    await rememberSlug(tx, "product", id, before.slug, row!.slug);
     await audit(tx, { userId, action: "product.update", entityType: "product", entityId: id, before, after: row });
     return row!;
   });

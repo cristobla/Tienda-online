@@ -24,7 +24,7 @@ export default async function BrandPage({ params }: { params: Promise<{ id: stri
         <Section title="Datos">
           <AdminForm action={saveBrandAction.bind(null, b?.id ?? null)}>
             <Text name="name" label="Nombre" initial={b?.name} required maxLength={80} />
-            <Text name="slug" label="Dirección (slug)" initial={b?.slug} maxLength={80} hint={b ? "Cambiarlo rompe enlaces ya compartidos." : "Vacío = se genera desde el nombre."} />
+            <Text name="slug" label="Dirección (slug)" initial={b?.slug} maxLength={80} hint={b ? "Si lo cambias, la dirección anterior redirige a la nueva." : "Vacío = se genera desde el nombre."} />
             <TextArea name="description" label="Descripción" initial={b?.description} rows={3} maxLength={1000} />
             <Check name="active" label="Activa (tiene página y aparece en filtros)" initial={b?.active ?? true} />
             <Submit>{b ? "Guardar" : "Crear marca"}</Submit>

@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.claude
+*.tsbuildinfo
+.env
+.env.*
+uploads
+datos
+coverage

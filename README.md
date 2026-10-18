@@ -42,6 +42,7 @@ npm run start                 # http://localhost:3000
 | `npm run db:studio` | Explorador visual de las tablas en el navegador |
 | `npm run jobs` | Vence pedidos impagos, reconcilia pagos y envía los correos en cola (programar con cron en producción) |
 | `npm run admin:create -- correo@dominio.cl` | Crea un Super Admin (primer usuario en producción); pide la contraseña sin mostrarla |
+| `docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build` | Producción en un servidor con Docker: tienda + PostgreSQL + tareas + HTTPS (ver `docs/DESPLIEGUE.md` §6) |
 
 ## Usuario de prueba
 
@@ -112,4 +113,4 @@ Entrar en `/admin` con el usuario del seed. Cada sección exige su permiso (ver 
 - [x] FASE 5 — Carrito y pedidos
 - [x] FASE 6 — Checkout
 - [~] FASE 7 — Pagos: base del módulo + transferencia bancaria ✅ · pasarelas online pendientes
-- [~] FASE 8 — Esencial ✅ (seguridad, límites, correos, SEO y feed para Google/Meta) · Docker y 301 pendientes
+- [x] FASE 8 — Seguridad, límites, correos, SEO y feed para Google/Meta, imagen Docker y redirecciones de direcciones antiguas
