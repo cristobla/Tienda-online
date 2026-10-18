@@ -11,6 +11,7 @@ import { authenticate, createSession, revokeSession, SESSION_COOKIE, setSessionC
 export async function login(prev: FormState, fd: FormData): Promise<FormState> {
   const email = String(fd.get("email") ?? "").trim().toLowerCase().slice(0, 200);
   const password = String(fd.get("password") ?? "").slice(0, 200);
+  const code = String(fd.get("code") ?? "").slice(0, 20);
   const h = await headers();
   const ip = clientIp(h);
   const keys = { ip: `ip:${ip}`, account: `acct:${ip}|${email}` };
@@ -18,7 +19,12 @@ export async function login(prev: FormState, fd: FormData): Promise<FormState> {
 
   if (isBlocked(keys.ip, 30) || isBlocked(keys.account, 5)) return fail("Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.");
 
-  const user = email && password ? await authenticate(email, password) : null;
+  const user = email && password ? await authenticate(email, password, code) : null;
+  // Contraseña correcta pero falta el código (o no sirve): cuenta como intento fallido (5 por cuenta en 15 min).
+  if (user === "code") {
+    registerFailure(keys.account);
+    return fail(code ? "El código de verificación no es correcto o ya se usó. Espera el siguiente." : "Ingresa el código de 6 dígitos de tu app de verificación.");
+  }
   // Mismo mensaje para email inexistente, clave incorrecta o cuenta de cliente: no revela qué cuentas existen.
   if (!user || !isStaff(user.role)) {
     registerFailure(keys.ip);

@@ -7,7 +7,9 @@ import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import { db, type Transaction, type Tx } from "@/db";
 import * as s from "@/db/schema";
 import { env } from "@/lib/env";
+import { mapsLink, storeAddressLine } from "@/lib/site";
 import { formatCLP, formatDateTime } from "@/modules/chile";
+import { isSold } from "@/modules/orders/status";
 import { getProvider } from "@/modules/payments/providers";
 import { readSettings } from "@/modules/settings";
 
@@ -54,7 +56,6 @@ const toConsole: Deliver = async (m) => console.log(`[correo local] Para: ${m.to
 /** Sin proveedor fuera de local/test: los correos esperan en la cola (no se dan por enviados). */
 export const defaultDeliver = (): Deliver | null => (env.RESEND_API_KEY ? resend : env.APP_ENV === "local" || env.APP_ENV === "test" ? toConsole : null);
 
-const PAID = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"];
 
 /** Asunto y texto del aviso con los datos actuales del pedido; null si el aviso ya no corresponde (p. ej. el pedido se canceló). */
 export async function renderEmail(tx: Tx, kind: string, orderId: string): Promise<{ subject: string; text: string } | null> {
@@ -63,12 +64,14 @@ export async function renderEmail(tx: Tx, kind: string, orderId: string): Promis
   const link = new URL(`/pedido/${o.id}`, env.APP_URL).toString();
   const a = o.shippingAddress;
   const st = await readSettings(tx);
+  const pickup = o.fulfillment === "PICKUP";
+  const place = [storeAddressLine(st), st.hours, mapsLink(st)].filter(Boolean).join(" · ");
   const footer = ["", `Revisa tu pedido en: ${link}`, "", "Este correo no es una boleta ni un comprobante de pago.", st.name].join("\n");
 
   if (kind === "store.order_new" || kind === "store.order_paid") {
     const isNew = kind === "store.order_new";
     // Un pedido que se canceló antes de enviar el aviso ya no necesita atención.
-    if (isNew ? o.status === "CANCELLED" : !PAID.includes(o.status)) return null;
+    if (isNew ? o.status === "CANCELLED" : !isSold(o.status)) return null;
     const items = await tx.select().from(s.orderItems).where(eq(s.orderItems.orderId, o.id)).orderBy(asc(s.orderItems.productName));
     const [p] = await tx.select({ provider: s.payments.provider }).from(s.payments).where(eq(s.payments.orderId, o.id)).orderBy(desc(s.payments.attempt)).limit(1);
     const method = o.paymentMethod ?? p?.provider;
@@ -79,8 +82,9 @@ export async function renderEmail(tx: Tx, kind: string, orderId: string): Promis
         "",
         `Pedido: ${o.orderNumber} (${formatDateTime(o.createdAt)})`,
         `Cliente: ${o.customerName} · ${o.email}${o.phone ? ` · ${o.phone}` : ""}`,
-        `Total: ${formatCLP(o.total)} (despacho ${o.shippingTotal ? formatCLP(o.shippingTotal) : "gratis"})`,
+        `Total: ${formatCLP(o.total)} (${pickup ? "retiro en el local" : `despacho ${o.shippingTotal ? formatCLP(o.shippingTotal) : "gratis"}`})`,
         method ? `Medio de pago: ${getProvider(method)?.label ?? method}` : null,
+        o.couponCode ? `Cupón: ${o.couponCode} (−${formatCLP(o.discountTotal)})` : null,
         "",
         ...items.map((i) => `- ${i.quantity} × ${i.productName} (${i.variantName}, SKU ${i.sku}): ${formatCLP(i.lineTotal)}`),
         a ? `\nDespacho a: ${a.street} ${a.number}${a.apartment ? `, ${a.apartment}` : ""}, ${a.commune}, ${a.region}${a.notes ? ` (${a.notes})` : ""}` : null,
@@ -115,7 +119,8 @@ export async function renderEmail(tx: Tx, kind: string, orderId: string): Promis
         `Recibimos tu pedido ${o.orderNumber} por ${formatCLP(o.total)} (IVA incluido).`,
         "",
         ...items.map((i) => `- ${i.quantity} × ${i.productName} (${i.variantName}): ${formatCLP(i.lineTotal)}`),
-        `Despacho: ${o.shippingTotal ? formatCLP(o.shippingTotal) : "gratis"}`,
+        o.discountTotal ? `Descuento${o.couponCode ? ` (cupón ${o.couponCode})` : ""}: −${formatCLP(o.discountTotal)}` : null,
+        pickup ? `Retiro en el local: ${place || st.name}` : `Despacho: ${o.shippingTotal ? formatCLP(o.shippingTotal) : "gratis"}`,
         a ? `Dirección: ${a.street} ${a.number}${a.apartment ? `, ${a.apartment}` : ""}, ${a.commune}, ${a.region}` : null,
         ...pay,
         footer,
@@ -125,14 +130,19 @@ export async function renderEmail(tx: Tx, kind: string, orderId: string): Promis
     };
   }
   if (kind === "order.paid") {
-    if (!PAID.includes(o.status)) return null;
+    if (!isSold(o.status)) return null;
     return {
       subject: `Pago confirmado: pedido ${o.orderNumber}`,
-      text: [`Hola ${o.customerName}:`, "", `Confirmamos el pago de tu pedido ${o.orderNumber} por ${formatCLP(o.total)}.`, "Lo estamos preparando y te avisaremos cuando lo despachemos.", footer].join("\n"),
+      text: [`Hola ${o.customerName}:`, "", `Confirmamos el pago de tu pedido ${o.orderNumber} por ${formatCLP(o.total)}.`, pickup ? "Lo estamos preparando y te avisaremos cuando esté listo para retirar." : "Lo estamos preparando y te avisaremos cuando lo despachemos.", footer].join("\n"),
     };
   }
   if (kind === "order.shipped") {
     if (o.status !== "SHIPPED" && o.status !== "DELIVERED") return null;
+    if (pickup)
+      return {
+        subject: `Tu pedido ${o.orderNumber} está listo para retirar`,
+        text: [`Hola ${o.customerName}:`, "", `Tu pedido ${o.orderNumber} está listo. Puedes retirarlo en ${place || st.name}.`, "Trae tu número de pedido.", footer].join("\n"),
+      };
     return {
       subject: `Tu pedido ${o.orderNumber} va en camino`,
       text: [`Hola ${o.customerName}:`, "", `Despachamos tu pedido ${o.orderNumber}${a ? ` a ${a.commune}, ${a.region}` : ""}.`, footer].join("\n"),

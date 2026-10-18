@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { AdminForm, Check, Select, Submit, Text } from "@/components/admin/form";
+import { AdminForm, Check, DangerButton, Select, Submit, Text } from "@/components/admin/form";
 import { PageHeader, Section } from "@/components/admin/ui";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { MIN_PASSWORD_LENGTH } from "@/modules/auth/password";
 import { getUser, ROLE_LABELS, STAFF_ROLES } from "@/modules/auth/users";
-import { createUserAction, setPasswordAction, updateUserAction } from "../actions";
+import { createUserAction, resetTotpAction, setPasswordAction, updateUserAction } from "../actions";
 
 export const metadata: Metadata = { title: "Usuario" };
 
@@ -60,6 +60,20 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
             <Text name="password" label="Nueva contraseña" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" hint={passwordHint} />
             <Submit>Cambiar contraseña</Submit>
           </AdminForm>
+        </Section>
+        <Section title="Verificación en dos pasos">
+          {u.has2fa ? (
+            <div className="space-y-3 text-sm">
+              <p>Activa. Si perdió su celular, quítala y pídele que la active de nuevo desde «Mi cuenta».</p>
+              {!self && (
+                <DangerButton action={resetTotpAction.bind(null, u.id)} confirm={`¿Quitar la verificación en dos pasos de ${u.email}?`}>
+                  Quitar verificación en dos pasos
+                </DangerButton>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">No la tiene activa. Cada persona la activa desde «Mi cuenta».</p>
+          )}
         </Section>
       </div>
     </>

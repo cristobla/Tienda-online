@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/store/catalog-view";
 import { Markdown, MARKDOWN_CLASS } from "@/lib/markdown";
-import { formatPhone, socialLinks, whatsappUrl } from "@/lib/site";
+import { formatPhone, mapsLink, socialLinks, storeAddressLine, whatsappUrl } from "@/lib/site";
 import { getInfoPage, getSettings, INFO_PAGES } from "@/modules/settings";
 
 // Páginas informativas del pie. El texto se redacta en el panel (/admin/paginas); sin texto, "contenido pendiente".
@@ -23,6 +23,7 @@ export default async function InfoPage({ params }: Props) {
   const contact = st && [
     st.email && { label: "Correo", value: st.email, href: `mailto:${st.email}` },
     st.whatsapp && { label: "WhatsApp", value: formatPhone(st.whatsapp), href: whatsappUrl(st.whatsapp) },
+    storeAddressLine(st) && { label: "Local", value: storeAddressLine(st)!, href: mapsLink(st)! },
     st.hours && { label: "Horario de atención", value: st.hours },
     ...socialLinks(st).map((l) => ({ label: l.label, value: l.url.replace(/^https:\/\/(www\.)?/, ""), href: l.url })),
   ].filter((c) => !!c);

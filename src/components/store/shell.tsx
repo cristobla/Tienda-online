@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
-import { formatPhone, socialLinks, type StoreSettings, whatsappUrl } from "@/lib/site";
+import { ConsentLink } from "./analytics";
+import { formatPhone, mapsLink, socialLinks, storeAddressLine, type StoreSettings, whatsappUrl } from "@/lib/site";
 import type { CategoryNode } from "@/modules/categories/queries";
+import { formatCLP } from "@/modules/chile";
 
 /** Buscador del catálogo: formulario GET a /productos?q= (funciona sin JavaScript). */
 export function SearchBar({ id, placeholder = "Busca por producto, marca o código", large = false }: { id: string; placeholder?: string; large?: boolean }) {
@@ -47,21 +49,37 @@ export function Logo({ name, className = "" }: { name: string; className?: strin
   );
 }
 
+/** Botón fijo de WhatsApp (solo si la tienda guardó su número), con un saludo ya escrito. */
+export function WhatsAppButton({ phone, store }: { phone: string; store: string }) {
+  return (
+    <a
+      href={whatsappUrl(phone, `Hola ${store}, tengo una consulta.`)}
+      target="_blank"
+      rel="noopener"
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-2 rounded-full bg-ink py-3 pl-3.5 pr-3.5 text-sm font-semibold text-white ring-2 ring-white transition-transform duration-300 ease-spring hover:-translate-y-0.5 focus-visible:outline-menta sm:pr-5"
+    >
+      <Icon name="chat" className="size-5 text-menta" />
+      <span className="sr-only sm:not-sr-only">Escríbenos</span>
+      <span className="sr-only"> por WhatsApp</span>
+    </a>
+  );
+}
+
 /** Número de pasillo de cada categoría raíz (01, 02…): el orden es el del panel. */
 export const aisle = (i: number) => String(i + 1).padStart(2, "0");
 
-export function StoreHeader({ roots, cartCount, name }: { roots: CategoryNode[]; cartCount: number; name: string }) {
+export function StoreHeader({ roots, cartCount, name, pickup, freeFrom }: { roots: CategoryNode[]; cartCount: number; name: string; pickup: boolean; freeFrom: number | null }) {
   return (
     <header className="relative z-30 border-b border-line bg-white">
       <div className="bg-ink text-white/85">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 text-xs sm:text-[0.8rem]">
           <p className="flex items-center gap-2">
             <Icon name="truck" className="size-4 shrink-0 text-menta" />
-            Despacho a todo Chile
+            {freeFrom !== null ? `Despacho gratis sobre ${formatCLP(freeFrom)}` : "Despacho a todo Chile"}
             <span aria-hidden className="text-menta">
               ·
             </span>
-            Precios con IVA incluido
+            {pickup ? "Retiro gratis en tienda" : "Precios con IVA incluido"}
           </p>
           <Link href="/info/ayuda" className="subrayado hidden text-white focus-visible:outline-menta sm:block">
             Centro de ayuda
@@ -185,7 +203,7 @@ const LEGAL = [
   { href: "/info/privacidad", label: "Política de privacidad" },
 ];
 
-export function StoreFooter({ roots, settings: st }: { roots: CategoryNode[]; settings: StoreSettings }) {
+export function StoreFooter({ roots, settings: st, consent = false }: { roots: CategoryNode[]; settings: StoreSettings; consent?: boolean }) {
   const col = "space-y-2.5 text-sm text-white/75";
   const head = "etiqueta mb-4 text-menta";
   const link = "subrayado transition-colors hover:text-white";
@@ -222,7 +240,7 @@ export function StoreFooter({ roots, settings: st }: { roots: CategoryNode[]; se
               </ul>
             )}
             {/* Solo se muestra el contacto guardado en el panel (no se publican datos inventados). */}
-            {(st.email || st.whatsapp || st.hours) && (
+            {(st.email || st.whatsapp || st.hours || st.storeAddress) && (
               <dl className="mt-5 space-y-1 text-sm text-white/75">
                 {st.email && (
                   <div className="flex gap-2">
@@ -240,6 +258,16 @@ export function StoreFooter({ roots, settings: st }: { roots: CategoryNode[]; se
                     <dd>
                       <a href={whatsappUrl(st.whatsapp)} rel="noopener" target="_blank" className={link}>
                         {formatPhone(st.whatsapp)}
+                      </a>
+                    </dd>
+                  </div>
+                )}
+                {storeAddressLine(st) && (
+                  <div className="flex gap-2">
+                    <dt className="font-semibold text-white">Local:</dt>
+                    <dd>
+                      <a href={mapsLink(st)!} rel="noopener" target="_blank" className={link}>
+                        {storeAddressLine(st)}
                       </a>
                     </dd>
                   </div>
@@ -301,7 +329,15 @@ export function StoreFooter({ roots, settings: st }: { roots: CategoryNode[]; se
           <p>
             © {new Date().getFullYear()} {st.name} · Chile
           </p>
-          <p>Precios en pesos chilenos (CLP) con IVA incluido.</p>
+          <p>
+            Precios en pesos chilenos (CLP) con IVA incluido.
+            {consent && (
+              <>
+                {" · "}
+                <ConsentLink className="underline-offset-2 hover:text-white hover:underline" />
+              </>
+            )}
+          </p>
         </div>
       </div>
     </footer>

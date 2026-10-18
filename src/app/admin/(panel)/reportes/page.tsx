@@ -69,7 +69,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </nav>
 
       <p className="mb-3 text-sm text-muted">
-        Pedidos pagados entre el {r.from.split("-").reverse().join("-")} y el {r.to.split("-").reverse().join("-")}, según la fecha de pago (hora de Chile).
+        Pedidos pagados entre el {r.from.split("-").reverse().join("-")} y el {r.to.split("-").reverse().join("-")}, según la fecha de pago (hora de Chile). Un pedido anulado después sigue contando en el mes en que se pagó; su anulación se descuenta en el mes en que ocurre.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Ventas (IVA incluido)" value={formatCLP(sum.total)} icon="trend" />
@@ -82,7 +82,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           ["Neto", formatCLP(sum.net)],
           ["IVA (19 %)", formatCLP(sum.iva)],
           ["Despacho cobrado", formatCLP(sum.shipping)],
-          ["Anulados o devueltos después de pagar", `${sum.reversed.orders} (${formatCLP(sum.reversed.total)})`],
+          ["Anulados o devueltos en el período", `${sum.reversed.orders} (${formatCLP(sum.reversed.total)})`],
+          ["Ventas menos anulaciones", formatCLP(sum.netOfReversals)],
         ].map(([k, v]) => (
           <div key={k}>
             <dt className="inline text-muted">{k}: </dt>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AdminForm, Submit, Text, TextArea } from "@/components/admin/form";
+import { AdminForm, Check, Submit, Text, TextArea } from "@/components/admin/form";
 import { ButtonLink, PageHeader, Section } from "@/components/admin/ui";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { getSettings } from "@/modules/settings";
@@ -35,6 +35,27 @@ export default async function StoreSettingsPage() {
             <Text name="email" label="Correo de contacto" type="email" initial={st.email} maxLength={200} placeholder="contacto@tutienda.cl" />
             <Text name="whatsapp" label="WhatsApp" type="tel" initial={st.whatsapp} maxLength={30} placeholder="9 1234 5678" hint="Celular; se muestra como enlace a WhatsApp." />
             <Text name="hours" label="Horario de atención" initial={st.hours} maxLength={120} placeholder="Lunes a viernes de 9:00 a 18:00" className="sm:col-span-2" />
+          </div>
+        </Section>
+
+        <Section title="Local físico">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Text name="storeAddress" label="Dirección" initial={st.storeAddress} maxLength={120} placeholder="Av. Ejemplo 1234, local 5" className="sm:col-span-2" hint="Igual que en tu ficha de Google Maps: buscadores comparan nombre, dirección y teléfono." />
+            <Text name="storeCommune" label="Comuna" initial={st.storeCommune} maxLength={60} />
+            <Text name="storeRegion" label="Región" initial={st.storeRegion} maxLength={60} />
+            <Text
+              name="mapsUrl"
+              label="Enlace de Google Maps"
+              type="url"
+              initial={st.mapsUrl}
+              maxLength={300}
+              placeholder="https://maps.app.goo.gl/…"
+              className="sm:col-span-2"
+              hint="En Google Maps: tu local → Compartir → Copiar vínculo. Vacío = se busca la dirección."
+            />
+            <div className="sm:col-span-2">
+              <Check name="pickupEnabled" label="Ofrecer retiro en el local" initial={st.pickupEnabled} hint="Opción gratis en el checkout. Se avisa al cliente por correo al marcar el pedido «Listo para retiro»." />
+            </div>
           </div>
         </Section>
 

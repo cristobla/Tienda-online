@@ -4,6 +4,7 @@ import { Badge, PageHeader, Section, StatCard, Table } from "@/components/admin/
 import { listAudit } from "@/modules/audit";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
+import { getUser } from "@/modules/auth/users";
 import { dashboardStats } from "@/modules/catalog/admin";
 import { formatDateTime } from "@/modules/chile";
 import { orderStats } from "@/modules/orders";
@@ -20,10 +21,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const user = await requireStaffPage();
   const showCatalog = can(user.role, "catalog:read");
   const canInventory = can(user.role, "inventory:read");
-  const [stats, activity, orders] = await Promise.all([
+  const admin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+  const [stats, activity, orders, me] = await Promise.all([
     showCatalog ? dashboardStats() : null,
     can(user.role, "audit:read") ? listAudit({}).then((r) => r.slice(0, 8)) : null,
     can(user.role, "orders:read") ? Promise.all([orderStats(), paymentStats()]).then(([o, p]) => ({ ...o, ...p })) : null,
+    admin ? getUser(user.id) : null,
   ]);
 
   return (
@@ -32,6 +35,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {(await searchParams).sin_permiso && (
         <p role="alert" className="mb-6 rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta">
           Tu rol no tiene acceso a esa sección.
+        </p>
+      )}
+      {me && !me.has2fa && (
+        <p className="mb-6 rounded-md border border-fleje bg-fleje/20 px-4 py-3 text-sm">
+          <strong>Protege tu cuenta:</strong> activa la verificación en dos pasos en{" "}
+          <Link href="/admin/cuenta" className="font-semibold text-leaf-dark underline">
+            Mi cuenta
+          </Link>
+          . Tu rol puede mover dinero y ver datos de clientes.
         </p>
       )}
 
@@ -51,7 +63,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <StatCard label="Inactivos" value={stats.inactiveProducts} icon="layers" href="/admin/productos?estado=inactivos" />
             <StatCard label="Variantes agotadas" value={stats.outOfStock} icon="alert" href="/admin/productos?stock=agotado&estado=activos" alert={stats.outOfStock > 0} />
             <StatCard label="Bajo stock mínimo" value={stats.lowStock} icon="chart" href="/admin/productos?stock=bajo&estado=activos" alert={stats.lowStock > 0} />
-            <StatCard label="Productos sin foto" value={stats.withoutImages} icon="tag" />
+            <StatCard label="Productos sin foto" value={stats.withoutImages} icon="tag" href={can(user.role, "catalog:write") ? "/admin/productos/fotos" : undefined} alert={stats.withoutImages > 0} />
           </div>
 
           <div className="mt-8">

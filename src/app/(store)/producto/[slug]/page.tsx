@@ -180,7 +180,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
               <div className="mt-5">
                 {inStock ? (
                   // key: al cambiar de formato el formulario se reinicia (cantidad 1, sin mensajes del anterior).
-                  <AddToCartForm key={selected.id} variantId={selected.id} max={Math.min(selected.available, MAX_ITEM_QTY)} large />
+                  <AddToCartForm
+                    key={selected.id}
+                    variantId={selected.id}
+                    max={Math.min(selected.available, MAX_ITEM_QTY)}
+                    large
+                    item={{ sku: selected.sku, name: product.name, price: selected.price }}
+                  />
                 ) : (
                   <SoldOutButton large />
                 )}

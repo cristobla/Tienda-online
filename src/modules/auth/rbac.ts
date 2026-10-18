@@ -12,6 +12,8 @@ export const PERMISSIONS = [
   /** Confirmar transferencias, resolver incidencias de pago y configurar métodos de pago. */
   "payments:manage",
   "shipping:manage",
+  /** Cupones de descuento y despacho gratis desde un monto. */
+  "promotions:manage",
   "customers:read",
   "customers:write",
   "reports:read",

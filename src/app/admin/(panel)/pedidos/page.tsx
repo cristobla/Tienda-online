@@ -6,7 +6,7 @@ import { hrefWith, type SP } from "@/components/store/catalog-view";
 import { orderStatus } from "@/db/schema";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { formatCLP, formatDateTime } from "@/modules/chile";
-import { listOrders, ORDER_STATUS_LABELS, ORDERS_PAGE_SIZE, PAYMENT_STATUS_LABELS } from "@/modules/orders";
+import { listOrders, ORDER_STATUS_LABELS, ORDERS_PAGE_SIZE, PAYMENT_STATUS_LABELS, statusLabel } from "@/modules/orders";
 import { ORDER_TONE, PAYMENT_TONE } from "./labels";
 
 export const metadata: Metadata = { title: "Pedidos" };
@@ -63,7 +63,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
             <td>{o.items}</td>
             <td className="whitespace-nowrap font-semibold">{formatCLP(o.total)}</td>
             <td>
-              <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>
+              <Badge tone={ORDER_TONE[o.status]}>{statusLabel(o.status, o.fulfillment)}</Badge>
+              {o.fulfillment === "PICKUP" && <span className="mt-1 block text-xs text-muted">Retiro en el local</span>}
             </td>
             <td>
               <Badge tone={PAYMENT_TONE[o.paymentStatus]}>{PAYMENT_STATUS_LABELS[o.paymentStatus]}</Badge>

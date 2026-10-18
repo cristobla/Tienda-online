@@ -45,6 +45,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             <ButtonLink href="/admin/productos/importar" variant="plain">
               Importar Excel
             </ButtonLink>
+            <ButtonLink href="/admin/productos/fotos" variant="plain">
+              Subir fotos por SKU
+            </ButtonLink>
             <ButtonLink href="/admin/productos/nuevo">Nuevo producto</ButtonLink>
           </>
         )}

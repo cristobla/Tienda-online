@@ -64,6 +64,27 @@
       "when": 1792301818889,
       "tag": "0008_panel_operacion",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792315509679,
+      "tag": "0009_local_y_retiro",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792316732622,
+      "tag": "0010_cupones",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792317233881,
+      "tag": "0011_verificacion_dos_pasos",
+      "breakpoints": true
     }
   ]
 }

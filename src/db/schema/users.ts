@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -26,6 +27,10 @@ export const users = pgTable(
     role: userRole().notNull().default("CUSTOMER"),
     active: boolean().notNull().default(true),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    /** Verificación en dos pasos (TOTP, base32); null = desactivada. */
+    totpSecret: text("totp_secret"),
+    /** Último paso de 30 s usado: un código no sirve dos veces. */
+    totpLastStep: bigint("totp_last_step", { mode: "number" }),
     ...timestamps,
   },
   (t) => [check("users_email_lowercase", sql`${t.email} = lower(${t.email})`)],

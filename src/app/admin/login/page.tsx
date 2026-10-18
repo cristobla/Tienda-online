@@ -24,6 +24,15 @@ export default async function LoginPage() {
         <AdminForm action={login} className="space-y-4">
           <Text name="email" label="Email" type="email" autoComplete="username" required autoFocus />
           <Text name="password" label="Contraseña" type="password" autoComplete="current-password" required />
+          <Text
+            name="code"
+            label="Código de verificación"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9 ]{6,7}"
+            maxLength={7}
+            hint="Solo si activaste la verificación en dos pasos (6 dígitos de tu app)."
+          />
           <Submit>Ingresar</Submit>
         </AdminForm>
       </div>

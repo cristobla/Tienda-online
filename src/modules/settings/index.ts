@@ -52,9 +52,19 @@ export const settingsSchema = z.object({
   facebook: profile(/(^|\.)(facebook|fb)\.com$/, "Facebook"),
   tiktok: profile(/(^|\.)tiktok\.com$/, "TikTok"),
   orderNotifyEmail: optEmail,
-}) satisfies z.ZodType<StoreSettings>;
+  storeAddress: field.optText(120),
+  storeCommune: field.optText(60),
+  storeRegion: field.optText(60),
+  // google.com/maps, maps.google.com, maps.app.goo.gl (botón "Compartir" de Maps) o g.page (enlaces antiguos del perfil).
+  mapsUrl: profile(/(^|\.)(google\.(com|cl)|goo\.gl|g\.page)$/, "Google Maps"),
+  pickupEnabled: field.bool(),
+})
+  .refine((d) => !d.pickupEnabled || d.storeAddress, { path: ["storeAddress"], message: "Para ofrecer retiro, completa la dirección del local" }) satisfies z.ZodType<EditableSettings>;
 
-export async function saveSettings(userId: string, data: StoreSettings) {
+/** Lo que se edita en /admin/tienda (el despacho gratis se edita en Promociones). */
+export type EditableSettings = Omit<StoreSettings, "freeShippingFrom">;
+
+export async function saveSettings(userId: string, data: EditableSettings) {
   await db.transaction(async (tx) => {
     const before = await readSettings(tx);
     await tx
@@ -62,6 +72,18 @@ export async function saveSettings(userId: string, data: StoreSettings) {
       .values({ id: 1, ...data, updatedBy: userId })
       .onConflictDoUpdate({ target: storeSettings.id, set: { ...data, updatedBy: userId } });
     await audit(tx, { userId, action: "settings.update", entityType: "settings", entityId: "tienda", before, after: data });
+  });
+}
+
+/** Despacho gratis desde un monto (null = apagado). Solo toca ese dato. */
+export async function saveFreeShipping(userId: string, freeShippingFrom: number | null) {
+  await db.transaction(async (tx) => {
+    const before = await readSettings(tx);
+    await tx
+      .insert(storeSettings)
+      .values({ id: 1, ...before, freeShippingFrom, updatedBy: userId })
+      .onConflictDoUpdate({ target: storeSettings.id, set: { freeShippingFrom, updatedBy: userId } });
+    await audit(tx, { userId, action: "settings.update", entityType: "settings", entityId: "despacho-gratis", before: { freeShippingFrom: before.freeShippingFrom }, after: { freeShippingFrom } });
   });
 }
 

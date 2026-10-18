@@ -5,6 +5,7 @@ import { sessions, users } from "@/db/schema";
 import { env } from "@/lib/env";
 import { hashPassword, verifyPassword } from "./password";
 import { can, ForbiddenError, type Permission, type Role } from "./rbac";
+import { consumeTotp } from "./totp";
 
 export const SESSION_COOKIE = "session";
 
@@ -44,14 +45,18 @@ export async function purgeExpiredSessions() {
 // Hash fijo para igualar el tiempo de respuesta cuando el email no existe (evita enumerar usuarios).
 let dummyHash: Promise<string> | undefined;
 
-/** Verifica credenciales. Mismo error y tiempo similar si falla el email o la contraseña. */
-export async function authenticate(email: string, password: string): Promise<SessionUser | null> {
+/**
+ * Verifica credenciales. Mismo error y tiempo similar si falla el email o la contraseña. Con verificación en dos
+ * pasos activa, contraseña correcta sin código válido = "code" (el código se gasta: no sirve dos veces).
+ */
+export async function authenticate(email: string, password: string, code = ""): Promise<SessionUser | null | "code"> {
   const [user] = await db.select().from(users).where(eq(users.email, email.trim().toLowerCase()));
   if (!user || !user.active) {
     await verifyPassword(await (dummyHash ??= hashPassword("dummy-password")), password);
     return null;
   }
   if (!(await verifyPassword(user.passwordHash, password))) return null;
+  if (user.totpSecret && !(await consumeTotp(user.id, user.totpSecret, code))) return "code";
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
   return { id: user.id, email: user.email, role: user.role };
 }

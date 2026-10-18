@@ -30,6 +30,7 @@ const PATHS = {
   download: "M12 4v11m-5-5 5 5 5-5M5 20h14",
   alert: "M12 3 2 21h20L12 3Zm0 7v5m0 3h.01",
   check: "m5 12 5 5L20 7",
+  pin: "M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12Zm0-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
 } as const;
 
 export type IconName = keyof typeof PATHS;

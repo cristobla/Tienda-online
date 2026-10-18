@@ -7,7 +7,7 @@ import { Badge, PageHeader, Section, Table } from "@/components/admin/ui";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { formatCLP, formatDateTime } from "@/modules/chile";
-import { getOrder, manualTransitions, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, SOLD_STATUSES } from "@/modules/orders";
+import { getOrder, manualTransitions, PAYMENT_STATUS_LABELS, isSold, statusLabel } from "@/modules/orders";
 import { EMAIL_LABELS, orderEmails } from "@/modules/mail";
 import { getProvider, orderPayments } from "@/modules/payments";
 import { changeStatusAction, reverseOrderAction } from "../actions";
@@ -23,7 +23,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const { order: o, items, history, reservations, hasAccount, returnedUnits } = data;
   const [payments, emails] = await Promise.all([orderPayments(o.id), orderEmails(o.id)]);
   const transitions = can(user.role, "orders:manage") ? manualTransitions(o) : [];
-  const reversible = can(user.role, "payments:manage") && (SOLD_STATUSES as readonly string[]).includes(o.status);
+  const reversible = can(user.role, "payments:manage") && isSold(o.status);
   const shipped = o.status === "SHIPPED" || o.status === "DELIVERED";
   // Pagos que se reembolsan solos por la API del proveedor (los demás, p. ej. transferencias, se devuelven a mano).
   const autoRefund = payments.filter((p) => p.status === "PAID" && getProvider(p.provider)?.implemented && getProvider(p.provider)?.capabilities.refund);
@@ -40,13 +40,16 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         ? "Reserva liberada: el stock volvió a estar disponible."
         : "Sin reservas.";
   const address = o.shippingAddress;
+  const pickup = o.fulfillment === "PICKUP";
+  const label = (st: typeof o.status) => statusLabel(st, o.fulfillment);
 
   return (
     <>
       <PageHeader title={`Pedido ${o.orderNumber}`} back={{ href: "/admin/pedidos", label: "Pedidos" }} />
       <p className="-mt-4 mb-6 flex flex-wrap items-center gap-2 text-sm text-muted">
         Creado el {formatDateTime(o.createdAt)}
-        <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>
+        <Badge tone={ORDER_TONE[o.status]}>{label(o.status)}</Badge>
+        {pickup && <Badge tone="off">Retiro en el local</Badge>}
         <Badge tone={PAYMENT_TONE[o.paymentStatus]}>Pago: {PAYMENT_STATUS_LABELS[o.paymentStatus]}</Badge>
       </p>
 
@@ -75,12 +78,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               </div>
               {o.discountTotal > 0 && (
                 <div className="flex justify-between">
-                  <dt className="text-muted">Descuento</dt>
+                  <dt className="text-muted">Descuento{o.couponCode && ` (cupón ${o.couponCode})`}</dt>
                   <dd>−{formatCLP(o.discountTotal)}</dd>
                 </div>
               )}
               <div className="flex justify-between">
-                <dt className="text-muted">Despacho</dt>
+                <dt className="text-muted">{pickup ? "Retiro en el local" : "Despacho"}</dt>
                 <dd>{formatCLP(o.shippingTotal)}</dd>
               </div>
               <div className="flex justify-between border-t border-line pt-2 text-base">
@@ -97,8 +100,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               {history.map(({ entry: h, email }) => (
                 <li key={h.id} className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-4 py-3">
                   <span>
-                    {h.fromStatus ? `${ORDER_STATUS_LABELS[h.fromStatus]} → ` : "Creado: "}
-                    <span className="font-semibold">{ORDER_STATUS_LABELS[h.toStatus]}</span>
+                    {h.fromStatus ? `${label(h.fromStatus)} → ` : "Creado: "}
+                    <span className="font-semibold">{label(h.toStatus)}</span>
                     {h.note && <span className="block text-muted">{h.note}</span>}
                   </span>
                   <span className="text-muted">
@@ -143,9 +146,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 </div>
               )}
               <div>
-                <dt className="text-muted">Despacho</dt>
+                <dt className="text-muted">Entrega</dt>
                 <dd>
-                  {address
+                  {pickup
+                    ? "Retira en el local (sin despacho)."
+                    : address
                     ? `${address.street} ${address.number}${address.apartment ? `, ${address.apartment}` : ""}, ${address.commune}, ${address.region}`
                     : "Sin dirección registrada."}
                   {address?.notes && <span className="mt-1 block text-muted">{address.notes}</span>}
@@ -210,7 +215,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                   ) : (
                     <AdminForm key={to} action={changeStatusAction.bind(null, o.id, to)} className="space-y-3">
                       <TextArea name="note" label="Nota (opcional)" rows={2} maxLength={500} />
-                      <Submit>Marcar como {ORDER_STATUS_LABELS[to].toLowerCase()}</Submit>
+                      <Submit>Marcar como {label(to).toLowerCase()}</Submit>
                     </AdminForm>
                   ),
                 )}
