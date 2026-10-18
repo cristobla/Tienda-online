@@ -427,6 +427,8 @@ export const storeSettings = pgTable(
     storeRegion: text("store_region"),
     /** Enlace a la ficha del local en Google Maps (Perfil de Empresa); sin él, se busca la dirección. */
     mapsUrl: text("maps_url"),
+    /** Enlace «Pedir reseñas» del Perfil de Empresa en Google: va en el correo de pedido entregado. */
+    reviewUrl: text("review_url"),
     /** Ofrecer "Retiro en el local" en el checkout (exige la dirección del local). */
     pickupEnabled: boolean("pickup_enabled").notNull().default(false),
     /** Despacho gratis cuando los productos (con descuento) suman al menos esto; null = no hay. */
@@ -478,6 +480,29 @@ export const infoPages = pgTable("info_pages", {
   updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
   ...timestamps,
 });
+
+// ───────────── Errores del servidor ─────────────
+
+/**
+ * Errores no controlados del servidor, agrupados por huella (mensaje + ruta): una fila por error distinto, con su
+ * cantidad y la última vez. Se guarda la ruta como patrón (/pedido/[id]), nunca la URL con sus ids o parámetros.
+ */
+export const appErrors = pgTable(
+  "app_errors",
+  {
+    id: bigserial({ mode: "number" }).primaryKey(),
+    fingerprint: text().notNull().unique(),
+    message: text().notNull(),
+    stack: text(),
+    /** Patrón de la ruta ("/pedido/[id]") o "tareas" para los jobs. */
+    route: text().notNull(),
+    method: text(),
+    count: integer().notNull().default(1),
+    firstAt: timestamp("first_at", { withTimezone: true }).notNull().defaultNow(),
+    lastAt: timestamp("last_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("app_errors_last_idx").on(t.lastAt)],
+);
 
 // ───────────── Auditoría ─────────────
 

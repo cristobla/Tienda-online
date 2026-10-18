@@ -8,12 +8,14 @@ import { JsonLd } from "@/components/store/json-ld";
 import { Fleje, ProductGrid, ProductImage, SoldOutButton, StockBadge } from "@/components/store/product-card";
 import { env } from "@/lib/env";
 import { Markdown, MARKDOWN_CLASS } from "@/lib/markdown";
+import { whatsappUrl } from "@/lib/site";
 import { MAX_ITEM_QTY } from "@/modules/cart";
 import { validGtin } from "@/modules/catalog/feed";
 import { contentLabel, discountPercent } from "@/modules/catalog/pricing";
 import { describeAttributes, getProductBySlug, relatedProducts } from "@/modules/catalog/queries";
 import { redirectFromOldSlug } from "@/modules/catalog/redirects";
 import { formatCLP } from "@/modules/chile";
+import { getSettings } from "@/modules/settings";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SP> };
 
@@ -38,6 +40,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   if (!data) return redirectFromOldSlug("product", "/producto/", slug, sp);
   const { product, brand, categoryPath, variants, images, attributeDefs } = data;
   const path = `/producto/${product.slug}`;
+  const { whatsapp } = await getSettings();
 
   // La variante elegida va en la URL (?variante=SKU): enlazable y funciona sin JavaScript.
   const wanted = [sp.variante].flat()[0];
@@ -191,6 +194,29 @@ export default async function ProductPage({ params, searchParams }: Props) {
                   <SoldOutButton large />
                 )}
               </div>
+              {/* Consulta con el producto ya escrito (a la tienda) y compartir (a cualquiera): ventas por WhatsApp. */}
+              <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+                {whatsapp && (
+                  <a
+                    href={whatsappUrl(whatsapp, `Hola, tengo una consulta por ${product.name} (${selected.name}): ${env.APP_URL}${path}?variante=${encodeURIComponent(selected.sku)}`)}
+                    target="_blank"
+                    rel="noopener"
+                    className="flex items-center gap-1.5 text-leaf-dark underline-offset-2 hover:underline"
+                  >
+                    <Icon name="chat" className="size-4" />
+                    {inStock ? "Consultar por WhatsApp" : "Avísame por WhatsApp cuando llegue"}
+                  </a>
+                )}
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`${product.name} ${env.APP_URL}${path}`)}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="flex items-center gap-1.5 text-muted underline-offset-2 hover:text-ink hover:underline"
+                >
+                  <Icon name="external" className="size-4" />
+                  Compartir
+                </a>
+              </p>
 
               <ul className="mt-6 grid gap-3 border-t border-line pt-5 text-sm sm:grid-cols-2">
                 <li className="flex items-center gap-2.5">

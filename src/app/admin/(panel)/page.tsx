@@ -5,6 +5,7 @@ import { listAudit } from "@/modules/audit";
 import { requireStaffPage } from "@/modules/auth/guard";
 import { can } from "@/modules/auth/rbac";
 import { getUser } from "@/modules/auth/users";
+import { recentErrorCount } from "@/modules/errors";
 import { dashboardStats } from "@/modules/catalog/admin";
 import { formatDateTime } from "@/modules/chile";
 import { orderStats } from "@/modules/orders";
@@ -22,11 +23,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const showCatalog = can(user.role, "catalog:read");
   const canInventory = can(user.role, "inventory:read");
   const admin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
-  const [stats, activity, orders, me] = await Promise.all([
+  const [stats, activity, orders, me, errors] = await Promise.all([
     showCatalog ? dashboardStats() : null,
     can(user.role, "audit:read") ? listAudit({}).then((r) => r.slice(0, 8)) : null,
     can(user.role, "orders:read") ? Promise.all([orderStats(), paymentStats()]).then(([o, p]) => ({ ...o, ...p })) : null,
     admin ? getUser(user.id) : null,
+    can(user.role, "audit:read") ? recentErrorCount() : 0,
   ]);
 
   return (
@@ -35,6 +37,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {(await searchParams).sin_permiso && (
         <p role="alert" className="mb-6 rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta">
           Tu rol no tiene acceso a esa sección.
+        </p>
+      )}
+      {errors > 0 && (
+        <p role="alert" className="mb-6 rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm">
+          <strong className="text-oferta">
+            {errors === 1 ? "1 error del servidor" : `${errors} errores del servidor`} en las últimas 24 horas.
+          </strong>{" "}
+          <Link href="/admin/errores" className="font-semibold underline">
+            Revisar
+          </Link>
         </p>
       )}
       {me && !me.has2fa && (

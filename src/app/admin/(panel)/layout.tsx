@@ -32,6 +32,7 @@ const NAV: { href: string; label: string; icon: IconName; perm?: Permission }[] 
   { href: "/admin/paginas", label: "Páginas", icon: "file", perm: "settings:manage" },
   { href: "/admin/usuarios", label: "Usuarios", icon: "users", perm: "users:manage" },
   { href: "/admin/auditoria", label: "Auditoría", icon: "list", perm: "audit:read" },
+  { href: "/admin/errores", label: "Errores", icon: "alert", perm: "audit:read" },
 ];
 
 // Este layout solo arma el menú; cada página y cada acción verifica permisos por su cuenta.

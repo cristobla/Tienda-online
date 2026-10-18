@@ -183,6 +183,29 @@ export async function listAdminProducts(f: AdminProductFilters) {
   return { items, total: items[0]?.total ?? 0, page };
 }
 
+export const PRODUCTS_EXPORT_HEAD = [
+  "SKU", "Código de barras", "Producto", "Formato", "Marca", "Categoría", "Precio", "Precio anterior", "Stock en bodega", "Reservado",
+  "Disponible", "Stock mínimo", "Producto publicado", "Formato a la venta", "Fotos", "Enlace",
+];
+
+/** Una fila por variante (SKU), para revisar la carga del catálogo o contar stock en una planilla. */
+export async function variantsForExport(baseUrl: string) {
+  const rows = await db.execute<{
+    sku: string; barcode: string | null; product: string; variant: string; brand: string | null; category: string | null; price: number;
+    compare: number | null; on_hand: number; reserved: number; minimum: number; published: boolean; selling: boolean; photos: number; slug: string;
+  }>(sql`
+    SELECT v.sku, v.barcode, p.name AS product, v.name AS variant, b.name AS brand, c.name AS category, v.price, v.compare_at_price AS compare,
+      v.stock_on_hand AS on_hand, v.stock_reserved AS reserved, v.minimum_stock AS minimum, p.active AS published, v.active AS selling,
+      (SELECT count(*)::int FROM product_images i WHERE i.product_id = p.id) AS photos, p.slug
+    FROM product_variants v JOIN products p ON p.id = v.product_id
+    LEFT JOIN brands b ON b.id = p.brand_id LEFT JOIN categories c ON c.id = p.category_id
+    ORDER BY p.name, v.sort_order, v.sku`);
+  return rows.rows.map((r) => [
+    r.sku, r.barcode, r.product, r.variant, r.brand, r.category, r.price, r.compare, r.on_hand, r.reserved, r.on_hand - r.reserved, r.minimum,
+    r.published ? "Sí" : "No", r.selling ? "Sí" : "No", r.photos, `${baseUrl}/producto/${r.slug}`,
+  ]);
+}
+
 export async function getAdminProduct(id: string) {
   const [product] = await db.select().from(s.products).where(eq(s.products.id, id));
   if (!product) return null;

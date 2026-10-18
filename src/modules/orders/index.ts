@@ -260,6 +260,7 @@ export async function changeOrderStatus(userId: string, orderId: string, input: 
     if (input.to === "CANCELLED" && !input.note) throw new UserError("Indica el motivo de la cancelación.", "note");
     const row = await transition(tx, o, input.to, { userId, note: input.note });
     if (input.to === "SHIPPED") await enqueueEmail(tx, "order.shipped", row);
+    if (input.to === "DELIVERED" && (await readSettings(tx)).reviewUrl) await enqueueEmail(tx, "order.delivered", row);
     const pick = (x: Order) => ({ status: x.status, paymentStatus: x.paymentStatus });
     await audit(tx, { userId, action: "order.status", entityType: "order", entityId: o.id, before: pick(o), after: pick(row) });
     return row;
