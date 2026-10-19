@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { ConsentLink } from "./analytics";
@@ -5,10 +6,13 @@ import { formatPhone, mapsLink, socialLinks, storeAddressLine, type StoreSetting
 import type { CategoryNode } from "@/modules/categories/queries";
 import { formatCLP } from "@/modules/chile";
 
-/** Buscador del catálogo: formulario GET a /productos?q= (funciona sin JavaScript). */
+/**
+ * Buscador del catálogo: formulario GET a /productos?q= (funciona sin JavaScript). Con JavaScript, next/form navega
+ * sin recargar el documento (encabezado y carrito se quedan; antes cada búsqueda recargaba la página entera).
+ */
 export function SearchBar({ id, placeholder = "Busca por producto, marca o código", large = false }: { id: string; placeholder?: string; large?: boolean }) {
   return (
-    <form action="/productos" role="search" className="relative flex w-full items-center">
+    <Form action="/productos" role="search" className="relative flex w-full items-center">
       <label htmlFor={id} className="sr-only">
         Buscar productos
       </label>
@@ -25,7 +29,7 @@ export function SearchBar({ id, placeholder = "Busca por producto, marca o códi
         <Icon name="search" />
         <span className={large ? "sr-only sm:not-sr-only" : "sr-only"}>Buscar</span>
       </button>
-    </form>
+    </Form>
   );
 }
 
