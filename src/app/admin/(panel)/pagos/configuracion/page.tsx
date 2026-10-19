@@ -68,8 +68,8 @@ export default async function PaymentSettingsPage() {
         ))}
       </Table>
       <p className="mt-2 text-xs text-muted">
-        Webpay Plus, Mercado Pago y Khipu quedan pendientes hasta implementar su protocolo y verificarlo en su ambiente de integración (docs/PAGOS.md). Sus credenciales
-        se cargan en el servidor, no aquí.
+        Webpay Plus y Khipu quedan pendientes hasta implementar su protocolo. Mercado Pago está implementado, pero falta probarlo en su sandbox antes de
+        usar credenciales reales (docs/PAGOS.md §10). Las credenciales se cargan en el servidor, no aquí.
       </p>
 
       <div className="mt-8 max-w-2xl">
