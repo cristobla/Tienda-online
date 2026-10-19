@@ -39,7 +39,7 @@ export default async function InfoPage({ params }: Props) {
                 <Link
                   href={`/info/${slug}`}
                   aria-current={slug === page.slug ? "page" : undefined}
-                  className={`block rounded-full px-4 py-2 transition-colors ${slug === page.slug ? "bg-ink font-semibold text-white" : "bg-paper hover:bg-mist lg:bg-transparent"}`}
+                  className={`flex min-h-11 items-center rounded-full px-4 py-2 transition-colors ${slug === page.slug ? "bg-ink font-semibold text-white" : "bg-paper hover:bg-mist lg:bg-transparent"}`}
                 >
                   {name}
                 </Link>

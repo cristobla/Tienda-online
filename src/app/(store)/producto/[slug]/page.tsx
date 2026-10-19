@@ -124,7 +124,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
         <div>
           {brand && (
-            <Link href={`/marca/${brand.slug}`} className="etiqueta text-leaf-dark underline-offset-4 hover:underline">
+            <Link href={`/marca/${brand.slug}`} className="etiqueta inline-block py-2 text-leaf-dark underline-offset-4 hover:underline">
               {brand.name}
             </Link>
           )}
@@ -211,7 +211,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                   href={`https://wa.me/?text=${encodeURIComponent(`${product.name} ${env.APP_URL}${path}`)}`}
                   target="_blank"
                   rel="noopener"
-                  className="flex items-center gap-1.5 text-muted underline-offset-2 hover:text-ink hover:underline"
+                  className="flex min-h-11 items-center gap-1.5 text-muted underline-offset-2 hover:text-ink hover:underline"
                 >
                   <Icon name="external" className="size-4" />
                   Compartir

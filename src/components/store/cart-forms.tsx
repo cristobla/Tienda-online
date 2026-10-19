@@ -59,7 +59,7 @@ export function AddToCartForm({
         ) : (
           <input type="hidden" name="quantity" value="1" />
         )}
-        <button disabled={pending} className={`btn-buy ${large ? "flex-1 px-6 py-3.5 text-lg" : "w-full px-3 py-2 text-sm"}`}>
+        <button disabled={pending} className={`btn-buy ${large ? "flex-1 px-6 py-3.5 text-lg" : "min-h-11 w-full px-3 py-2 text-sm"}`}>
           <Icon name="cart" className={large ? "size-6" : "size-4"} />
           {pending ? "Agregando…" : large ? "Agregar al carrito" : <span>Agregar<span className="sr-only"> al carrito</span></span>}
         </button>
@@ -106,7 +106,7 @@ export function CartLineControls({ variantId, name, quantity, canIncrease, fixTo
     refocus = null;
     (same.disabled ? steps.find((b) => !b.disabled) : same)?.focus();
   }, []);
-  const step = "grid w-9 place-items-center py-1.5 text-lg transition-colors hover:bg-mist hover:text-leaf-dark disabled:cursor-not-allowed disabled:text-line disabled:hover:bg-transparent";
+  const step = "grid size-11 place-items-center text-lg transition-colors hover:bg-mist hover:text-leaf-dark disabled:cursor-not-allowed disabled:text-line disabled:hover:bg-transparent";
   return (
     <form
       ref={form}
@@ -126,7 +126,7 @@ export function CartLineControls({ variantId, name, quantity, canIncrease, fixTo
           <button name="quantity" value={quantity - 1} disabled={quantity <= 1} aria-label={`Quitar una unidad de ${name}`} className={step}>
             −
           </button>
-          <output aria-live="polite" className="w-9 py-1.5 text-center font-bold">
+          <output aria-live="polite" className="w-9 text-center font-bold">
             {quantity}
           </output>
           <button name="quantity" value={quantity + 1} disabled={!canIncrease} aria-label={`Agregar una unidad de ${name}`} className={step}>
@@ -138,7 +138,7 @@ export function CartLineControls({ variantId, name, quantity, canIncrease, fixTo
             Dejar {fixTo}
           </button>
         )}
-        <button name="quantity" value="0" className="text-sm font-medium text-muted underline-offset-2 hover:text-oferta hover:underline">
+        <button name="quantity" value="0" className="min-h-11 px-1 text-sm font-medium text-muted underline-offset-2 hover:text-oferta hover:underline">
           Eliminar<span className="sr-only"> {name}</span>
         </button>
       </fieldset>

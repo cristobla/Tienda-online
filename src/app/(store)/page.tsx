@@ -37,7 +37,7 @@ function SectionTitle({ id, kicker, title, href, link }: { id: string; kicker: s
         </h2>
       </div>
       {href && (
-        <Link href={href} className="group/ver inline-flex shrink-0 items-center gap-2.5 font-semibold text-leaf-dark transition-colors hover:text-ink">
+        <Link href={href} className="group/ver inline-flex min-h-11 shrink-0 items-center gap-2.5 font-semibold text-leaf-dark transition-colors hover:text-ink">
           {link}
           <span className="grid size-9 place-items-center rounded-full bg-leaf-soft transition-transform duration-300 ease-out group-hover/ver:translate-x-1">
             <Icon name="arrow" className="size-4" />
@@ -141,7 +141,7 @@ export default async function Home() {
             <ul aria-label="Pasillos" className="mt-5 flex animate-rise flex-wrap gap-2 [animation-delay:360ms]">
               {roots.map((c, i) => (
                 <li key={c.id}>
-                  <Link href={`/categoria/${c.slug}`} className="inline-flex items-baseline gap-2 rounded-full border-[1.5px] border-ink/15 bg-white px-4 py-2 text-sm font-semibold transition-colors hover:border-ink">
+                  <Link href={`/categoria/${c.slug}`} className="inline-flex min-h-11 items-center gap-2 rounded-full border-[1.5px] border-ink/15 bg-white px-4 py-2 text-sm font-semibold transition-colors hover:border-ink">
                     <span aria-hidden className="etiqueta text-[0.6rem] text-leaf">
                       {aisle(i)}
                     </span>
@@ -198,7 +198,7 @@ export default async function Home() {
                     <ul className="relative z-10 mt-5 flex flex-wrap gap-2">
                       {c.children.map((sub) => (
                         <li key={sub.id}>
-                          <Link href={`/categoria/${sub.slug}`} className="inline-block rounded-full bg-white/75 px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-ink hover:text-white">
+                          <Link href={`/categoria/${sub.slug}`} className="inline-flex min-h-10 items-center rounded-full bg-white/75 px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-ink hover:text-white">
                             {sub.name}
                           </Link>
                         </li>

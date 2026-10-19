@@ -27,7 +27,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         Saltar al contenido
       </a>
       <StoreHeader roots={roots} cartCount={cartCount} name={settings.name} pickup={pickupAvailable(settings)} freeFrom={settings.freeShippingFrom} onSale={onSale} />
-      <main id="contenido" className="mx-auto max-w-7xl px-4 py-8">
+      <main id="contenido" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-8 outline-none">
         <PageTransition>{children}</PageTransition>
       </main>
       {/* Avisos para lectores de pantalla que deben sobrevivir al cambio de página (p. ej. cuántos productos hay). */}

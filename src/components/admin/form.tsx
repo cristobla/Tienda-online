@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useActionState, useId } from "react";
+import { createContext, use, useActionState, useEffect, useId, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/lib/form";
 
@@ -11,6 +11,8 @@ const Ctx = createContext<FormState>({});
  * Formulario del panel: muestra errores del servidor y conserva lo escrito.
  * Al cambiar `state.v` se vuelve a montar el contenido con los valores devueltos.
  * `confirm`: pregunta del navegador antes de enviar (acciones que mueven dinero o stock).
+ * Si el servidor rechaza el envío, el foco va al primer campo marcado (o al aviso): en el celular el error puede
+ * quedar fuera de la pantalla y el foco en el documento no lo mostraba.
  */
 export function AdminForm({
   action,
@@ -27,11 +29,16 @@ export function AdminForm({
   id?: string;
 }) {
   const [state, formAction] = useActionState(action, {});
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const f = form.current;
+    if (state.error && f) (f.querySelector<HTMLElement>('[aria-invalid="true"]') ?? f.querySelector<HTMLElement>('[role="alert"]'))?.focus();
+  }, [state]);
   return (
-    <form id={id} action={formAction} onSubmit={confirm ? (e) => !window.confirm(confirm) && e.preventDefault() : undefined} className={className}>
+    <form ref={form} id={id} action={formAction} onSubmit={confirm ? (e) => !window.confirm(confirm) && e.preventDefault() : undefined} className={className}>
       <Ctx value={state}>
         {state.error && (
-          <p role="alert" className="rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta">
+          <p role="alert" tabIndex={-1} className="rounded-md border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta outline-none">
             {state.error}
           </p>
         )}

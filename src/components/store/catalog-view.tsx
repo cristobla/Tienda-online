@@ -38,7 +38,7 @@ export function Breadcrumbs({ items }: { items: { name: string; href?: string }[
           <li key={i} className="flex items-center gap-1">
             {i > 0 && <Icon name="chevron" className="size-3.5 opacity-60" />}
             {it.href ? (
-              <Link href={it.href} className="transition-colors hover:text-leaf-dark hover:underline">
+              <Link href={it.href} className="inline-block py-2 transition-colors hover:text-leaf-dark hover:underline">
                 {it.name}
               </Link>
             ) : (
@@ -56,7 +56,7 @@ export function Breadcrumbs({ items }: { items: { name: string; href?: string }[
 const box = "size-[1.1rem] shrink-0 accent-leaf";
 const group = "border-b border-line px-5 py-5 last:border-b-0";
 const legend = "etiqueta float-left mb-3 w-full text-ink";
-const pill = "grid size-10 place-items-center rounded-full";
+const pill = "grid size-11 place-items-center rounded-full";
 
 /** Páginas a mostrar: primera, última y vecinas de la actual, con huecos (null) entre medio. */
 function pageList(page: number, pages: number): (number | null)[] {
@@ -147,7 +147,7 @@ export async function CatalogView({
             Filtrar{chips.length > 0 && ` (${chips.length})`}
           </label>
 
-          <aside aria-label="Filtros" className="mb-6 hidden animate-drop-in overflow-hidden rounded-[1.25rem] bg-white text-sm ring-1 ring-line peer-checked:block lg:mb-0 lg:block lg:animate-none">
+          <aside aria-label="Filtros" className="mb-6 hidden animate-drop-in overflow-clip rounded-[1.25rem] bg-white text-sm ring-1 ring-line peer-checked:block lg:mb-0 lg:block lg:animate-none">
             <p className="flex items-center gap-2 border-b border-line bg-paper px-5 py-3.5 font-bold">
               <Icon name="sliders" className="size-4 text-leaf" />
               Filtros
@@ -191,7 +191,7 @@ export async function CatalogView({
                         inputMode="numeric"
                         defaultValue={i ? params.maxPrice : params.minPrice}
                         placeholder={formatCLP(i ? facets.price!.max : facets.price!.min)}
-                        className="w-full rounded-full border-[1.5px] border-line px-3 py-1.5 transition-colors hover:border-muted/50 focus:border-leaf"
+                        className="w-full rounded-full border-[1.5px] border-line px-3 py-2 text-base transition-colors hover:border-muted/50 focus:border-leaf lg:py-1.5 lg:text-sm"
                       />
                     </label>
                   ))}
@@ -225,8 +225,9 @@ export async function CatalogView({
               </fieldset>
             ))}
 
-            <div className="flex items-center gap-4 px-5 py-4">
-              <button className="btn-ink px-5 py-2">Aplicar</button>
+            {/* En el celular el panel es largo (muchas marcas): "Aplicar" queda pegado al borde inferior de la pantalla. */}
+            <div className="flex items-center gap-4 border-t border-line bg-white px-5 py-4 max-lg:sticky max-lg:bottom-0 max-lg:pb-[max(1rem,env(safe-area-inset-bottom))] lg:border-t-0">
+              <button className="btn-ink min-h-11 px-5 py-2">Aplicar</button>
               {chips.length > 0 && (
                 <CatalogLink href={clearHref} scroll={false} className="font-semibold text-leaf-dark underline-offset-2 hover:underline">
                   Quitar filtros
@@ -250,7 +251,7 @@ export async function CatalogView({
                 name="orden"
                 form="filtros"
                 defaultValue={sort}
-                className="rounded-full border-[1.5px] border-line bg-white py-1.5 pl-3 pr-2 font-semibold transition-colors hover:border-ink"
+                className="min-h-11 rounded-full border-[1.5px] border-line bg-white py-1.5 pl-3 pr-2 text-base font-semibold transition-colors hover:border-ink sm:min-h-0 sm:text-sm"
               >
                 {Object.entries(SORTS)
                   .filter(([k]) => k !== "relevancia" || params.q)
@@ -294,7 +295,7 @@ export async function CatalogView({
               {pages > 1 && (
                 <nav aria-label="Páginas" className="mt-12 flex flex-wrap items-center justify-center gap-2 text-sm">
                   {result.page > 1 && (
-                    <CatalogLink href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" scroll={false} className="btn-line px-4 py-2">
+                    <CatalogLink href={hrefWith(path, searchParams, { pagina: String(result.page - 1) })} rel="prev" scroll={false} className="btn-line min-h-11 px-4 py-2">
                       Anterior
                     </CatalogLink>
                   )}
@@ -315,7 +316,7 @@ export async function CatalogView({
                     ),
                   )}
                   {result.page < pages && (
-                    <CatalogLink href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" scroll={false} className="btn-line px-4 py-2">
+                    <CatalogLink href={hrefWith(path, searchParams, { pagina: String(result.page + 1) })} rel="next" scroll={false} className="btn-line min-h-11 px-4 py-2">
                       Siguiente
                     </CatalogLink>
                   )}
