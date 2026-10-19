@@ -5,6 +5,7 @@ import { discountPercent, type PricedVariant, unitPriceLabel } from "@/modules/c
 import type { ProductCard as Card } from "@/modules/catalog/queries";
 import { formatCLP } from "@/modules/chile";
 import { AddToCartForm } from "./cart-forms";
+import { CardTransition } from "./catalog-motion";
 
 /**
  * Precio como fleje de góndola: amarillo, cifra condensada y precio por unidad de medida abajo.
@@ -154,13 +155,13 @@ function CardBuy({ p }: { p: Card }) {
  * Tarjeta como un tramo de góndola: el producto sobre su fondo, la repisa (franja tinta) y el fleje colgando de ella.
  * En el DOM el nombre va antes que el precio (orden de lectura); `order` solo cambia la vista.
  */
-export function ProductCard({ p, index = 0 }: { p: Card; index?: number }) {
+export function ProductCard({ p, index = 0, staggered = true }: { p: Card; index?: number; staggered?: boolean }) {
   const off = discountPercent(p);
   return (
     <li className="revelar">
       <article
         style={{ "--i": index } as React.CSSProperties}
-        className="escalonar group relative flex h-full flex-col rounded-[1.25rem] bg-white p-2 ring-1 ring-line transition-[translate,box-shadow] duration-500 ease-out hover:-translate-y-1 hover:shadow-lift hover:ring-ink/15 sm:p-2.5">
+        className={`${staggered ? "escalonar " : ""}group relative flex h-full flex-col rounded-[1.25rem] bg-white p-2 ring-1 ring-line transition-[translate,box-shadow] duration-(--mov-reordenar) ease-out hover:-translate-y-1 hover:shadow-lift hover:ring-ink/15 active:translate-y-0 sm:p-2.5`}>
         <div className="relative order-1 aspect-square overflow-hidden rounded-t-[0.95rem]">
           <div className="absolute inset-0 transition-[scale] duration-700 ease-out group-hover:scale-[1.04]">
             <ProductImage url={p.imageUrl} alt="" brand={p.brandName} label={p.variantName} sizes="(min-width: 1280px) 22vw, (min-width: 640px) 30vw, 45vw" />
@@ -205,13 +206,25 @@ export function ProductCard({ p, index = 0 }: { p: Card; index?: number }) {
   );
 }
 
-/** `wide`: sin barra de filtros al lado (inicio), caben 4 columnas desde tablet. */
-export function ProductGrid({ products, wide = false }: { products: Card[]; wide?: boolean }) {
+/**
+ * `wide`: sin barra de filtros al lado (inicio), caben 4 columnas desde tablet.
+ * `named` (solo la grilla del catálogo): cada tarjeta lleva el nombre de su producto para la View Transition, así al
+ * cambiar de pasillo, filtro, orden o página la misma tarjeta viaja a su nuevo lugar (ver globals.css, «Catálogo que se
+ * transforma»). Solo una grilla con nombres por página: dos tarjetas con el mismo nombre anularían la transición.
+ * Con nombres no se usa la entrada escalonada (la entrada la hace la transición; si no, la tarjeta subiría dos veces).
+ */
+export function ProductGrid({ products, wide = false, named = false }: { products: Card[]; wide?: boolean; named?: boolean }) {
   return (
     <ul className={`grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-5 sm:gap-y-7 ${wide ? "md:grid-cols-4" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
-      {products.map((p, i) => (
-        <ProductCard key={p.id} p={p} index={i} />
-      ))}
+      {products.map((p, i) =>
+        named ? (
+          <CardTransition key={p.id} id={p.id}>
+            <ProductCard p={p} staggered={false} />
+          </CardTransition>
+        ) : (
+          <ProductCard key={p.id} p={p} index={i} />
+        ),
+      )}
     </ul>
   );
 }

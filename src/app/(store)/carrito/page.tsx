@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { Icon } from "@/components/icons";
 import { CartLineControls } from "@/components/store/cart-forms";
 import { Breadcrumbs } from "@/components/store/catalog-view";
@@ -18,7 +19,9 @@ export default async function CartPage() {
   return (
     <>
       <Breadcrumbs items={[{ name: "Inicio", href: "/" }, { name: "Carrito" }]} />
-      <h1 className="rotulo text-display">Tu carrito</h1>
+      <h1 id="carrito-titulo" tabIndex={-1} className="rotulo text-display outline-none">
+        Tu carrito
+      </h1>
 
       {lines.length > 0 && !ready && (
         <p role="alert" className="mt-5 flex items-start gap-2 rounded-2xl border border-oferta/40 bg-oferta/5 px-4 py-3 text-sm font-medium text-oferta">
@@ -31,7 +34,9 @@ export default async function CartPage() {
         {lines.length ? (
           <ul className="divide-y divide-line overflow-hidden rounded-[1.5rem] bg-white ring-1 ring-line">
             {lines.map((l) => (
-              <li key={l.variantId} className="grid grid-cols-[5rem_1fr] gap-4 p-4 sm:grid-cols-[6rem_1fr_auto] sm:p-5">
+              // Al quitar un producto su fila se apaga y las de abajo suben a su lugar (ver globals.css, «Filas del carrito»).
+              <ViewTransition key={l.variantId} update="fila" exit="fila-sale" default="none">
+              <li className="grid grid-cols-[5rem_1fr] gap-4 p-4 sm:grid-cols-[6rem_1fr_auto] sm:p-5">
                 <div className="relative aspect-square overflow-hidden rounded-xl">
                   <ProductImage url={l.imageUrl} alt="" brand={l.brandName} label={l.variantName} sizes="96px" thumb />
                 </div>
@@ -66,6 +71,7 @@ export default async function CartPage() {
                   <p className="rotulo text-2xl">{formatCLP(l.lineTotal)}</p>
                 </div>
               </li>
+              </ViewTransition>
             ))}
           </ul>
         ) : (

@@ -20,6 +20,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       path="/productos"
       scope={{ categoryIds: visibleIds }}
       searchParams={sp}
+      aisle="/productos"
       header={
         <CatalogTitle crumbs={[{ name: "Inicio", href: "/" }, { name: q ? "Búsqueda" : "Todos los productos" }]} title={q ? `Resultados para «${q}»` : "Todos los productos"} />
       }

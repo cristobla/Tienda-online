@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminForm, Submit, Text, TextArea } from "@/components/admin/form";
@@ -245,8 +246,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
             </div>
           </dl>
           <p className="mt-1 text-right text-xs text-muted">IVA incluido</p>
-          {/* Formulario GET: funciona sin JavaScript y conserva la entrega elegida. */}
-          <form action="/checkout" className="mt-4 border-t border-line pt-4">
+          {/* Formulario GET: funciona sin JavaScript y conserva la entrega elegida. Con JavaScript (next/form) no recarga
+              el documento: lo ya escrito en los datos de despacho no se borra al aplicar un cupón. */}
+          <Form action="/checkout" scroll={false} className="mt-4 border-t border-line pt-4">
             {pickup && <input type="hidden" name="entrega" value="retiro" />}
             {communeId && <input type="hidden" name="comuna" value={communeId} />}
             <label htmlFor="cupon" className="mb-1 block text-sm font-semibold">
@@ -276,7 +278,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
                 Quitar cupón
               </Link>
             )}
-          </form>
+          </Form>
           <Link href="/carrito" className="mt-4 block text-center text-sm font-semibold text-leaf-dark underline-offset-2 hover:underline">
             Editar carrito
           </Link>

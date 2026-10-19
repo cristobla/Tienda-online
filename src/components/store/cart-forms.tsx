@@ -85,14 +85,40 @@ export function AddToCartForm({
 }
 
 /**
+ * Foco tras cambiar una cantidad: la línea se vuelve a montar con la cantidad nueva (key) y el botón usado desaparece.
+ * Se recuerda cuál fue (+ o −) para devolverle el foco; si se eliminó la línea, el foco va al título del carrito.
+ */
+let refocus: string | null = null;
+
+/**
  * Cantidad y quitar de una línea del carrito. Los botones envían la cantidad final (no "+1"),
  * así un doble clic no suma dos veces. Funciona sin JavaScript.
  */
 export function CartLineControls({ variantId, name, quantity, canIncrease, fixTo }: { variantId: string; name: string; quantity: number; canIncrease: boolean; fixTo?: number }) {
   const [state, action, pending] = useActionState(setCartItemAction, {});
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const label = refocus;
+    if (!label || !form.current || (document.activeElement && document.activeElement !== document.body)) return;
+    const steps = [...form.current.querySelectorAll<HTMLButtonElement>("button[aria-label]")];
+    const same = steps.find((b) => b.getAttribute("aria-label") === label);
+    if (!same) return;
+    refocus = null;
+    (same.disabled ? steps.find((b) => !b.disabled) : same)?.focus();
+  }, []);
   const step = "grid w-9 place-items-center py-1.5 text-lg transition-colors hover:bg-mist hover:text-leaf-dark disabled:cursor-not-allowed disabled:text-line disabled:hover:bg-transparent";
   return (
-    <form action={action} className="flex flex-col items-start gap-1.5 sm:items-end">
+    <form
+      ref={form}
+      action={action}
+      onSubmit={(e) => {
+        const used = (e.nativeEvent as SubmitEvent).submitter;
+        refocus = used?.getAttribute("aria-label") ?? null;
+        // Eliminar: la línea desaparece; el foco pasa al título (no se pierde en el documento).
+        if (used?.getAttribute("value") === "0") document.getElementById("carrito-titulo")?.focus();
+      }}
+      className="flex flex-col items-start gap-1.5 sm:items-end"
+    >
       <input type="hidden" name="variantId" value={variantId} />
       <fieldset disabled={pending} className="flex flex-wrap items-center gap-3">
         <legend className="sr-only">Cantidad de {name}</legend>
