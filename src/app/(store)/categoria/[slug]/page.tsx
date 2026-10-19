@@ -28,6 +28,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       path={`/categoria/${category.slug}`}
       scope={{ categoryIds: subtreeIds(category) }}
       searchParams={await searchParams}
+      aisle={`/categoria/${path[0]!.slug}`}
       header={
         <CatalogTitle
           crumbs={[

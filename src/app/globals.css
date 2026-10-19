@@ -34,6 +34,8 @@
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Reacomodar (tarjetas que cambian de lugar, la repisa del pasillo): arranca y frena suave, sin rebote. */
+  --ease-move: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* La única sombra de la tienda: tarjetas que se levantan. */
   --shadow-lift: 0 1.5rem 2.5rem -1.5rem rgb(16 42 51 / 0.42);
@@ -65,6 +67,18 @@
   }
   60% {
     transform: scale(1.18);
+  }
+}
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(var(--mov-paso));
+  }
+}
+@keyframes bajar-salir {
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--mov-paso) / 2)) scale(0.97);
   }
 }
 @keyframes drop-in {
@@ -164,33 +178,103 @@
 }
 
 /*
- * Transiciones entre páginas (View Transitions API; las clases las asigna <ViewTransition> de React, ver
- * src/components/store/page-transition.tsx y CatalogView). El resto del documento (encabezado, pie) no se anima.
+ * Lenguaje de movimiento de la tienda: un solo juego de tiempos para todo (ajustar aquí).
+ * Micro = estados de botones y controles; salida/entrada = algo que se va o llega; reordenar = algo que cambia de lugar.
+ */
+:root {
+  --mov-micro: 150ms;
+  --mov-salida: 160ms;
+  --mov-entrada: 220ms;
+  --mov-reordenar: 280ms;
+  --mov-panel: 240ms;
+  --mov-paso: 8px;
+}
+
+/*
+ * Transiciones con la View Transitions API (las clases las asigna <ViewTransition> de React; sin dependencias).
+ * Ver src/components/store/page-transition.tsx (páginas), product-card.tsx (tarjetas) y catalog-motion.tsx (pasillos).
+ * Lo que no tiene nombre propio (encabezado, títulos, pie) cambia de una vez, sin animación.
  */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
 }
-/* Nivel 1: la página que se va se desvanece rápido; la nueva sube con la curva de la tienda. */
+/* Otra página: la que se va se apaga y la nueva sube un paso. */
 ::view-transition-old(.pagina-sale) {
-  animation: fade-out 0.16s var(--ease-out) both;
+  animation: fade-out var(--mov-salida) var(--ease-out) both;
 }
 ::view-transition-new(.pagina-entra) {
-  animation: rise 0.55s var(--ease-out) both;
+  animation: subir var(--mov-entrada) var(--ease-out) both;
 }
-/* Subcategoría del mismo pasillo: fundido corto, sin desplazamiento. */
-::view-transition-old(.suave-sale) {
-  animation: fade-out 0.14s ease-out both;
+/*
+ * Mismo lugar (catálogo con otro pasillo o filtro, checkout con otra comuna): la página no se mueve ni cambia de
+ * tamaño animado; la versión anterior y la nueva se funden (fundido del navegador, "plus-lighter": lo que no cambió
+ * se ve fijo). Así, al cambiar de pasillo, las tarjetas que no siguen se apagan y las nuevas aparecen, mientras las
+ * que siguen viajan por encima con su propio nombre. React no anima por separado la entrada y salida de tarjetas
+ * dentro de una página que cambia de ruta (solo empareja las que se repiten).
+ */
+::view-transition-group(.pagina-quieta) {
+  animation-name: none;
+  animation-duration: var(--mov-entrada);
 }
-::view-transition-new(.suave-entra) {
-  animation: fade-in 0.22s var(--ease-out) both;
+
+/*
+ * Catálogo que se transforma (mismo catálogo con otro pasillo, filtro, orden o página): cada tarjeta tiene el nombre
+ * de su producto. Las que siguen viajan a su nuevo lugar; las que sobran se apagan; las nuevas aparecen (con otro
+ * filtro u orden en la misma ruta, además bajan y suben un paso). Las salientes son solo una imagen: no se pueden
+ * enfocar ni tocar.
+ */
+::view-transition-group(.tarjeta) {
+  animation-duration: var(--mov-reordenar);
+  animation-timing-function: var(--ease-move);
 }
-/* Nivel 2 (filtros): la grilla anterior se apaga; la nueva se ve en vivo y sus tarjetas entran escalonadas. */
-::view-transition-old(.grilla-sale) {
-  animation: fade-out 0.14s ease-out both;
+/* Sin estirar foto ni texto si la tarjeta cambia de alto: la imagen se recorta arriba en vez de deformarse. */
+::view-transition-old(.tarjeta),
+::view-transition-new(.tarjeta) {
+  height: 100%;
+  object-fit: none;
+  object-position: top;
+  animation-duration: var(--mov-reordenar);
 }
-::view-transition-new(.grilla-entra) {
+/* Dentro de la misma ruta (orden, filtro, página) React sí anima cada tarjeta que sale o entra. */
+::view-transition-old(.tarjeta-sale) {
+  animation: bajar-salir var(--mov-salida) var(--ease-out) both;
+}
+::view-transition-new(.tarjeta-entra) {
+  animation: subir var(--mov-entrada) var(--ease-out) calc(var(--mov-salida) / 2) both;
+}
+/* Título, pasillos, barra de resultados y filtros del catálogo: cambian de una vez en su lugar nuevo (sin fundido). */
+::view-transition-group(.fija),
+::view-transition-new(.fija) {
   animation: none;
+}
+::view-transition-old(.fija) {
+  display: none;
+}
+/* La repisa del pasillo activo se desliza al pasillo nuevo (es una franja: estirarla no deforma nada). */
+::view-transition-group(.repisa) {
+  animation-duration: var(--mov-reordenar);
+  animation-timing-function: var(--ease-move);
+}
+::view-transition-old(.repisa),
+::view-transition-new(.repisa) {
+  height: 100%;
+  width: 100%;
+  animation: none;
+}
+/* Filas del carrito: la que se quita se apaga y las de abajo suben a su lugar. */
+::view-transition-group(.fila) {
+  animation-duration: var(--mov-reordenar);
+  animation-timing-function: var(--ease-move);
+}
+::view-transition-old(.fila),
+::view-transition-new(.fila) {
+  height: 100%;
+  object-fit: none;
+  object-position: top left;
+}
+::view-transition-old(.fila-sale) {
+  animation: fade-out var(--mov-salida) var(--ease-out) both;
 }
 
 @layer components {

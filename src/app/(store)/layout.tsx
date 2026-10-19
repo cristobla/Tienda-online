@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@/components/store/analytics";
+import { PageTransition } from "@/components/store/page-transition";
 import { StoreFooter, StoreHeader, WhatsAppButton } from "@/components/store/shell";
 import { env } from "@/lib/env";
 import { pickupAvailable } from "@/lib/site";
@@ -27,8 +28,10 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       </a>
       <StoreHeader roots={roots} cartCount={cartCount} name={settings.name} pickup={pickupAvailable(settings)} freeFrom={settings.freeShippingFrom} onSale={onSale} />
       <main id="contenido" className="mx-auto max-w-7xl px-4 py-8">
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
+      {/* Avisos para lectores de pantalla que deben sobrevivir al cambio de página (p. ej. cuántos productos hay). */}
+      <p id="anuncios" role="status" className="sr-only" />
       <StoreFooter roots={roots} settings={settings} consent={!!(env.GA_ID || env.META_PIXEL_ID)} />
       {settings.whatsapp && <WhatsAppButton phone={settings.whatsapp} store={settings.name} />}
       <Analytics gaId={env.GA_ID ?? null} pixelId={env.META_PIXEL_ID ?? null} />
