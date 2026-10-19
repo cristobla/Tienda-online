@@ -128,7 +128,7 @@ export function SoldOutButton({ large = false, className = "" }: { large?: boole
       type="button"
       disabled
       className={`flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-mist font-bold text-muted ${
-        large ? "px-6 py-3.5 text-lg" : "px-3 py-2.5 text-sm"
+        large ? "px-6 py-3.5 text-lg" : "min-h-11 px-3 py-2.5 text-sm"
       } ${className}`}
     >
       <Icon name="cart" className={large ? "size-6" : "size-4"} />
@@ -142,7 +142,7 @@ function CardBuy({ p }: { p: Card }) {
   if (!p.inStock) return <SoldOutButton />;
   if (p.variantCount > 1)
     return (
-      <Link href={`/producto/${p.slug}`} className="btn-line w-full whitespace-nowrap px-3 py-2 text-sm">
+      <Link href={`/producto/${p.slug}`} className="btn-line min-h-11 w-full whitespace-nowrap px-3 py-2 text-sm">
         Elegir formato<span className="sr-only"> de {p.name}</span>
         {/* En la tarjeta angosta del celular la flecha haría saltar el texto a dos líneas. */}
         <Icon name="arrow" className="hidden size-4 sm:block" />
@@ -176,7 +176,7 @@ export function ProductCard({ p, index = 0, staggered = true }: { p: Card; index
 
         <div className="order-4 flex flex-1 flex-col px-1.5 pt-3">
           {p.brandName && <p className="etiqueta text-muted">{p.brandName}</p>}
-          <h3 className="mt-1 line-clamp-2 font-semibold leading-snug">
+          <h3 className="mt-1 line-clamp-2 font-semibold leading-snug break-words hyphens-auto">
             {/* Enlace estirado: toda la tarjeta es clicable, pero hay un solo enlace por producto. */}
             <Link href={`/producto/${p.slug}`} className="transition-colors after:absolute after:inset-0 after:rounded-[1.25rem] after:content-[''] group-hover:text-leaf-dark">
               {p.name}

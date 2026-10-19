@@ -130,7 +130,7 @@ export default async function CartPage() {
               Continuar con la compra
             </button>
           )}
-          <Link href="/productos" className="mt-4 block text-center text-sm font-semibold text-leaf-dark underline-offset-2 hover:underline">
+          <Link href="/productos" className="mt-2 block py-3 text-center text-sm font-semibold text-leaf-dark underline-offset-2 hover:underline">
             Seguir comprando
           </Link>
         </aside>

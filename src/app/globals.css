@@ -88,9 +88,15 @@
   }
 }
 
+/*
+ * Banda a todo el ancho. 100vw incluye la barra de desplazamiento del escritorio: la banda sobresalía 7,5 px por lado
+ * y la página se podía mover 8 px hacia el lado. cqw mide el body (contenedor, ver más abajo), sin la barra.
+ */
 @utility bleed {
   margin-inline: calc(50% - 50vw);
   padding-inline: calc(50vw - 50%);
+  margin-inline: calc(50% - 50cqw);
+  padding-inline: calc(50cqw - 50%);
 }
 
 /* Rótulo: Archivo condensado y grueso, como los letreros de pasillo y el fleje. */
@@ -370,6 +376,8 @@
   }
   body {
     overflow-x: clip;
+    /* Para que `bleed` mida el ancho útil (sin la barra de desplazamiento) con cqw. */
+    container-type: inline-size;
   }
   h1,
   h2,
@@ -401,4 +409,57 @@
       animation: none !important;
     }
   }
+}
+
+/*
+ * Menú del celular (MobileMenu): panel lateral en un <dialog> modal. Capa superior del navegador (no compite con
+ * z-index ni con transformaciones), fondo tinta que se puede tocar para cerrar y altura con la barra del navegador
+ * del celular (dvh, con vh de respaldo) y zonas seguras. Al cerrarse deja de recibir toques aunque siga animando.
+ */
+.menu-movil {
+  margin: 0;
+  inset: 0 auto 0 0;
+  width: min(22rem, calc(100vw - 3rem));
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border-radius: 0 1.25rem 1.25rem 0;
+  background: white;
+  color: var(--color-ink);
+  translate: -100% 0;
+  transition:
+    translate var(--mov-panel) var(--ease-out),
+    overlay var(--mov-panel) allow-discrete,
+    display var(--mov-panel) allow-discrete;
+}
+.menu-movil[open] {
+  translate: 0 0;
+}
+.menu-movil:not([open]),
+.menu-movil:not([open])::backdrop {
+  pointer-events: none;
+}
+.menu-movil::backdrop {
+  background: rgb(16 42 51 / 0);
+  transition:
+    background-color var(--mov-panel) var(--ease-out),
+    overlay var(--mov-panel) allow-discrete,
+    display var(--mov-panel) allow-discrete;
+}
+.menu-movil[open]::backdrop {
+  background: rgb(16 42 51 / 0.5);
+}
+@starting-style {
+  .menu-movil[open] {
+    translate: -100% 0;
+  }
+  .menu-movil[open]::backdrop {
+    background: rgb(16 42 51 / 0);
+  }
+}
+/* La página no se desplaza detrás del menú abierto; al cerrarse vuelve sola (no queda bloqueada). */
+html:has(.menu-movil[open]) {
+  overflow: hidden;
 }

@@ -2,6 +2,7 @@ import Form from "next/form";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { ConsentLink } from "./analytics";
+import { MobileMenu } from "./mobile-menu";
 import { formatPhone, mapsLink, socialLinks, storeAddressLine, type StoreSettings, whatsappUrl } from "@/lib/site";
 import type { CategoryNode } from "@/modules/categories/queries";
 import { formatCLP } from "@/modules/chile";
@@ -25,7 +26,7 @@ export function SearchBar({ id, placeholder = "Busca por producto, marca o códi
           large ? "border-ink bg-white py-4 pl-6 pr-16 text-lg sm:pr-36" : "border-transparent bg-mist py-2.5 pl-5 pr-14 hover:border-line focus:border-leaf"
         }`}
       />
-      <button className={`absolute ${large ? "btn-buy right-2 size-12 sm:w-auto sm:px-5" : "btn-ink right-1.5 size-9"}`}>
+      <button className={`absolute ${large ? "btn-buy right-2 size-12 sm:w-auto sm:px-5" : "btn-ink right-1 size-10"}`}>
         <Icon name="search" />
         <span className={large ? "sr-only sm:not-sr-only" : "sr-only"}>Buscar</span>
       </button>
@@ -47,8 +48,8 @@ export function BrandMark({ className = "size-10" }: { className?: string }) {
 export function Logo({ name, className = "" }: { name: string; className?: string }) {
   return (
     <Link href="/" className={`group flex items-center gap-2.5 ${className}`}>
-      <BrandMark className="size-10 transition-transform duration-500 ease-spring group-hover:-rotate-8" />
-      <span className="rotulo text-[1.8rem] leading-none">{name}</span>
+      <BrandMark className="size-10 shrink-0 transition-transform duration-500 ease-spring group-hover:-rotate-8" />
+      <span className="rotulo truncate text-[1.8rem] leading-none">{name}</span>
     </Link>
   );
 }
@@ -95,10 +96,10 @@ export function StoreHeader({
           <p className="flex items-center gap-2">
             <Icon name="truck" className="size-4 shrink-0 text-menta" />
             {freeFrom !== null ? `Despacho gratis sobre ${formatCLP(freeFrom)}` : "Despacho a todo Chile"}
-            <span aria-hidden className="text-menta">
+            <span aria-hidden className="text-menta max-[389px]:hidden">
               ·
             </span>
-            {pickup ? "Retiro gratis en tienda" : "Precios con IVA incluido"}
+            <span className="max-[389px]:hidden">{pickup ? "Retiro gratis en tienda" : "Precios con IVA incluido"}</span>
           </p>
           <span className="hidden gap-4 sm:flex">
             <Link href="/seguimiento" className="subrayado text-white focus-visible:outline-menta">
@@ -111,62 +112,22 @@ export function StoreHeader({
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-3 px-4 py-3 md:gap-x-8 md:py-4">
-        {/* Menú móvil: <details> nativo, sin JavaScript. */}
-        <details className="group relative md:hidden">
-          <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-full border-[1.5px] border-line transition-colors group-open:border-ink group-open:bg-ink group-open:text-white">
-            <Icon name="menu" className="size-5 group-open:hidden" />
-            <Icon name="close" className="hidden size-5 group-open:block" />
-            <span className="sr-only">Menú de categorías</span>
-          </summary>
-          <nav
-            aria-label="Categorías (móvil)"
-            className="absolute left-0 top-12 z-40 max-h-[75vh] w-[calc(100vw-2rem)] animate-drop-in overflow-y-auto rounded-2xl border border-line bg-white p-2 shadow-lift"
-          >
-            <Link href="/productos" className="flex items-center justify-between rounded-xl bg-ink px-4 py-3 font-bold text-white">
-              Ver todos los productos
-              <Icon name="arrow" />
-            </Link>
-            {onSale && (
-              <Link href="/ofertas" className="mt-2 flex items-center gap-2 rounded-xl border border-oferta/30 px-4 py-3 font-bold text-oferta">
-                <Icon name="tag" className="size-4" />
-                Ofertas
-              </Link>
-            )}
-            {roots.map((c, i) => (
-              <div key={c.id} className="border-b border-line px-2 py-3 last:border-b-0">
-                <Link href={`/categoria/${c.slug}`} className="flex items-baseline gap-2 py-1 font-bold">
-                  <span aria-hidden className="etiqueta text-leaf">
-                    {aisle(i)}
-                  </span>
-                  {c.name}
-                </Link>
-                <ul className="mt-1 grid grid-cols-2 gap-x-3 text-sm text-muted">
-                  {c.children.map((s) => (
-                    <li key={s.id}>
-                      <Link href={`/categoria/${s.slug}`} className="block py-1.5 hover:text-leaf-dark">
-                        {s.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </nav>
-        </details>
+      <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 sm:gap-x-3 gap-y-3 px-4 py-3 md:gap-x-8 md:py-4">
+        {/* Menú del celular: panel en un <dialog> modal (ver MobileMenu). */}
+        <MobileMenu roots={roots.map((c) => ({ id: c.id, slug: c.slug, name: c.name, children: c.children.map((s) => ({ id: s.id, slug: s.slug, name: s.name })) }))} onSale={onSale} />
 
-        <Logo name={name} className="justify-self-start md:col-start-1" />
+        <Logo name={name} className="min-w-0 justify-self-start md:col-start-1" />
 
         <div className="col-span-3 row-start-2 md:col-span-1 md:col-start-2 md:row-start-1 md:w-full md:max-w-2xl md:justify-self-center">
           <SearchBar id="buscar" />
         </div>
 
         <div className="col-start-3 flex items-center gap-1 justify-self-end sm:gap-2">
-          <Link href="/cuenta" className="flex items-center gap-2 rounded-full px-2.5 py-2 text-sm font-semibold transition-colors hover:bg-mist">
+          <Link href="/cuenta" className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full px-2.5 text-sm font-semibold transition-colors hover:bg-mist active:bg-mist">
             <Icon name="user" className="size-6" />
             <span className="sr-only sm:not-sr-only">Mi cuenta</span>
           </Link>
-          <Link href="/carrito" className="btn-ink py-2 pl-3 pr-3 text-sm sm:pl-3.5 sm:pr-4">
+          <Link href="/carrito" className="btn-ink min-h-11 py-2 pl-3 pr-3 text-sm sm:pl-3.5 sm:pr-4">
             <Icon name="cart" className="size-5" />
             <span className="sr-only sm:not-sr-only">Carrito</span>
             {cartCount > 0 && (
@@ -243,13 +204,14 @@ const LEGAL = [
 ];
 
 export function StoreFooter({ roots, settings: st, consent = false }: { roots: CategoryNode[]; settings: StoreSettings; consent?: boolean }) {
-  const col = "space-y-2.5 text-sm text-white/75";
+  const col = "space-y-1 text-sm text-white/75";
   const head = "etiqueta mb-4 text-menta";
-  const link = "subrayado transition-colors hover:text-white";
+  const link = "subrayado inline-block py-1 transition-colors hover:text-white";
   return (
     <footer className="relative mt-28 bg-ink text-white [&_:focus-visible]:outline-menta">
       <div aria-hidden className="borde-espuma absolute inset-x-0 bottom-full h-[1.3rem]" />
-      <div className="mx-auto max-w-7xl px-4 pb-12 pt-14">
+      {/* Con el botón flotante de WhatsApp, el final del pie deja espacio para que no tape el último enlace. */}
+      <div className={`mx-auto max-w-7xl px-4 pt-14 ${st.whatsapp ? "pb-28 sm:pb-12" : "pb-12"}`}>
         <div className="flex flex-col gap-8 border-b border-white/15 pb-12 lg:flex-row lg:items-end lg:justify-between">
           <p className="rotulo max-w-3xl text-display">
             Casa limpia, <span className="calado text-menta">compra simple.</span>

@@ -132,8 +132,12 @@ export function AisleTabs({ items, current }: { items: { href: string; name: str
       nav.scrollLeft += active.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth - active.offsetWidth) / 2;
   }, [current]);
   return (
-    <nav ref={ref} aria-label="Pasillos" className="mb-6 overflow-x-auto [scrollbar-width:none]">
-      <ul className="flex w-max min-w-full gap-1 border-b border-line">
+    <nav
+      ref={ref}
+      aria-label="Pasillos"
+      className="mb-6 overflow-x-auto [scrollbar-width:none] max-lg:[mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)]"
+    >
+      <ul className="flex w-max min-w-full gap-1 border-b border-line max-lg:pr-8">
         {items.map((it) => {
           const active = it.href === current;
           return (
@@ -143,7 +147,7 @@ export function AisleTabs({ items, current }: { items: { href: string; name: str
                 scroll={false}
                 aisle
                 aria-current={active ? "page" : undefined}
-                className={`relative flex items-baseline gap-1.5 whitespace-nowrap rounded-t-xl px-3 pb-3 pt-2 font-bold transition-colors duration-(--mov-micro) hover:bg-mist has-[[data-pendiente]]:text-leaf-dark ${
+                className={`relative flex min-h-11 items-baseline gap-1.5 whitespace-nowrap rounded-t-xl px-3 pb-3 pt-2.5 font-bold transition-colors duration-(--mov-micro) hover:bg-mist has-[[data-pendiente]]:text-leaf-dark ${
                   active ? "text-ink" : "text-muted hover:text-ink"
                 }`}
               >

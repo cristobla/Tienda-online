@@ -103,7 +103,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
               <AutoSubmitForm action="/checkout" className={`${canPickup ? "mt-2" : "mt-4"} flex flex-wrap items-end gap-3`}>
                 <label className="w-full min-w-0 sm:w-auto sm:flex-1">
                   <span className="mb-1 block text-sm font-semibold">Comuna de despacho</span>
-                  <select name="comuna" defaultValue={communeId ?? ""} required className="w-full rounded-md border border-line bg-white px-3 py-2">
+                  <select name="comuna" defaultValue={communeId ?? ""} required className="min-h-11 w-full rounded-md border border-line bg-white px-3 py-2">
                     <option value="" disabled>
                       Elige tu comuna
                     </option>
@@ -279,7 +279,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
               </Link>
             )}
           </Form>
-          <Link href="/carrito" className="mt-4 block text-center text-sm font-semibold text-leaf-dark underline-offset-2 hover:underline">
+          <Link href="/carrito" className="mt-2 block py-3 text-center text-sm font-semibold text-leaf-dark underline-offset-2 hover:underline">
             Editar carrito
           </Link>
         </aside>
